@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Home, ClipboardList, BookOpen, Briefcase,
-  LogOut, ChevronRight, Plus, Trash2, BarChart2,
+  LogOut, ChevronRight, Plus, Trash2,
   CheckCircle, Circle, Save, X, Star
 } from 'lucide-react';
 
