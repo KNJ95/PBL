@@ -1,0 +1,9 @@
+{
+  "short_name": "Be-Ready",
+  "name": "Be-Ready 評価POCアプリ",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#460073",
+  "background_color": "#0f0a1a"
+}
