@@ -27,14 +27,14 @@ const LEVELS = [
 ];
 
 const LEVEL_COLORS = { 1: '#94a3b8', 2: '#c084fc', 3: '#a855f7', 4: '#7c3aed' };
-const LEVEL_BG    = { 1: 'rgba(148,163,184,0.15)', 2: 'rgba(192,132,252,0.15)', 3: 'rgba(168,85,247,0.15)', 4: 'rgba(124,58,237,0.2)' };
+const LEVEL_BG    = { 1: 'rgba(148,163,184,0.12)', 2: 'rgba(192,132,252,0.12)', 3: 'rgba(168,85,247,0.12)', 4: 'rgba(124,58,237,0.12)' };
 
 const EMOTIONS = ['😢', '😕', '😐', '🙂', '😄'];
 
 const CATEGORY_COLORS = {
-  A: { bg: 'rgba(161,0,255,0.12)', border: 'rgba(161,0,255,0.4)', label: '思考・判断系' },
-  B: { bg: 'rgba(117,0,192,0.12)', border: 'rgba(117,0,192,0.4)', label: '行動・実行系' },
-  C: { bg: 'rgba(70,0,115,0.15)',  border: 'rgba(70,0,115,0.5)',  label: '関係・姿勢系' },
+  A: { bg: 'rgba(161,0,255,0.06)', border: 'rgba(161,0,255,0.2)', badge: '#9b30e8', label: '思考・判断系' },
+  B: { bg: 'rgba(117,0,192,0.06)', border: 'rgba(117,0,192,0.2)', badge: '#7500C0', label: '行動・実行系' },
+  C: { bg: 'rgba(70,0,115,0.08)',  border: 'rgba(70,0,115,0.25)', badge: '#460073', label: '関係・姿勢系' },
 };
 
 // ─── ストレージヘルパー ───────────────────────────────────────────────────────
@@ -65,11 +65,11 @@ const S = {
   page: {
     minHeight: '100vh',
     background: 'var(--bg)',
-    paddingBottom: 80,
+    paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
   },
   header: {
-    background: 'linear-gradient(135deg, #1a0030 0%, #0f0a1a 100%)',
-    borderBottom: '1px solid rgba(161,0,255,0.25)',
+    background: '#ffffff',
+    borderBottom: '1px solid rgba(117,0,192,0.15)',
     padding: '16px 20px',
     display: 'flex',
     alignItems: 'center',
@@ -77,6 +77,7 @@ const S = {
     position: 'sticky',
     top: 0,
     zIndex: 100,
+    boxShadow: '0 1px 8px rgba(117,0,192,0.06)',
   },
   card: {
     background: 'var(--bg-card)',
@@ -113,8 +114,8 @@ const S = {
     transition: 'border-color 0.2s',
   },
   input: {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(161,0,255,0.25)',
+    background: '#f5f3ff',
+    border: '1px solid rgba(117,0,192,0.25)',
     borderRadius: 10,
     padding: '12px 14px',
     color: 'var(--text)',
@@ -137,9 +138,9 @@ const S = {
     bottom: 0,
     left: 0,
     right: 0,
-    background: 'rgba(15,10,26,0.96)',
+    background: 'rgba(255,255,255,0.97)',
     backdropFilter: 'blur(20px)',
-    borderTop: '1px solid rgba(161,0,255,0.2)',
+    borderTop: '1px solid rgba(117,0,192,0.15)',
     display: 'flex',
     zIndex: 200,
     paddingBottom: 'env(safe-area-inset-bottom)',
@@ -177,8 +178,8 @@ function LoginView({ onLogin }) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '32px 24px',
-      background: 'radial-gradient(ellipse at 50% 0%, rgba(117,0,192,0.3) 0%, var(--bg) 70%)',
+      padding: 'max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom))',
+      background: 'radial-gradient(ellipse at 50% 0%, rgba(117,0,192,0.1) 0%, var(--bg) 70%)',
     }}>
       {/* ロゴ */}
       <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -191,11 +192,11 @@ function LoginView({ onLogin }) {
           borderRadius: 20,
           background: 'linear-gradient(135deg, #7500C0, #460073)',
           marginBottom: 16,
-          boxShadow: '0 8px 32px rgba(117,0,192,0.4)',
+          boxShadow: '0 8px 32px rgba(117,0,192,0.3)',
         }}>
           <Star size={32} color="#fff" />
         </div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
           Be-Ready 評価
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>
@@ -234,9 +235,9 @@ function LoginView({ onLogin }) {
                   flex: 1,
                   padding: '12px',
                   borderRadius: 12,
-                  border: `2px solid ${role === r ? '#A100FF' : 'rgba(161,0,255,0.2)'}`,
-                  background: role === r ? 'rgba(161,0,255,0.15)' : 'transparent',
-                  color: role === r ? '#A100FF' : 'var(--text-muted)',
+                  border: `2px solid ${role === r ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
+                  background: role === r ? 'rgba(117,0,192,0.1)' : '#ffffff',
+                  color: role === r ? '#7500C0' : 'var(--text-muted)',
                   fontWeight: 700,
                   fontSize: 14,
                   cursor: 'pointer',
@@ -285,17 +286,17 @@ function HomeView({ user, setScreen }) {
     {
       icon: ClipboardList, title: 'アンケート',
       desc: '9評価軸 × 4レベルで自己判定。今期の目標と達成度を記録する。',
-      screen: 'survey', color: '#A100FF',
+      screen: 'survey', color: '#7500C0',
     },
     {
       icon: BookOpen, title: 'ログ（YWT）',
       desc: 'やったこと・わかったこと・次にやることを振り返る。',
-      screen: 'log', color: '#7500C0',
+      screen: 'log', color: '#460073',
     },
     {
       icon: Briefcase, title: 'ポートフォリオ',
       desc: '成果物・レポート・提案資料を蓄積して学習の軌跡を残す。',
-      screen: 'portfolio', color: '#460073',
+      screen: 'portfolio', color: '#2d0057',
     },
   ];
 
@@ -306,17 +307,17 @@ function HomeView({ user, setScreen }) {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {user.role === 'mentor' ? 'MENTOR' : 'STUDENT'}
           </p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{user.name}</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{user.name}</h2>
         </div>
         <div style={{
-          background: 'rgba(161,0,255,0.15)',
-          border: '1px solid rgba(161,0,255,0.3)',
+          background: 'rgba(117,0,192,0.08)',
+          border: '1px solid rgba(117,0,192,0.2)',
           borderRadius: 12,
           padding: '8px 16px',
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: 10, color: '#c084fc', fontWeight: 700 }}>平均Lv</p>
-          <p style={{ fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>
+          <p style={{ fontSize: 10, color: '#7500C0', fontWeight: 700 }}>平均Lv</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: '#460073', lineHeight: 1.1 }}>
             {avgLevel ?? '—'}
           </p>
         </div>
@@ -338,10 +339,11 @@ function HomeView({ user, setScreen }) {
                 cursor: 'pointer',
                 textAlign: 'center',
                 transition: 'border-color 0.2s',
+                boxShadow: '0 1px 4px rgba(117,0,192,0.06)',
               }}
             >
-              <s.icon size={18} color="#A100FF" style={{ marginBottom: 6 }} />
-              <p style={{ fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{s.value}</p>
+              <s.icon size={18} color="#7500C0" style={{ marginBottom: 6 }} />
+              <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{s.value}</p>
               <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</p>
             </button>
           ))}
@@ -363,16 +365,17 @@ function HomeView({ user, setScreen }) {
               display: 'flex',
               alignItems: 'center',
               gap: 16,
-              transition: 'border-color 0.2s',
-              borderColor: `${el.color}40`,
+              transition: 'border-color 0.2s, box-shadow 0.2s',
+              borderColor: `${el.color}30`,
+              boxShadow: '0 1px 4px rgba(117,0,192,0.06)',
             }}
           >
             <div style={{
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: `${el.color}25`,
-              border: `1px solid ${el.color}50`,
+              background: `${el.color}12`,
+              border: `1px solid ${el.color}30`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -381,7 +384,7 @@ function HomeView({ user, setScreen }) {
               <el.icon size={20} color={el.color} />
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{el.title}</p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>{el.title}</p>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{el.desc}</p>
             </div>
             <ChevronRight size={16} color="var(--text-muted)" />
@@ -430,17 +433,17 @@ function SurveyView({ user }) {
       <div style={S.header}>
         <div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>SURVEY</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>アンケート入力</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>アンケート入力</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: '#c084fc', fontWeight: 700 }}>{completed}/9</span>
+          <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700 }}>{completed}/9</span>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>平均 {avgLv}</span>
         </div>
       </div>
 
       <div style={{ padding: '20px 20px 0' }}>
         {/* 今期の目標 */}
-        <div style={{ ...S.card, borderColor: 'rgba(161,0,255,0.35)', marginBottom: 20 }}>
+        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
           <label style={S.label}>今期の目標</label>
           <textarea
             style={{ ...S.input, minHeight: 80, resize: 'vertical', lineHeight: 1.6 }}
@@ -463,7 +466,7 @@ function SurveyView({ user }) {
                 marginBottom: 10,
               }}>
                 <span style={{
-                  background: c.border,
+                  background: c.badge,
                   color: '#fff',
                   fontSize: 11,
                   fontWeight: 700,
@@ -479,14 +482,14 @@ function SurveyView({ user }) {
                   <div key={axis.key} style={{
                     ...S.card,
                     background: current.level > 0 ? LEVEL_BG[current.level] : 'var(--bg-card)',
-                    borderColor: current.level > 0 ? `${LEVEL_COLORS[current.level]}60` : 'var(--border)',
+                    borderColor: current.level > 0 ? `${LEVEL_COLORS[current.level]}50` : 'var(--border)',
                     marginBottom: 10,
                     transition: 'all 0.2s',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div>
-                        <span style={{ fontSize: 13, color: '#c084fc', fontWeight: 700, marginRight: 6 }}>{axis.num}</span>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{axis.name}</span>
+                        <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700, marginRight: 6 }}>{axis.num}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{axis.name}</span>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{axis.desc}</p>
                       </div>
                       {current.level > 0 && (
@@ -515,9 +518,9 @@ function SurveyView({ user }) {
                             flex: 1,
                             padding: '8px 4px',
                             borderRadius: 8,
-                            border: `2px solid ${current.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'rgba(255,255,255,0.08)'}`,
-                            background: current.level === lv.lv ? `${LEVEL_COLORS[lv.lv]}30` : 'transparent',
-                            color: current.level === lv.lv ? '#fff' : 'var(--text-muted)',
+                            border: `2px solid ${current.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'rgba(117,0,192,0.15)'}`,
+                            background: current.level === lv.lv ? `${LEVEL_COLORS[lv.lv]}25` : '#ffffff',
+                            color: current.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'var(--text-muted)',
                             fontSize: 11,
                             fontWeight: 700,
                             cursor: 'pointer',
@@ -577,15 +580,15 @@ function SurveyView({ user }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
                     <span style={{
-                      background: 'rgba(161,0,255,0.2)',
-                      color: '#c084fc',
+                      background: 'rgba(117,0,192,0.1)',
+                      color: '#7500C0',
                       fontSize: 12,
                       fontWeight: 700,
                       padding: '2px 8px',
                       borderRadius: 6,
                     }}>平均 Lv.{a}</span>
                   </div>
-                  <p style={{ fontSize: 13, color: '#fff', lineHeight: 1.5 }}>{s.term}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{s.term}</p>
                   {/* ミニレベルバー */}
                   <div style={{ display: 'flex', gap: 3, marginTop: 10 }}>
                     {AXES.map(ax => {
@@ -596,7 +599,7 @@ function SurveyView({ user }) {
                           <div style={{
                             height: 20,
                             borderRadius: 4,
-                            background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(255,255,255,0.07)',
+                            background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -656,16 +659,16 @@ function LogView({ user }) {
       <div style={S.header}>
         <div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>LOG</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>ログ（YWT）</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>ログ（YWT）</h2>
         </div>
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{logs.length} 件</span>
       </div>
 
       <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.4)' }}>
+        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)' }}>
           {fields.map(f => (
             <div key={f.key} style={{ marginBottom: 16 }}>
-              <label style={{ ...S.label, color: '#c084fc' }}>{f.label}</label>
+              <label style={{ ...S.label, color: '#7500C0' }}>{f.label}</label>
               <textarea
                 style={{ ...S.input, minHeight: 72, resize: 'vertical', lineHeight: 1.6 }}
                 placeholder={f.placeholder}
@@ -685,8 +688,8 @@ function LogView({ user }) {
                   onClick={() => setEmotion(i + 1)}
                   style={{
                     fontSize: 28,
-                    background: emotion === i + 1 ? 'rgba(161,0,255,0.2)' : 'transparent',
-                    border: `2px solid ${emotion === i + 1 ? '#A100FF' : 'transparent'}`,
+                    background: emotion === i + 1 ? 'rgba(117,0,192,0.1)' : 'transparent',
+                    border: `2px solid ${emotion === i + 1 ? '#7500C0' : 'transparent'}`,
                     borderRadius: 12,
                     width: 52,
                     height: 52,
@@ -742,8 +745,8 @@ function LogView({ user }) {
                   { label: 'T 次にやること', val: log.tsugi },
                 ].filter(f => f.val).map(f => (
                   <div key={f.label} style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, color: '#c084fc', fontWeight: 700 }}>{f.label}</span>
-                    <p style={{ fontSize: 13, color: '#e0d0ff', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
+                    <span style={{ fontSize: 11, color: '#7500C0', fontWeight: 700 }}>{f.label}</span>
+                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
                   </div>
                 ))}
               </div>
@@ -797,7 +800,7 @@ function PortfolioView({ user }) {
       <div style={S.header}>
         <div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PORTFOLIO</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>ポートフォリオ</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>ポートフォリオ</h2>
         </div>
         <button
           onClick={() => setShowForm(s => !s)}
@@ -806,8 +809,10 @@ function PortfolioView({ user }) {
             padding: '8px 16px',
             fontSize: 13,
             background: showForm
-              ? 'rgba(255,255,255,0.08)'
+              ? 'rgba(117,0,192,0.1)'
               : 'linear-gradient(135deg, #7500C0, #460073)',
+            color: showForm ? '#7500C0' : '#fff',
+            border: showForm ? '1px solid rgba(117,0,192,0.3)' : 'none',
           }}
         >
           {showForm ? <><X size={14} /> 閉じる</> : <><Plus size={14} /> 追加</>}
@@ -817,8 +822,8 @@ function PortfolioView({ user }) {
       <div style={{ padding: '20px 20px 0' }}>
         {/* 入力フォーム */}
         {showForm && (
-          <div style={{ ...S.card, borderColor: 'rgba(70,0,115,0.5)', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#c084fc' }}>成果物を追加</h3>
+          <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#7500C0' }}>成果物を追加</h3>
 
             <div style={{ marginBottom: 14 }}>
               <label style={S.label}>タイトル *</label>
@@ -832,9 +837,9 @@ function PortfolioView({ user }) {
                   <button key={t} onClick={() => setType(t)} style={{
                     padding: '6px 14px',
                     borderRadius: 8,
-                    border: `1.5px solid ${type === t ? '#A100FF' : 'rgba(255,255,255,0.12)'}`,
-                    background: type === t ? 'rgba(161,0,255,0.15)' : 'transparent',
-                    color: type === t ? '#c084fc' : 'var(--text-muted)',
+                    border: `1.5px solid ${type === t ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
+                    background: type === t ? 'rgba(117,0,192,0.1)' : '#ffffff',
+                    color: type === t ? '#7500C0' : 'var(--text-muted)',
                     fontSize: 13,
                     fontWeight: type === t ? 700 : 400,
                     cursor: 'pointer',
@@ -856,9 +861,9 @@ function PortfolioView({ user }) {
                   <button key={ax.key} onClick={() => toggleAxis(ax.key)} style={{
                     padding: '5px 10px',
                     borderRadius: 8,
-                    border: `1.5px solid ${relatedAxes.includes(ax.key) ? '#A100FF' : 'rgba(255,255,255,0.1)'}`,
-                    background: relatedAxes.includes(ax.key) ? 'rgba(161,0,255,0.15)' : 'transparent',
-                    color: relatedAxes.includes(ax.key) ? '#c084fc' : 'var(--text-muted)',
+                    border: `1.5px solid ${relatedAxes.includes(ax.key) ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
+                    background: relatedAxes.includes(ax.key) ? 'rgba(117,0,192,0.1)' : '#ffffff',
+                    color: relatedAxes.includes(ax.key) ? '#7500C0' : 'var(--text-muted)',
                     fontSize: 12,
                     cursor: 'pointer',
                     transition: 'all 0.15s',
@@ -904,7 +909,7 @@ function PortfolioView({ user }) {
         {/* 一覧 */}
         {items.length === 0 && !showForm && (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Briefcase size={40} color="rgba(161,0,255,0.3)" style={{ marginBottom: 12 }} />
+            <Briefcase size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
             <p style={{ fontSize: 14 }}>成果物がまだありません</p>
             <p style={{ fontSize: 12, marginTop: 6 }}>「追加」から成果物を登録してください</p>
           </div>
@@ -915,8 +920,8 @@ function PortfolioView({ user }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{
-                    background: 'rgba(161,0,255,0.2)',
-                    color: '#c084fc',
+                    background: 'rgba(117,0,192,0.1)',
+                    color: '#7500C0',
                     fontSize: 11,
                     fontWeight: 700,
                     padding: '2px 8px',
@@ -924,7 +929,7 @@ function PortfolioView({ user }) {
                   }}>{item.type}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(item.timestamp)}</span>
                 </div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{item.title}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{item.title}</p>
               </div>
               <button
                 onClick={() => handleDelete(item.timestamp)}
@@ -934,7 +939,7 @@ function PortfolioView({ user }) {
               </button>
             </div>
             {item.url && (
-              <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#a855f7', wordBreak: 'break-all', display: 'block', marginBottom: 8 }}>
+              <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#7500C0', wordBreak: 'break-all', display: 'block', marginBottom: 8 }}>
                 {item.url}
               </a>
             )}
@@ -944,8 +949,8 @@ function PortfolioView({ user }) {
                   const ax = AXES.find(a => a.key === key);
                   return ax ? (
                     <span key={key} style={{
-                      background: 'rgba(117,0,192,0.2)',
-                      color: '#c084fc',
+                      background: 'rgba(117,0,192,0.1)',
+                      color: '#7500C0',
                       fontSize: 11,
                       padding: '2px 8px',
                       borderRadius: 6,
@@ -955,7 +960,7 @@ function PortfolioView({ user }) {
               </div>
             )}
             {item.reflection && (
-              <p style={{ fontSize: 13, color: '#d0b8ff', lineHeight: 1.6, marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.12)' }}>
                 {item.reflection}
               </p>
             )}
@@ -994,7 +999,7 @@ function BottomNav({ screen, setScreen }) {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: active ? '#A100FF' : 'var(--text-muted)',
+              color: active ? '#7500C0' : 'var(--text-muted)',
               gap: 4,
               position: 'relative',
               transition: 'color 0.2s',
@@ -1062,8 +1067,8 @@ export default function App() {
             position: 'fixed',
             bottom: 84,
             right: 20,
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(117,0,192,0.08)',
+            border: '1px solid rgba(117,0,192,0.2)',
             borderRadius: 10,
             padding: '8px 12px',
             color: 'var(--text-muted)',
