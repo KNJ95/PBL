@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Home, ClipboardList, BookOpen, Briefcase,
-  LogOut, ChevronRight, Plus, Trash2,
-  CheckCircle, Circle, Save, X, Star,
+  LogOut, ChevronRight, Plus, Trash2, Save, Star,
   Users, ArrowLeft
 } from 'lucide-react';
 
@@ -36,6 +35,90 @@ const CATEGORY_COLORS = {
   A: { bg: 'rgba(161,0,255,0.06)', border: 'rgba(161,0,255,0.2)', badge: '#9b30e8', label: '思考・判断系' },
   B: { bg: 'rgba(117,0,192,0.06)', border: 'rgba(117,0,192,0.2)', badge: '#7500C0', label: '行動・実行系' },
   C: { bg: 'rgba(70,0,115,0.08)',  border: 'rgba(70,0,115,0.25)', badge: '#460073', label: '関係・姿勢系' },
+};
+
+const AXIS_QUESTIONS = {
+  axis1: {
+    question: '取り組む課題や「何を解くか」の設定について、最もあてはまるものを選んでください。',
+    options: [
+      '与えられた課題に沿って取り組んだ',
+      '課題をもとに、自分で「何を解くか」を考えて取り組んだ',
+      '自分で問いを立て、深掘りしながら継続的に取り組んだ',
+      '課題の本質を独自に捉え直し、新しい問いを生み出せた',
+    ],
+  },
+  axis2: {
+    question: '情報の収集・整理・活用について、最もあてはまるものを選んでください。',
+    options: [
+      '提供・指示された情報をそのまま使った',
+      '自分で情報を調べて整理し、活用した',
+      '情報を吟味して取捨選択し、目的に合わせて活用した',
+      '複数の情報を組み合わせ、新しい知見や視点を生み出せた',
+    ],
+  },
+  axis3: {
+    question: '答えが明確でない状況・曖昧な場面での行動について、最もあてはまるものを選んでください。',
+    options: [
+      '答えや指示がないと動き出せなかった',
+      '答えがなくても、自分なりに考えて動こうとした',
+      '不確実な状況でも振り返りながら、自分の判断で動き続けた',
+      '不確実性を前向きに捉え、独自のアプローチで切り拓けた',
+    ],
+  },
+  axis4: {
+    question: '自分の意見や考えを伝えることについて、最もあてはまるものを選んでください。',
+    options: [
+      '求められたときに自分の意見を伝えた',
+      '自分から積極的に意見を発信した',
+      '根拠を持って発信し、対話を通じて考えを深めた',
+      '独自の視点から本質的な提案をし、周囲に新しい気づきをもたらせた',
+    ],
+  },
+  axis5: {
+    question: '取り組みをやり切り、改善することについて、最もあてはまるものを選んでください。',
+    options: [
+      '指示された範囲でやり遂げた',
+      '最後までやり切り、反省点を見つけた',
+      'やり切ったうえで振り返り、継続的に改善した',
+      '改善を繰り返す中で、独自の方法・アプローチを確立できた',
+    ],
+  },
+  axis6: {
+    question: '活動への主体性・責任感について、最もあてはまるものを選んでください。',
+    options: [
+      '課題としてこなす感覚で取り組んだ',
+      '自分事として責任を持って取り組んだ',
+      '振り返りを通じて役割と責任を深く自覚し、行動した',
+      '自分なりの使命感を持ち、主体的に場を作り出せた',
+    ],
+  },
+  axis7: {
+    question: 'チームやメンバーとの協力・調整について、最もあてはまるものを選んでください。',
+    options: [
+      '役割に従ってチームで動いた',
+      '積極的にチームに貢献しようとした',
+      'メンバーの状況を踏まえて調整し、チーム全体を動かした',
+      'チームの可能性を引き出す独自の関わり方を生み出せた',
+    ],
+  },
+  axis8: {
+    question: '活動に取り組む動機・理由について、最もあてはまるものを選んでください。',
+    options: [
+      '課題・評価のために取り組んだ',
+      '学びたい・成長したいという気持ちで取り組んだ',
+      '自分の価値観や成長と結びつけて、自分の言葉で語れた',
+      '独自のビジョンを持ち、それを体現する行動ができた',
+    ],
+  },
+  axis9: {
+    question: 'フィードバックを受けての変化・成長について、最もあてはまるものを選んでください。',
+    options: [
+      'フィードバックを受け取り、内容を把握した',
+      'フィードバックをもとに行動を変えようとした',
+      'FBを自分の言葉で意味づけし、継続的な変化につなげた',
+      'FBを超えた自発的な気づきで、成長プロセスを自分で設計できた',
+    ],
+  },
 };
 
 // ─── ストレージヘルパー ───────────────────────────────────────────────────────
@@ -400,9 +483,9 @@ function HomeView({ user, setScreen }) {
 
 function SurveyView({ user }) {
   const blankAxes = Object.fromEntries(AXES.map(a => [a.key, { level: 0, comment: '' }]));
-  const [term, setTerm]   = useState('');
-  const [axes, setAxes]   = useState(blankAxes);
-  const [saved, setSaved] = useState(false);
+  const [term, setTerm]       = useState('');
+  const [axes, setAxes]       = useState(blankAxes);
+  const [saved, setSaved]     = useState(false);
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -424,10 +507,8 @@ function SurveyView({ user }) {
     setSaved(s => !s);
   };
 
-  const setLevel = (axisKey, lv) => setAxes(prev => ({ ...prev, [axisKey]: { ...prev[axisKey], level: lv } }));
-  const setComment = (axisKey, comment) => setAxes(prev => ({ ...prev, [axisKey]: { ...prev[axisKey], comment } }));
-
-  const categories = ['A', 'B', 'C'];
+  const setLevel   = (key, lv)  => setAxes(prev => ({ ...prev, [key]: { ...prev[key], level: lv } }));
+  const setComment = (key, val) => setAxes(prev => ({ ...prev, [key]: { ...prev[key], comment: val } }));
 
   return (
     <div style={S.page}>
@@ -454,92 +535,76 @@ function SurveyView({ user }) {
           />
         </div>
 
-        {/* 評価軸 カテゴリ別 */}
-        {categories.map(cat => {
+        {/* 質問 カテゴリ別 */}
+        {['A', 'B', 'C'].map(cat => {
           const catAxes = AXES.filter(a => a.category === cat);
           const c = CATEGORY_COLORS[cat];
           return (
             <div key={cat} style={{ marginBottom: 20 }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 10,
-              }}>
-                <span style={{
-                  background: c.badge,
-                  color: '#fff',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                  letterSpacing: '0.05em',
-                }}>{cat}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>{cat}</span>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.label}</span>
               </div>
               {catAxes.map(axis => {
-                const current = axes[axis.key];
+                const cur = axes[axis.key];
+                const q   = AXIS_QUESTIONS[axis.key];
                 return (
                   <div key={axis.key} style={{
-                    ...S.card,
-                    background: current.level > 0 ? LEVEL_BG[current.level] : 'var(--bg-card)',
-                    borderColor: current.level > 0 ? `${LEVEL_COLORS[current.level]}50` : 'var(--border)',
-                    marginBottom: 10,
-                    transition: 'all 0.2s',
+                    ...S.card, marginBottom: 10, transition: 'all 0.2s',
+                    background: cur.level > 0 ? LEVEL_BG[cur.level] : 'var(--bg-card)',
+                    borderColor: cur.level > 0 ? `${LEVEL_COLORS[cur.level]}50` : 'var(--border)',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div>
-                        <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700, marginRight: 6 }}>{axis.num}</span>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{axis.name}</span>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{axis.desc}</p>
-                      </div>
-                      {current.level > 0 && (
-                        <span style={{
-                          background: LEVEL_COLORS[current.level],
-                          color: '#fff',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: 6,
-                          whiteSpace: 'nowrap',
-                          marginLeft: 8,
-                        }}>
-                          Lv.{current.level}
+                    {/* 軸ラベル + 選択済みレベル */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                        {axis.num} {axis.name}
+                      </span>
+                      {cur.level > 0 && (
+                        <span style={{ background: LEVEL_COLORS[cur.level], color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                          Lv.{cur.level}
                         </span>
                       )}
                     </div>
 
-                    {/* レベルボタン */}
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                      {LEVELS.map(lv => (
-                        <button
-                          key={lv.lv}
-                          onClick={() => setLevel(axis.key, lv.lv)}
-                          style={{
-                            flex: 1,
-                            padding: '8px 4px',
-                            borderRadius: 8,
-                            border: `2px solid ${current.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'rgba(117,0,192,0.15)'}`,
-                            background: current.level === lv.lv ? `${LEVEL_COLORS[lv.lv]}25` : '#ffffff',
-                            color: current.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'var(--text-muted)',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          <div style={{ fontSize: 10, marginBottom: 1, opacity: 0.7 }}>Lv.{lv.lv}</div>
-                          {lv.name}
-                        </button>
-                      ))}
+                    {/* 質問文 */}
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.6, marginBottom: 12 }}>
+                      {q.question}
+                    </p>
+
+                    {/* 4択選択肢 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                      {q.options.map((opt, i) => {
+                        const lv       = i + 1;
+                        const selected = cur.level === lv;
+                        return (
+                          <button key={lv} onClick={() => setLevel(axis.key, lv)} style={{
+                            width: '100%', textAlign: 'left', padding: '10px 14px',
+                            borderRadius: 8, cursor: 'pointer', lineHeight: 1.5,
+                            fontSize: 13, fontWeight: selected ? 600 : 400,
+                            transition: 'all 0.15s', display: 'flex', alignItems: 'flex-start', gap: 10,
+                            border: `2px solid ${selected ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.15)'}`,
+                            background: selected ? `${LEVEL_COLORS[lv]}12` : '#ffffff',
+                            color: selected ? LEVEL_COLORS[lv] : 'var(--text)',
+                          }}>
+                            <span style={{
+                              width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                              border: `2px solid ${selected ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.3)'}`,
+                              background: selected ? LEVEL_COLORS[lv] : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {selected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', display: 'block' }} />}
+                            </span>
+                            {opt}
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    {/* コメント */}
+                    {/* 補足コメント */}
                     <input
                       style={{ ...S.input, fontSize: 13, padding: '9px 12px' }}
                       placeholder="補足コメント（任意）"
-                      value={current.comment}
+                      value={cur.comment}
                       onChange={e => setComment(axis.key, e.target.value)}
                     />
                   </div>
@@ -552,19 +617,13 @@ function SurveyView({ user }) {
         {/* 保存ボタン */}
         <button
           style={{
-            ...S.btn,
-            width: '100%',
-            justifyContent: 'center',
-            fontSize: 16,
-            padding: '14px',
-            marginBottom: 24,
+            ...S.btn, width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px', marginBottom: 24,
             opacity: (!term.trim() || completed === 0) ? 0.4 : 1,
           }}
           onClick={handleSave}
           disabled={!term.trim() || completed === 0}
         >
-          <Save size={18} />
-          保存する
+          <Save size={18} /> 保存する
         </button>
 
         {/* 履歴 */}
@@ -575,36 +634,23 @@ function SurveyView({ user }) {
             </h3>
             {history.map(s => {
               const vals = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
-              const a = vals.length ? avg(vals).toFixed(1) : '—';
+              const a    = vals.length ? avg(vals).toFixed(1) : '—';
               return (
                 <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
-                    <span style={{
-                      background: 'rgba(117,0,192,0.1)',
-                      color: '#7500C0',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                    }}>平均 Lv.{a}</span>
+                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                      平均 Lv.{a}
+                    </span>
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{s.term}</p>
-                  {/* ミニレベルバー */}
                   <div style={{ display: 'flex', gap: 3, marginTop: 10 }}>
                     {AXES.map(ax => {
                       const lv = s.axes?.[ax.key]?.level || 0;
                       return (
                         <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
                           <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
-                          <div style={{
-                            height: 20,
-                            borderRadius: 4,
-                            background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
+                          <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
                           </div>
                         </div>
@@ -759,42 +805,94 @@ function LogView({ user }) {
   );
 }
 
+// ─── ポートフォリオカード（共通）────────────────────────────────────────────
+
+function SurveyPortfolioCard({ survey }) {
+  const axesData   = AXES.map(ax => ({ ...ax, level: survey.axes?.[ax.key]?.level || 0, comment: survey.axes?.[ax.key]?.comment || '' }));
+  const vals       = axesData.map(a => a.level).filter(Boolean);
+  const avgLv      = vals.length ? avg(vals) : 0;
+  const strongAxes = axesData.filter(a => a.level >= 3);
+  const growthAxes = axesData.filter(a => a.level > 0 && a.level <= 2);
+
+  return (
+    <div style={{ ...S.card, padding: '16px' }}>
+      {/* ヘッダー */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(survey.timestamp)}</span>
+        <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 6 }}>
+          平均 Lv.{avgLv.toFixed(1)}
+        </span>
+      </div>
+
+      {/* 今期の目標 */}
+      {survey.term && (
+        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(117,0,192,0.05)', borderRadius: 8, borderLeft: '3px solid #7500C0' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#7500C0', marginBottom: 4 }}>今期の目標</p>
+          <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{survey.term}</p>
+        </div>
+      )}
+
+      {/* 9軸レベルバー */}
+      <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
+        {AXES.map(ax => {
+          const lv = survey.axes?.[ax.key]?.level || 0;
+          return (
+            <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
+              <div style={{ height: 22, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 強み */}
+      {strongAxes.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#7500C0', marginBottom: 6 }}>強みのエリア</p>
+          {strongAxes.map(ax => (
+            <div key={ax.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+              <span style={{ background: LEVEL_COLORS[ax.level], color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {ax.num} Lv.{ax.level}
+              </span>
+              <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5 }}>
+                {AXIS_QUESTIONS[ax.key].options[ax.level - 1]}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 成長エリア */}
+      {growthAxes.length > 0 && (
+        <div style={{ paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.1)' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>成長のエリア</p>
+          {growthAxes.map(ax => (
+            <div key={ax.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+              <span style={{ background: LEVEL_COLORS[ax.level], color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {ax.num} Lv.{ax.level}
+              </span>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {AXIS_QUESTIONS[ax.key].options[ax.level - 1]}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ポートフォリオ ───────────────────────────────────────────────────────────
 
-const PORTFOLIO_TYPES = ['レポート', '提案資料', 'コード', 'プレゼン', 'その他'];
-
 function PortfolioView({ user }) {
-  const [items, setItems]   = useState([]);
-  const [saved, setSaved]   = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle]   = useState('');
-  const [type, setType]     = useState(PORTFOLIO_TYPES[0]);
-  const [url, setUrl]       = useState('');
-  const [relatedAxes, setRelatedAxes] = useState([]);
-  const [reflection, setReflection] = useState('');
+  const [surveys, setSurveys] = useState([]);
 
   useEffect(() => {
-    const keys = storage.keys(`portfolio:${user.id}:`).sort().reverse();
-    setItems(keys.map(k => storage.get(k)).filter(Boolean));
-  }, [user.id, saved]);
-
-  const handleSave = () => {
-    if (!title.trim()) return;
-    const ts = Date.now();
-    storage.set(`portfolio:${user.id}:${ts}`, { userID: user.id, timestamp: ts, title, type, url, relatedAxes, reflection });
-    setTitle(''); setType(PORTFOLIO_TYPES[0]); setUrl(''); setRelatedAxes([]); setReflection('');
-    setShowForm(false);
-    setSaved(s => !s);
-  };
-
-  const toggleAxis = (key) => {
-    setRelatedAxes(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-  };
-
-  const handleDelete = (ts) => {
-    storage.delete(`portfolio:${user.id}:${ts}`);
-    setSaved(s => !s);
-  };
+    const keys = storage.keys(`survey:${user.id}:`).sort().reverse();
+    setSurveys(keys.map(k => storage.get(k)).filter(Boolean));
+  }, [user.id]);
 
   return (
     <div style={S.page}>
@@ -803,169 +901,18 @@ function PortfolioView({ user }) {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PORTFOLIO</p>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>ポートフォリオ</h2>
         </div>
-        <button
-          onClick={() => setShowForm(s => !s)}
-          style={{
-            ...S.btn,
-            padding: '8px 16px',
-            fontSize: 13,
-            background: showForm
-              ? 'rgba(117,0,192,0.1)'
-              : 'linear-gradient(135deg, #7500C0, #460073)',
-            color: showForm ? '#7500C0' : '#fff',
-            border: showForm ? '1px solid rgba(117,0,192,0.3)' : 'none',
-          }}
-        >
-          {showForm ? <><X size={14} /> 閉じる</> : <><Plus size={14} /> 追加</>}
-        </button>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{surveys.length} 件</span>
       </div>
 
       <div style={{ padding: '20px 20px 0' }}>
-        {/* 入力フォーム */}
-        {showForm && (
-          <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: '#7500C0' }}>成果物を追加</h3>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.label}>タイトル *</label>
-              <input style={S.input} placeholder="例：〇〇社 課題提案資料" value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.label}>種類</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {PORTFOLIO_TYPES.map(t => (
-                  <button key={t} onClick={() => setType(t)} style={{
-                    padding: '6px 14px',
-                    borderRadius: 8,
-                    border: `1.5px solid ${type === t ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
-                    background: type === t ? 'rgba(117,0,192,0.1)' : '#ffffff',
-                    color: type === t ? '#7500C0' : 'var(--text-muted)',
-                    fontSize: 13,
-                    fontWeight: type === t ? 700 : 400,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}>{t}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.label}>リンク（任意）</label>
-              <input style={S.input} placeholder="https://..." value={url} onChange={e => setUrl(e.target.value)} />
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.label}>関連する評価軸</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {AXES.map(ax => (
-                  <button key={ax.key} onClick={() => toggleAxis(ax.key)} style={{
-                    padding: '5px 10px',
-                    borderRadius: 8,
-                    border: `1.5px solid ${relatedAxes.includes(ax.key) ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
-                    background: relatedAxes.includes(ax.key) ? 'rgba(117,0,192,0.1)' : '#ffffff',
-                    color: relatedAxes.includes(ax.key) ? '#7500C0' : 'var(--text-muted)',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}>
-                    {relatedAxes.includes(ax.key)
-                      ? <CheckCircle size={11} />
-                      : <Circle size={11} />
-                    }
-                    {ax.num}{ax.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 18 }}>
-              <label style={S.label}>振り返りメモ</label>
-              <textarea
-                style={{ ...S.input, minHeight: 80, resize: 'vertical', lineHeight: 1.6 }}
-                placeholder="この成果物から何を学びましたか？"
-                value={reflection}
-                onChange={e => setReflection(e.target.value)}
-              />
-            </div>
-
-            <button
-              style={{
-                ...S.btn,
-                width: '100%',
-                justifyContent: 'center',
-                opacity: !title.trim() ? 0.4 : 1,
-              }}
-              onClick={handleSave}
-              disabled={!title.trim()}
-            >
-              <Save size={16} /> 保存する
-            </button>
-          </div>
-        )}
-
-        {/* 一覧 */}
-        {items.length === 0 && !showForm && (
+        {surveys.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <Briefcase size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-            <p style={{ fontSize: 14 }}>成果物がまだありません</p>
-            <p style={{ fontSize: 12, marginTop: 6 }}>「追加」から成果物を登録してください</p>
+            <p style={{ fontSize: 14 }}>ポートフォリオがまだありません</p>
+            <p style={{ fontSize: 12, marginTop: 6 }}>アンケートを回答すると自動で生成されます</p>
           </div>
-        )}
-        {items.map(item => (
-          <div key={item.timestamp} style={{ ...S.card }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{
-                    background: 'rgba(117,0,192,0.1)',
-                    color: '#7500C0',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: 6,
-                  }}>{item.type}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(item.timestamp)}</span>
-                </div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{item.title}</p>
-              </div>
-              <button
-                onClick={() => handleDelete(item.timestamp)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, marginLeft: 8 }}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-            {item.url && (
-              <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#7500C0', wordBreak: 'break-all', display: 'block', marginBottom: 8 }}>
-                {item.url}
-              </a>
-            )}
-            {item.relatedAxes?.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                {item.relatedAxes.map(key => {
-                  const ax = AXES.find(a => a.key === key);
-                  return ax ? (
-                    <span key={key} style={{
-                      background: 'rgba(117,0,192,0.1)',
-                      color: '#7500C0',
-                      fontSize: 11,
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                    }}>{ax.num}{ax.name}</span>
-                  ) : null;
-                })}
-              </div>
-            )}
-            {item.reflection && (
-              <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.12)' }}>
-                {item.reflection}
-              </p>
-            )}
-          </div>
+        ) : surveys.map(s => (
+          <SurveyPortfolioCard key={s.timestamp} survey={s} />
         ))}
       </div>
     </div>
@@ -1116,17 +1063,20 @@ function MentorStudentDetailView({ user, student, onBack, onAssess }) {
   const selfSurveys   = storage.keys(`survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
   const mentorSurveys = storage.keys(`mentor_survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
   const logs          = storage.keys(`log:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+  const portfolios    = storage.keys(`portfolio:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
 
   const allSurveys = [
     ...selfSurveys.map(s => ({ ...s, source: 'self' })),
     ...mentorSurveys.map(s => ({ ...s, source: 'mentor' })),
   ].sort((a, b) => b.timestamp - a.timestamp);
 
-  const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+  const sortedLogs       = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+  const sortedPortfolios = [...portfolios].sort((a, b) => b.timestamp - a.timestamp);
 
   const tabs = [
-    { key: 'survey', label: 'アンケート', count: allSurveys.length },
-    { key: 'log',    label: 'ログ',       count: sortedLogs.length },
+    { key: 'survey',    label: 'アンケート', count: allSurveys.length },
+    { key: 'log',       label: 'ログ',       count: sortedLogs.length },
+    { key: 'portfolio', label: '成果物',     count: sortedPortfolios.length },
   ];
 
   return (
@@ -1230,6 +1180,51 @@ function MentorStudentDetailView({ user, student, onBack, onAssess }) {
                   <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
                 </div>
               ))}
+            </div>
+          ))
+        )}
+
+        {tab === 'portfolio' && (
+          sortedPortfolios.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+              <Briefcase size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
+              <p>成果物データがありません</p>
+            </div>
+          ) : sortedPortfolios.map(item => (
+            <div key={item.timestamp} style={{ ...S.card }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                      {item.type}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(item.timestamp)}</span>
+                  </div>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{item.title}</p>
+                </div>
+              </div>
+              {item.url && (
+                <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#7500C0', wordBreak: 'break-all', display: 'block', marginBottom: 8 }}>
+                  {item.url}
+                </a>
+              )}
+              {item.relatedAxes?.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                  {item.relatedAxes.map(key => {
+                    const ax = AXES.find(a => a.key === key);
+                    return ax ? (
+                      <span key={key} style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>
+                        {ax.num}{ax.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {item.reflection && (
+                <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.12)' }}>
+                  {item.reflection}
+                </p>
+              )}
             </div>
           ))
         )}
