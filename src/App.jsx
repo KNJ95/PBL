@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Home, ClipboardList, BookOpen, Briefcase,
   LogOut, ChevronRight, Plus, Trash2,
-  CheckCircle, Circle, Save, X, Star
+  CheckCircle, Circle, Save, X, Star,
+  Users, ArrowLeft
 } from 'lucide-react';
 
 // ─── 定数 ────────────────────────────────────────────────────────────────────
@@ -1026,11 +1027,454 @@ function BottomNav({ screen, setScreen }) {
   );
 }
 
+// ─── メンター：学生一覧ホーム ─────────────────────────────────────────────────
+
+function MentorHomeView({ user, onSelectStudent }) {
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    setStudents(storage.get('students_list') || []);
+  }, []);
+
+  return (
+    <div style={S.page}>
+      <div style={S.header}>
+        <div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>MENTOR</p>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{user.name}</h2>
+        </div>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{students.length} 名</span>
+      </div>
+
+      <div style={{ padding: '20px 20px 0' }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+          担当学生
+        </h3>
+        {students.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+            <Users size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 14 }}>学生がまだいません</p>
+            <p style={{ fontSize: 12, marginTop: 6 }}>学生がアプリにログインすると表示されます</p>
+          </div>
+        ) : students.map(student => {
+          const surveys      = storage.keys(`survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+          const mentorSurveys = storage.keys(`mentor_survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+          const logs         = storage.keys(`log:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+          const latest       = [...surveys].sort((a, b) => b.timestamp - a.timestamp)[0];
+          const avgLv        = latest
+            ? avg(AXES.map(a => latest.axes?.[a.key]?.level).filter(Boolean))
+            : null;
+
+          return (
+            <button
+              key={student.id}
+              onClick={() => onSelectStudent(student)}
+              style={{
+                ...S.card, width: '100%', textAlign: 'left', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 16,
+                boxShadow: '0 1px 4px rgba(117,0,192,0.06)', transition: 'border-color 0.2s',
+              }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                background: 'linear-gradient(135deg, rgba(117,0,192,0.15), rgba(70,0,115,0.15))',
+                border: '1px solid rgba(117,0,192,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, fontWeight: 700, color: '#7500C0',
+              }}>
+                {student.name.charAt(0)}
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>{student.name}</p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  アンケート {surveys.length}件 · ログ {logs.length}件
+                  {mentorSurveys.length > 0 && ` · メンター評価 ${mentorSurveys.length}件`}
+                </p>
+              </div>
+              {avgLv !== null ? (
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: 10, color: '#7500C0', fontWeight: 700 }}>平均Lv</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: '#460073', lineHeight: 1.1 }}>{avgLv.toFixed(1)}</p>
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</p>
+              )}
+              <ChevronRight size={16} color="var(--text-muted)" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── メンター：学生詳細 ───────────────────────────────────────────────────────
+
+function MentorStudentDetailView({ user, student, onBack, onAssess }) {
+  const [tab, setTab] = useState('survey');
+
+  const selfSurveys   = storage.keys(`survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+  const mentorSurveys = storage.keys(`mentor_survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+  const logs          = storage.keys(`log:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
+
+  const allSurveys = [
+    ...selfSurveys.map(s => ({ ...s, source: 'self' })),
+    ...mentorSurveys.map(s => ({ ...s, source: 'mentor' })),
+  ].sort((a, b) => b.timestamp - a.timestamp);
+
+  const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+
+  const tabs = [
+    { key: 'survey', label: 'アンケート', count: allSurveys.length },
+    { key: 'log',    label: 'ログ',       count: sortedLogs.length },
+  ];
+
+  return (
+    <div style={S.page}>
+      <div style={S.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 4 }}>
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>STUDENT</p>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{student.name}</h2>
+          </div>
+        </div>
+        <button onClick={onAssess} style={{ ...S.btn, padding: '8px 16px', fontSize: 13 }}>
+          <Plus size={14} /> 評価入力
+        </button>
+      </div>
+
+      {/* タブ */}
+      <div style={{ display: 'flex', borderBottom: '1px solid rgba(117,0,192,0.15)', background: '#ffffff', position: 'sticky', top: 65, zIndex: 90 }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer',
+            borderBottom: `2px solid ${tab === t.key ? '#7500C0' : 'transparent'}`,
+            color: tab === t.key ? '#7500C0' : 'var(--text-muted)',
+            fontWeight: tab === t.key ? 700 : 400, fontSize: 14, transition: 'all 0.2s',
+          }}>
+            {t.label} ({t.count})
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: '20px 20px 0' }}>
+        {tab === 'survey' && (
+          allSurveys.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+              <ClipboardList size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
+              <p>アンケートデータがありません</p>
+            </div>
+          ) : allSurveys.map(s => {
+            const vals  = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
+            const avgLv = vals.length ? avg(vals).toFixed(1) : '—';
+            return (
+              <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
+                    {s.source === 'mentor' && (
+                      <span style={{ background: '#460073', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>
+                        メンター
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                    平均 Lv.{avgLv}
+                  </span>
+                </div>
+                {s.term && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.term}</p>}
+                {s.note && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.note}</p>}
+                {s.source === 'mentor' && s.mentorName && (
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>評価者: {s.mentorName}</p>
+                )}
+                <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
+                  {AXES.map(ax => {
+                    const lv = s.axes?.[ax.key]?.level || 0;
+                    return (
+                      <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
+                        <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {tab === 'log' && (
+          sortedLogs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+              <BookOpen size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
+              <p>ログデータがありません</p>
+            </div>
+          ) : sortedLogs.map(log => (
+            <div key={log.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 20 }}>{EMOTIONS[log.emotion - 1]}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(log.timestamp)}</span>
+              </div>
+              {[
+                { label: 'Y やったこと',  val: log.yatta },
+                { label: 'W わかったこと', val: log.wakatta },
+                { label: 'T 次にやること', val: log.tsugi },
+              ].filter(f => f.val).map(f => (
+                <div key={f.label} style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: '#7500C0', fontWeight: 700 }}>{f.label}</span>
+                  <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── メンター：評価入力 ───────────────────────────────────────────────────────
+
+function MentorSurveyView({ user, initialStudent }) {
+  const students = storage.get('students_list') || [];
+  const [selectedId, setSelectedId] = useState(initialStudent?.id || '');
+  const blankAxes = Object.fromEntries(AXES.map(a => [a.key, { level: 0, comment: '' }]));
+  const [note, setNote]   = useState('');
+  const [axes, setAxes]   = useState(blankAxes);
+  const [saved, setSaved] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  const selectedStudent = students.find(s => s.id === selectedId) || null;
+
+  useEffect(() => {
+    if (!selectedId) { setHistory([]); return; }
+    const keys = storage.keys(`mentor_survey:${selectedId}:`).sort().reverse();
+    setHistory(keys.map(k => storage.get(k)).filter(Boolean));
+  }, [selectedId, saved]);
+
+  const completed = AXES.filter(a => axes[a.key]?.level > 0).length;
+  const avgLv = completed > 0
+    ? avg(AXES.filter(a => axes[a.key]?.level > 0).map(a => axes[a.key].level)).toFixed(1)
+    : '—';
+
+  const handleSave = () => {
+    if (!selectedId || completed === 0) return;
+    const ts = Date.now();
+    storage.set(`mentor_survey:${selectedId}:${ts}`, {
+      mentorID: user.id, mentorName: user.name,
+      studentID: selectedId, studentName: selectedStudent?.name || selectedId,
+      timestamp: ts, note, axes,
+    });
+    setNote(''); setAxes(blankAxes); setSaved(s => !s);
+  };
+
+  const setLevel   = (k, lv)  => setAxes(prev => ({ ...prev, [k]: { ...prev[k], level: lv } }));
+  const setComment = (k, val) => setAxes(prev => ({ ...prev, [k]: { ...prev[k], comment: val } }));
+
+  return (
+    <div style={S.page}>
+      <div style={S.header}>
+        <div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>ASSESSMENT</p>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>メンター評価</h2>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700 }}>{completed}/9</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>平均 {avgLv}</span>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 20px 0' }}>
+        {/* 学生選択 */}
+        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
+          <label style={S.label}>対象学生 *</label>
+          {students.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+              学生がいません（学生がログインすると表示されます）
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {students.map(s => (
+                <button key={s.id} onClick={() => setSelectedId(s.id)} style={{
+                  padding: '8px 16px', borderRadius: 10, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s',
+                  border: `2px solid ${selectedId === s.id ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
+                  background: selectedId === s.id ? 'rgba(117,0,192,0.1)' : '#ffffff',
+                  color: selectedId === s.id ? '#7500C0' : 'var(--text-muted)',
+                  fontWeight: selectedId === s.id ? 700 : 400,
+                }}>
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 評価メモ */}
+        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
+          <label style={S.label}>評価メモ（任意）</label>
+          <textarea
+            style={{ ...S.input, minHeight: 72, resize: 'vertical', lineHeight: 1.6 }}
+            placeholder="この評価セッションのメモ・コメント"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+          />
+        </div>
+
+        {/* 評価軸 */}
+        {['A', 'B', 'C'].map(cat => {
+          const catAxes = AXES.filter(a => a.category === cat);
+          const c = CATEGORY_COLORS[cat];
+          return (
+            <div key={cat} style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>{cat}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.label}</span>
+              </div>
+              {catAxes.map(axis => {
+                const cur = axes[axis.key];
+                return (
+                  <div key={axis.key} style={{
+                    ...S.card, marginBottom: 10, transition: 'all 0.2s',
+                    background: cur.level > 0 ? LEVEL_BG[cur.level] : 'var(--bg-card)',
+                    borderColor: cur.level > 0 ? `${LEVEL_COLORS[cur.level]}50` : 'var(--border)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div>
+                        <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700, marginRight: 6 }}>{axis.num}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{axis.name}</span>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{axis.desc}</p>
+                      </div>
+                      {cur.level > 0 && (
+                        <span style={{ background: LEVEL_COLORS[cur.level], color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', marginLeft: 8 }}>
+                          Lv.{cur.level}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                      {LEVELS.map(lv => (
+                        <button key={lv.lv} onClick={() => setLevel(axis.key, lv.lv)} style={{
+                          flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                          textAlign: 'center', transition: 'all 0.15s',
+                          border: `2px solid ${cur.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'rgba(117,0,192,0.15)'}`,
+                          background: cur.level === lv.lv ? `${LEVEL_COLORS[lv.lv]}25` : '#ffffff',
+                          color: cur.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'var(--text-muted)',
+                        }}>
+                          <div style={{ fontSize: 10, marginBottom: 1, opacity: 0.7 }}>Lv.{lv.lv}</div>
+                          {lv.name}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      style={{ ...S.input, fontSize: 13, padding: '9px 12px' }}
+                      placeholder="補足コメント（任意）"
+                      value={cur.comment}
+                      onChange={e => setComment(axis.key, e.target.value)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* 保存ボタン */}
+        <button
+          style={{
+            ...S.btn, width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px', marginBottom: 24,
+            opacity: (!selectedId || completed === 0) ? 0.4 : 1,
+          }}
+          onClick={handleSave}
+          disabled={!selectedId || completed === 0}
+        >
+          <Save size={18} /> 保存する
+        </button>
+
+        {/* 評価履歴 */}
+        {history.length > 0 && selectedStudent && (
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+              {selectedStudent.name} の評価履歴
+            </h3>
+            {history.map(s => {
+              const vals = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
+              const a   = vals.length ? avg(vals).toFixed(1) : '—';
+              return (
+                <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
+                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                      平均 Lv.{a}
+                    </span>
+                  </div>
+                  {s.note && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.note}</p>}
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {AXES.map(ax => {
+                      const lv = s.axes?.[ax.key]?.level || 0;
+                      return (
+                        <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
+                          <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── メンター ボトムナビ ──────────────────────────────────────────────────────
+
+function MentorBottomNav({ screen, setScreen }) {
+  const items = [
+    { key: 'home',          icon: Users,         label: '学生一覧' },
+    { key: 'mentor_survey', icon: ClipboardList, label: '評価入力' },
+  ];
+
+  return (
+    <nav style={S.bottomNav}>
+      {items.map(item => {
+        const active = screen === item.key || (item.key === 'home' && screen === 'student_detail');
+        return (
+          <button key={item.key} onClick={() => setScreen(item.key)} style={{
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 4,
+            color: active ? '#7500C0' : 'var(--text-muted)', position: 'relative', transition: 'color 0.2s',
+          }}>
+            {active && (
+              <span style={{
+                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                width: 32, height: 2, background: 'linear-gradient(90deg, #A100FF, #7500C0)',
+                borderRadius: '0 0 2px 2px',
+              }} />
+            )}
+            <item.icon size={20} />
+            <span style={{ fontSize: 10, fontWeight: active ? 700 : 400 }}>{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 // ─── アプリルート ─────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [user, setUser]     = useState(null);
-  const [screen, setScreen] = useState('home');
+  const [user, setUser]                     = useState(null);
+  const [screen, setScreen]                 = useState('home');
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const saved = storage.get('current_user');
@@ -1039,6 +1483,15 @@ export default function App() {
 
   const handleLogin = (u) => {
     storage.set('current_user', u);
+    if (u.role === 'student') {
+      const list = storage.get('students_list') || [];
+      const exists = list.find(s => s.id === u.id);
+      if (!exists) {
+        storage.set('students_list', [...list, { id: u.id, name: u.name, registeredAt: Date.now() }]);
+      } else if (exists.name !== u.name) {
+        storage.set('students_list', list.map(s => s.id === u.id ? { ...s, name: u.name } : s));
+      }
+    }
     setUser(u);
   };
 
@@ -1046,10 +1499,54 @@ export default function App() {
     storage.delete('current_user');
     setUser(null);
     setScreen('home');
+    setSelectedStudent(null);
   };
+
+  const logoutBtn = (
+    <button
+      onClick={handleLogout}
+      style={{
+        position: 'fixed', bottom: 84, right: 20,
+        background: 'rgba(117,0,192,0.08)', border: '1px solid rgba(117,0,192,0.2)',
+        borderRadius: 10, padding: '8px 12px', color: 'var(--text-muted)',
+        fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, zIndex: 150,
+      }}
+    >
+      <LogOut size={13} /> ログアウト
+    </button>
+  );
 
   if (!user) return <LoginView onLogin={handleLogin} />;
 
+  // ─── メンターUI ────────────────────────────────────────────────────────────
+  if (user.role === 'mentor') {
+    const goToStudent = (student) => { setSelectedStudent(student); setScreen('student_detail'); };
+    const goToAssess  = (student) => { setSelectedStudent(student); setScreen('mentor_survey'); };
+    const mentorNav   = (s) => { setScreen(s); if (s === 'home') setSelectedStudent(null); };
+
+    return (
+      <div style={{ position: 'relative' }}>
+        {screen === 'home' && (
+          <MentorHomeView user={user} onSelectStudent={goToStudent} />
+        )}
+        {screen === 'student_detail' && selectedStudent && (
+          <MentorStudentDetailView
+            user={user}
+            student={selectedStudent}
+            onBack={() => mentorNav('home')}
+            onAssess={() => goToAssess(selectedStudent)}
+          />
+        )}
+        {screen === 'mentor_survey' && (
+          <MentorSurveyView user={user} initialStudent={selectedStudent} />
+        )}
+        <MentorBottomNav screen={screen} setScreen={mentorNav} />
+        {screen === 'home' && logoutBtn}
+      </div>
+    );
+  }
+
+  // ─── 学生UI ────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative' }}>
       {screen === 'home'      && <HomeView user={user} setScreen={setScreen} />}
@@ -1059,30 +1556,7 @@ export default function App() {
 
       <BottomNav screen={screen} setScreen={setScreen} />
 
-      {/* ログアウトボタン（ホームのみ） */}
-      {screen === 'home' && (
-        <button
-          onClick={handleLogout}
-          style={{
-            position: 'fixed',
-            bottom: 84,
-            right: 20,
-            background: 'rgba(117,0,192,0.08)',
-            border: '1px solid rgba(117,0,192,0.2)',
-            borderRadius: 10,
-            padding: '8px 12px',
-            color: 'var(--text-muted)',
-            fontSize: 12,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            zIndex: 150,
-          }}
-        >
-          <LogOut size={13} /> ログアウト
-        </button>
-      )}
+      {screen === 'home' && logoutBtn}
     </div>
   );
 }
