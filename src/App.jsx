@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  ClipboardList, BookOpen, Briefcase, LogOut,
+  Home, ClipboardList, BookOpen, Briefcase, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
   BarChart2, Send, ArrowRight
@@ -1379,6 +1379,7 @@ export default function App() {
       {/* ─── ボトムナビゲーション ──────────────────────────────────── */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30 }}>
         {[
+          { v:"home",      l:"ホーム",        icon:Home },
           { v:"survey",    l:"アンケート",    icon:ClipboardList },
           { v:"log",       l:"ログ",          icon:BookOpen },
           { v:"portfolio", l:"ポートフォリオ", icon:Briefcase },
