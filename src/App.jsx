@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Home, ClipboardList, BookOpen, Briefcase, LogOut,
-  ChevronRight, Plus, Trash2, Save, X, Star,
+  ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
-  CheckCircle, Circle, BarChart2, Send, ArrowRight
+  BarChart2, Send, ArrowRight
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -51,11 +51,6 @@ const LEVELS = [
 ];
 
 const LEVEL_COLOR = { 1:"#6B7280", 2:C.accent1, 3:C.primary, 4:C.warn };
-const CATEGORY_META = {
-  A:{ label:"思考・判断系", color:C.primary },
-  B:{ label:"行動・実行系", color:C.accent1 },
-  C:{ label:"関係・姿勢系", color:C.success },
-};
 
 const REFLECTION_QUESTIONS = [
   { id:1, text:"以前に比べて積極的に発言できましたか？" },
@@ -170,7 +165,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   const [loadErr, setLoadErr]         = useState(null);
   const [answers, setAnswers]         = useState({});
   const [curSection, setCurSection]   = useState(0);
-  const [submitted, setSubmitted]     = useState(false);
   const [previewAxes, setPreviewAxes] = useState(null);
 
   useEffect(() => {
@@ -207,7 +201,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
     saveSurvey(axes);
     setAnswers({});
     setCurSection(0);
-    setSubmitted(false);
     setPreviewAxes(null);
   };
 
@@ -527,9 +520,12 @@ export default function App() {
   };
 
   // ─── データ取得 ──────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const mySurveys  = useMemo(() => currentUser ? getSurveys(currentUser.id)  : [], [currentUser, refresh]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const myLogs     = useMemo(() => currentUser ? getLogs(currentUser.id)     : [], [currentUser, refresh]);
   const latestSurvey = mySurveys[0] || null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const students   = useMemo(() => getStudents(), [refresh]);
 
   // ─── レーダーチャートデータ ───────────────────────────────────────────
