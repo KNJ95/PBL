@@ -1,1557 +1,1368 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from "react";
 import {
-  Home, ClipboardList, BookOpen, Briefcase,
-  LogOut, ChevronRight, Plus, Trash2, Save, Star,
-  Users, ArrowLeft
-} from 'lucide-react';
+  Home, ClipboardList, BookOpen, Briefcase, LogOut,
+  ChevronRight, Plus, Trash2, Save, X, Star,
+  Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
+  CheckCircle, Circle, BarChart2, Send, ArrowRight
+} from "lucide-react";
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  ResponsiveContainer, Legend, Tooltip
+} from "recharts";
 
-// ─── 定数 ────────────────────────────────────────────────────────────────────
+// ─── カラーパレット ─────────────────────────────────────────────────────────
+const C = {
+  primary:      "#A100FF",
+  primaryDark:  "#7500C0",
+  primaryLight: "#E8CCFF",
+  bg:           "#0A0A14",
+  surface:      "#12111E",
+  surface2:     "#1C1A2E",
+  surface3:     "#252340",
+  border:       "#2E2B4A",
+  borderLight:  "#3D3A5C",
+  text:         "#F0ECFF",
+  textSub:      "#9B97BC",
+  textMuted:    "#5E5A7A",
+  accent1:      "#00C2FF",
+  accent2:      "#FF6B6B",
+  success:      "#00D48A",
+  warn:         "#FFB800",
+};
 
+// ─── 評価定数 ──────────────────────────────────────────────────────────────
 const AXES = [
-  { key: 'axis1', num: '①', name: '課題設定力',      category: 'A', desc: '解くべき問いを自分で立てられるか' },
-  { key: 'axis2', num: '②', name: '情報活用力',      category: 'A', desc: '情報を収集・整理・活用できるか' },
-  { key: 'axis3', num: '③', name: '不確実性への耐性', category: 'A', desc: '答えのない状況で動けるか' },
-  { key: 'axis4', num: '④', name: '提案・発信力',    category: 'B', desc: '自分の意見を伝えられるか' },
-  { key: 'axis5', num: '⑤', name: '実行・改善力',    category: 'B', desc: 'やり切って改善できるか' },
-  { key: 'axis6', num: '⑥', name: 'オーナーシップ',  category: 'B', desc: '自分事として責任を持てるか' },
-  { key: 'axis7', num: '⑦', name: '協働・調整力',    category: 'C', desc: '他者と建設的に動けるか' },
-  { key: 'axis8', num: '⑧', name: '自律・内発的動機', category: 'C', desc: 'なぜやるかを自分で語れるか' },
-  { key: 'axis9', num: '⑨', name: '行動変容力',      category: 'C', desc: 'FBを行動の変化につなげられるか' },
+  { id:1, key:"axis1", name:"課題設定力",      short:"課題",  category:"A" },
+  { id:2, key:"axis2", name:"情報活用力",      short:"情報",  category:"A" },
+  { id:3, key:"axis3", name:"不確実性への耐性", short:"不確実",category:"A" },
+  { id:4, key:"axis4", name:"提案・発信力",    short:"提案",  category:"B" },
+  { id:5, key:"axis5", name:"実行・改善力",    short:"実行",  category:"B" },
+  { id:6, key:"axis6", name:"オーナーシップ",  short:"所有",  category:"B" },
+  { id:7, key:"axis7", name:"協働・調整力",    short:"協働",  category:"C" },
+  { id:8, key:"axis8", name:"自律・内発的動機", short:"動機",  category:"C" },
+  { id:9, key:"axis9", name:"行動変容力",      short:"変容",  category:"C" },
 ];
 
 const LEVELS = [
-  { lv: 1, name: '受動性', color: '#94a3b8', desc: '外発的動機・指示待ち' },
-  { lv: 2, name: '能動性', color: '#A100FF', desc: '自ら動くが一時的' },
-  { lv: 3, name: '自律性', color: '#7500C0', desc: '自分事化・継続' },
-  { lv: 4, name: '創造性', color: '#460073', desc: '本質理解・新しさを生む' },
+  { lv:1, name:"受動性", color:"#6B7280" },
+  { lv:2, name:"能動性", color:C.accent1 },
+  { lv:3, name:"自律性", color:C.primary },
+  { lv:4, name:"創造性", color:C.warn },
 ];
 
-const LEVEL_COLORS = { 1: '#94a3b8', 2: '#c084fc', 3: '#a855f7', 4: '#7c3aed' };
-const LEVEL_BG    = { 1: 'rgba(148,163,184,0.12)', 2: 'rgba(192,132,252,0.12)', 3: 'rgba(168,85,247,0.12)', 4: 'rgba(124,58,237,0.12)' };
-
-const EMOTIONS = ['😢', '😕', '😐', '🙂', '😄'];
-
-const CATEGORY_COLORS = {
-  A: { bg: 'rgba(161,0,255,0.06)', border: 'rgba(161,0,255,0.2)', badge: '#9b30e8', label: '思考・判断系' },
-  B: { bg: 'rgba(117,0,192,0.06)', border: 'rgba(117,0,192,0.2)', badge: '#7500C0', label: '行動・実行系' },
-  C: { bg: 'rgba(70,0,115,0.08)',  border: 'rgba(70,0,115,0.25)', badge: '#460073', label: '関係・姿勢系' },
+const LEVEL_COLOR = { 1:"#6B7280", 2:C.accent1, 3:C.primary, 4:C.warn };
+const CATEGORY_META = {
+  A:{ label:"思考・判断系", color:C.primary },
+  B:{ label:"行動・実行系", color:C.accent1 },
+  C:{ label:"関係・姿勢系", color:C.success },
 };
 
-const AXIS_QUESTIONS = {
-  axis1: {
-    question: '取り組む課題や「何を解くか」の設定について、最もあてはまるものを選んでください。',
-    options: [
-      '与えられた課題に沿って取り組んだ',
-      '課題をもとに、自分で「何を解くか」を考えて取り組んだ',
-      '自分で問いを立て、深掘りしながら継続的に取り組んだ',
-      '課題の本質を独自に捉え直し、新しい問いを生み出せた',
-    ],
-  },
-  axis2: {
-    question: '情報の収集・整理・活用について、最もあてはまるものを選んでください。',
-    options: [
-      '提供・指示された情報をそのまま使った',
-      '自分で情報を調べて整理し、活用した',
-      '情報を吟味して取捨選択し、目的に合わせて活用した',
-      '複数の情報を組み合わせ、新しい知見や視点を生み出せた',
-    ],
-  },
-  axis3: {
-    question: '答えが明確でない状況・曖昧な場面での行動について、最もあてはまるものを選んでください。',
-    options: [
-      '答えや指示がないと動き出せなかった',
-      '答えがなくても、自分なりに考えて動こうとした',
-      '不確実な状況でも振り返りながら、自分の判断で動き続けた',
-      '不確実性を前向きに捉え、独自のアプローチで切り拓けた',
-    ],
-  },
-  axis4: {
-    question: '自分の意見や考えを伝えることについて、最もあてはまるものを選んでください。',
-    options: [
-      '求められたときに自分の意見を伝えた',
-      '自分から積極的に意見を発信した',
-      '根拠を持って発信し、対話を通じて考えを深めた',
-      '独自の視点から本質的な提案をし、周囲に新しい気づきをもたらせた',
-    ],
-  },
-  axis5: {
-    question: '取り組みをやり切り、改善することについて、最もあてはまるものを選んでください。',
-    options: [
-      '指示された範囲でやり遂げた',
-      '最後までやり切り、反省点を見つけた',
-      'やり切ったうえで振り返り、継続的に改善した',
-      '改善を繰り返す中で、独自の方法・アプローチを確立できた',
-    ],
-  },
-  axis6: {
-    question: '活動への主体性・責任感について、最もあてはまるものを選んでください。',
-    options: [
-      '課題としてこなす感覚で取り組んだ',
-      '自分事として責任を持って取り組んだ',
-      '振り返りを通じて役割と責任を深く自覚し、行動した',
-      '自分なりの使命感を持ち、主体的に場を作り出せた',
-    ],
-  },
-  axis7: {
-    question: 'チームやメンバーとの協力・調整について、最もあてはまるものを選んでください。',
-    options: [
-      '役割に従ってチームで動いた',
-      '積極的にチームに貢献しようとした',
-      'メンバーの状況を踏まえて調整し、チーム全体を動かした',
-      'チームの可能性を引き出す独自の関わり方を生み出せた',
-    ],
-  },
-  axis8: {
-    question: '活動に取り組む動機・理由について、最もあてはまるものを選んでください。',
-    options: [
-      '課題・評価のために取り組んだ',
-      '学びたい・成長したいという気持ちで取り組んだ',
-      '自分の価値観や成長と結びつけて、自分の言葉で語れた',
-      '独自のビジョンを持ち、それを体現する行動ができた',
-    ],
-  },
-  axis9: {
-    question: 'フィードバックを受けての変化・成長について、最もあてはまるものを選んでください。',
-    options: [
-      'フィードバックを受け取り、内容を把握した',
-      'フィードバックをもとに行動を変えようとした',
-      'FBを自分の言葉で意味づけし、継続的な変化につなげた',
-      'FBを超えた自発的な気づきで、成長プロセスを自分で設計できた',
-    ],
-  },
-};
+const REFLECTION_QUESTIONS = [
+  { id:1, text:"以前に比べて積極的に発言できましたか？" },
+  { id:2, text:"新たに学んだことはありましたか？" },
+  { id:3, text:"思うように行かなかったことや困ったことはありましたか？" },
+  { id:4, text:"失敗したなーと後悔したシーンはありましたか？" },
+  { id:5, text:"チームと協力して動けましたか？" },
+  { id:6, text:"自分から課題や問題を見つけようとしましたか？" },
+  { id:7, text:"今日の活動への満足度はどのくらいですか？" },
+];
 
-// ─── ストレージヘルパー ───────────────────────────────────────────────────────
+const EMOTIONS = ["😢","😕","😐","🙂","😄"];
 
+const DEMO_EXAMPLES = [
+  { text:"チームの意見がバラバラで困ったが、先生に聞いて解決した。", scores:{1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:2,9:1} },
+  { text:"課題の原因を自分なりに分析し、インタビューを設計して実施した。", scores:{1:3,2:3,3:3,4:2,5:2,6:3,7:3,8:3,9:2} },
+];
+
+// ─── ストレージ ────────────────────────────────────────────────────────────
 const storage = {
-  get: (key) => {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
-    catch { return null; }
-  },
-  set: (key, value) => {
-    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-    catch { return false; }
-  },
-  keys: (prefix) => {
-    try {
-      return Object.keys(localStorage).filter(k => k.startsWith(prefix));
-    } catch { return []; }
-  },
-  delete: (key) => {
-    try { localStorage.removeItem(key); return true; }
-    catch { return false; }
-  },
+  get: (k) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
+  set: (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch {} },
+  keys: (prefix) => { try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; } },
 };
 
-// ─── スタイル定数 ─────────────────────────────────────────────────────────────
+const getStudents = () => storage.get("students_list") || [];
+const getSurveys  = (uid) => storage.keys(`survey:${uid}:`).map(k=>storage.get(k)).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
+const getLogs     = (uid) => storage.keys(`log:${uid}:`).map(k=>storage.get(k)).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
+const getMentorSurveys = (sid) => storage.keys(`mentor_survey:${sid}:`).map(k=>storage.get(k)).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
 
+// ─── インタラクション（問い/フィードバック）localStorage ──────────────────
+const getQuestions  = () => storage.get("questions_store") || [];
+const getFeedbacks  = () => storage.get("feedbacks_store") || [];
+const getNextActions= (uid) => storage.get(`next_actions:${uid}`) || {};
+const getPending    = () => storage.get("pending_evals") || [];
+
+const saveQuestions  = (d) => storage.set("questions_store", d);
+const saveFeedbacks  = (d) => storage.set("feedbacks_store", d);
+const saveNextActions= (uid,d) => storage.set(`next_actions:${uid}`, d);
+const savePending    = (d) => storage.set("pending_evals", d);
+
+// ─── スタイル ──────────────────────────────────────────────────────────────
 const S = {
-  page: {
-    minHeight: '100vh',
-    background: 'var(--bg)',
-    paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
-  },
-  header: {
-    background: '#ffffff',
-    borderBottom: '1px solid rgba(117,0,192,0.15)',
-    padding: '16px 20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'sticky',
-    top: 0,
-    zIndex: 100,
-    boxShadow: '0 1px 8px rgba(117,0,192,0.06)',
-  },
-  card: {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-    borderRadius: 16,
-    padding: '20px',
-    marginBottom: 12,
-  },
-  btn: {
-    background: 'linear-gradient(135deg, #7500C0, #460073)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 12,
-    padding: '12px 24px',
-    fontSize: 15,
-    fontWeight: 700,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    transition: 'opacity 0.2s',
-  },
-  btnGhost: {
-    background: 'transparent',
-    color: 'var(--text-muted)',
-    border: '1px solid var(--border)',
-    borderRadius: 12,
-    padding: '10px 20px',
-    fontSize: 14,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    transition: 'border-color 0.2s',
-  },
-  input: {
-    background: '#f5f3ff',
-    border: '1px solid rgba(117,0,192,0.25)',
-    borderRadius: 10,
-    padding: '12px 14px',
-    color: 'var(--text)',
-    fontSize: 14,
-    width: '100%',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--text-muted)',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    display: 'block',
-  },
-  bottomNav: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: 'rgba(255,255,255,0.97)',
-    backdropFilter: 'blur(20px)',
-    borderTop: '1px solid rgba(117,0,192,0.15)',
-    display: 'flex',
-    zIndex: 200,
-    paddingBottom: 'env(safe-area-inset-bottom)',
-  },
+  card:      { background:C.surface,  border:`1px solid ${C.border}`,  borderRadius:14, padding:"1.25rem", marginBottom:"0.875rem" },
+  cardGlow:  { background:C.surface,  border:`1px solid ${C.primary}44`, borderRadius:14, padding:"1.25rem", marginBottom:"0.875rem", boxShadow:`0 0 24px ${C.primary}18` },
+  scard:     { background:C.surface2, border:`1px solid ${C.border}`,  borderRadius:10, padding:"0.875rem 1rem", marginBottom:"0.5rem" },
+  btn:       { cursor:"pointer", padding:"7px 18px", borderRadius:9, border:`1px solid ${C.border}`, background:"transparent", color:C.text, fontSize:13, fontFamily:"inherit", transition:"all 0.15s" },
+  btnPrimary:{ cursor:"pointer", padding:"8px 20px", borderRadius:9, border:"none", background:`linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color:"#fff", fontSize:13, fontFamily:"inherit", fontWeight:600, boxShadow:`0 4px 14px ${C.primary}44` },
+  btnSuccess:{ cursor:"pointer", padding:"8px 20px", borderRadius:9, border:"none", background:C.success, color:"#000", fontSize:13, fontFamily:"inherit", fontWeight:600 },
+  input:     { width:"100%", padding:"10px 13px", borderRadius:9, border:`1px solid ${C.border}`, background:C.surface2, color:C.text, fontSize:13, fontFamily:"inherit", outline:"none", boxSizing:"border-box", transition:"border-color 0.2s" },
+  textarea:  { width:"100%", padding:"10px 13px", borderRadius:9, border:`1px solid ${C.border}`, background:C.surface2, color:C.text, fontSize:13, fontFamily:"inherit", resize:"vertical", minHeight:72, outline:"none", boxSizing:"border-box" },
+  badge:     (lv) => ({ display:"inline-block", padding:"2px 10px", borderRadius:6, background:LEVEL_COLOR[lv]+"22", color:LEVEL_COLOR[lv], fontSize:11, fontWeight:600, border:`1px solid ${LEVEL_COLOR[lv]}44` }),
+  navBtn:    (a)  => ({ cursor:"pointer", padding:"7px 15px", borderRadius:8, border:`1px solid ${a?C.primary:C.border}`, background:a?C.primary+"22":"transparent", color:a?C.primary:C.textSub, fontSize:13, fontFamily:"inherit", fontWeight:a?700:400, transition:"all 0.15s" }),
+  tag:       (c)  => ({ display:"inline-block", padding:"2px 9px", borderRadius:6, background:c+"22", color:c, fontSize:11, fontWeight:600, border:`1px solid ${c}44` }),
 };
 
-// ─── ユーティリティ ───────────────────────────────────────────────────────────
+const fmt = (ts) => { const d=new Date(ts); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`; };
+const avg = (arr) => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+const axisAvg = (scores) => { if(!scores) return 0; const v=AXES.map(a=>scores[a.id]||0).filter(x=>x>0); return v.length?avg(v):0; };
 
-function formatDate(ts) {
-  const d = new Date(ts);
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function avg(arr) {
-  if (!arr.length) return 0;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-
-// ─── ログイン画面 ─────────────────────────────────────────────────────────────
-
-function LoginView({ onLogin }) {
-  const [name, setName] = useState('');
-  const [id, setId] = useState('');
-  const [role, setRole] = useState('student');
-
-  const handleSubmit = () => {
-    if (!name.trim() || !id.trim()) return;
-    onLogin({ name: name.trim(), id: id.trim(), role });
-  };
-
+// ─── 共通コンポーネント ────────────────────────────────────────────────────
+function Avatar({ name, size=36, color=C.primary }) {
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 'max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom))',
-      background: 'radial-gradient(ellipse at 50% 0%, rgba(117,0,192,0.1) 0%, var(--bg) 70%)',
-    }}>
-      {/* ロゴ */}
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 72,
-          height: 72,
-          borderRadius: 20,
-          background: 'linear-gradient(135deg, #7500C0, #460073)',
-          marginBottom: 16,
-          boxShadow: '0 8px 32px rgba(117,0,192,0.3)',
-        }}>
-          <Star size={32} color="#fff" />
-        </div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-          Be-Ready 評価
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>
-          人材育成プログラム POC
-        </p>
-      </div>
-
-      {/* フォーム */}
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ marginBottom: 20 }}>
-          <label style={S.label}>氏名</label>
-          <input
-            style={S.input}
-            placeholder="例：山田 太郎"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
-        </div>
-        <div style={{ marginBottom: 20 }}>
-          <label style={S.label}>ユーザーID</label>
-          <input
-            style={S.input}
-            placeholder="例：yamada_taro"
-            value={id}
-            onChange={e => setId(e.target.value)}
-          />
-        </div>
-        <div style={{ marginBottom: 32 }}>
-          <label style={S.label}>区分</label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {['student', 'mentor'].map(r => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: 12,
-                  border: `2px solid ${role === r ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
-                  background: role === r ? 'rgba(117,0,192,0.1)' : '#ffffff',
-                  color: role === r ? '#7500C0' : 'var(--text-muted)',
-                  fontWeight: 700,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {r === 'student' ? '学生' : 'メンター'}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button
-          style={{ ...S.btn, width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px' }}
-          onClick={handleSubmit}
-          disabled={!name.trim() || !id.trim()}
-        >
-          はじめる
-          <ChevronRight size={18} />
-        </button>
-      </div>
+    <div style={{ width:size, height:size, borderRadius:"50%", background:color+"22", border:`1.5px solid ${color}66`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.38, fontWeight:700, color, flexShrink:0 }}>
+      {name?.[0] ?? "?"}
     </div>
   );
 }
 
-// ─── ホーム（ダッシュボード）─────────────────────────────────────────────────
-
-function HomeView({ user, setScreen }) {
-  const surveys   = storage.keys(`survey:${user.id}:`).map(k => storage.get(k)).filter(Boolean);
-  const logs      = storage.keys(`log:${user.id}:`).map(k => storage.get(k)).filter(Boolean);
-  const portfolio = storage.keys(`portfolio:${user.id}:`).map(k => storage.get(k)).filter(Boolean);
-
-  const avgLevel = useMemo(() => {
-    if (!surveys.length) return null;
-    const last = surveys.sort((a, b) => b.timestamp - a.timestamp)[0];
-    const vals = AXES.map(a => last.axes?.[a.key]?.level).filter(Boolean);
-    return vals.length ? avg(vals).toFixed(1) : null;
-  }, [surveys]);
-
-  const stats = [
-    { label: 'アンケート', value: surveys.length,   icon: ClipboardList, screen: 'survey' },
-    { label: 'ログ',      value: logs.length,       icon: BookOpen,      screen: 'log' },
-    { label: '成果物',    value: portfolio.length,  icon: Briefcase,     screen: 'portfolio' },
-  ];
-
-  const elements = [
-    {
-      icon: ClipboardList, title: 'アンケート',
-      desc: '9評価軸 × 4レベルで自己判定。今期の目標と達成度を記録する。',
-      screen: 'survey', color: '#7500C0',
-    },
-    {
-      icon: BookOpen, title: 'ログ（YWT）',
-      desc: 'やったこと・わかったこと・次にやることを振り返る。',
-      screen: 'log', color: '#460073',
-    },
-    {
-      icon: Briefcase, title: 'ポートフォリオ',
-      desc: '成果物・レポート・提案資料を蓄積して学習の軌跡を残す。',
-      screen: 'portfolio', color: '#2d0057',
-    },
-  ];
-
+function LvBar({ lv, maxLv=4, label="" }) {
   return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            {user.role === 'mentor' ? 'MENTOR' : 'STUDENT'}
-          </p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{user.name}</h2>
-        </div>
-        <div style={{
-          background: 'rgba(117,0,192,0.08)',
-          border: '1px solid rgba(117,0,192,0.2)',
-          borderRadius: 12,
-          padding: '8px 16px',
-          textAlign: 'center',
-        }}>
-          <p style={{ fontSize: 10, color: '#7500C0', fontWeight: 700 }}>平均Lv</p>
-          <p style={{ fontSize: 22, fontWeight: 700, color: '#460073', lineHeight: 1.1 }}>
-            {avgLevel ?? '—'}
-          </p>
-        </div>
+    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+      {label && <span style={{ fontSize:11, color:C.textSub, minWidth:48 }}>{label}</span>}
+      <div style={{ flex:1, height:6, background:C.surface3, borderRadius:99, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${(lv/maxLv)*100}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, transition:"width 0.4s" }}/>
       </div>
-
-      <div style={{ padding: '24px 20px 0' }}>
-        {/* 統計 */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
-          {stats.map(s => (
-            <button
-              key={s.label}
-              onClick={() => setScreen(s.screen)}
-              style={{
-                flex: 1,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 14,
-                padding: '16px 10px',
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'border-color 0.2s',
-                boxShadow: '0 1px 4px rgba(117,0,192,0.06)',
-              }}
-            >
-              <s.icon size={18} color="#7500C0" style={{ marginBottom: 6 }} />
-              <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{s.value}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* 評価の3要素 */}
-        <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
-          評価の3要素
-        </h3>
-        {elements.map(el => (
-          <button
-            key={el.screen}
-            onClick={() => setScreen(el.screen)}
-            style={{
-              ...S.card,
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-              borderColor: `${el.color}30`,
-              boxShadow: '0 1px 4px rgba(117,0,192,0.06)',
-            }}
-          >
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: `${el.color}12`,
-              border: `1px solid ${el.color}30`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <el.icon size={20} color={el.color} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>{el.title}</p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{el.desc}</p>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" />
-          </button>
-        ))}
-      </div>
+      <span style={{ fontSize:12, fontWeight:700, color:LEVEL_COLOR[lv]||C.textSub, minWidth:14 }}>{lv||"—"}</span>
     </div>
   );
 }
 
-// ─── アンケート入力 ───────────────────────────────────────────────────────────
+// ─── 振り返り：メンチメーター形式 ─────────────────────────────────────────
 
-function SurveyView({ user }) {
-  const blankAxes = Object.fromEntries(AXES.map(a => [a.key, { level: 0, comment: '' }]));
-  const [term, setTerm]       = useState('');
-  const [axes, setAxes]       = useState(blankAxes);
-  const [saved, setSaved]     = useState(false);
-  const [history, setHistory] = useState([]);
-
-  useEffect(() => {
-    const keys = storage.keys(`survey:${user.id}:`).sort().reverse();
-    setHistory(keys.map(k => storage.get(k)).filter(Boolean));
-  }, [user.id, saved]);
-
-  const completed = AXES.filter(a => axes[a.key]?.level > 0).length;
-  const avgLv = completed > 0
-    ? avg(AXES.filter(a => axes[a.key]?.level > 0).map(a => axes[a.key].level)).toFixed(1)
-    : '—';
-
-  const handleSave = () => {
-    if (!term.trim() || completed === 0) return;
-    const ts = Date.now();
-    storage.set(`survey:${user.id}:${ts}`, { userID: user.id, timestamp: ts, term, axes });
-    setTerm('');
-    setAxes(blankAxes);
-    setSaved(s => !s);
-  };
-
-  const setLevel   = (key, lv)  => setAxes(prev => ({ ...prev, [key]: { ...prev[key], level: lv } }));
-  const setComment = (key, val) => setAxes(prev => ({ ...prev, [key]: { ...prev[key], comment: val } }));
-
-  return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>SURVEY</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>アンケート入力</h2>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700 }}>{completed}/9</span>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>平均 {avgLv}</span>
-        </div>
-      </div>
-
-      <div style={{ padding: '20px 20px 0' }}>
-        {/* 今期の目標 */}
-        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
-          <label style={S.label}>今期の目標</label>
-          <textarea
-            style={{ ...S.input, minHeight: 80, resize: 'vertical', lineHeight: 1.6 }}
-            placeholder="自分で立てた今期の目標を記述してください"
-            value={term}
-            onChange={e => setTerm(e.target.value)}
-          />
-        </div>
-
-        {/* 質問 カテゴリ別 */}
-        {['A', 'B', 'C'].map(cat => {
-          const catAxes = AXES.filter(a => a.category === cat);
-          const c = CATEGORY_COLORS[cat];
-          return (
-            <div key={cat} style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>{cat}</span>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.label}</span>
-              </div>
-              {catAxes.map(axis => {
-                const cur = axes[axis.key];
-                const q   = AXIS_QUESTIONS[axis.key];
-                return (
-                  <div key={axis.key} style={{
-                    ...S.card, marginBottom: 10, transition: 'all 0.2s',
-                    background: cur.level > 0 ? LEVEL_BG[cur.level] : 'var(--bg-card)',
-                    borderColor: cur.level > 0 ? `${LEVEL_COLORS[cur.level]}50` : 'var(--border)',
-                  }}>
-                    {/* 軸ラベル + 選択済みレベル */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                        {axis.num} {axis.name}
-                      </span>
-                      {cur.level > 0 && (
-                        <span style={{ background: LEVEL_COLORS[cur.level], color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                          Lv.{cur.level}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 質問文 */}
-                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.6, marginBottom: 12 }}>
-                      {q.question}
-                    </p>
-
-                    {/* 4択選択肢 */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-                      {q.options.map((opt, i) => {
-                        const lv       = i + 1;
-                        const selected = cur.level === lv;
-                        return (
-                          <button key={lv} onClick={() => setLevel(axis.key, lv)} style={{
-                            width: '100%', textAlign: 'left', padding: '10px 14px',
-                            borderRadius: 8, cursor: 'pointer', lineHeight: 1.5,
-                            fontSize: 13, fontWeight: selected ? 600 : 400,
-                            transition: 'all 0.15s', display: 'flex', alignItems: 'flex-start', gap: 10,
-                            border: `2px solid ${selected ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.15)'}`,
-                            background: selected ? `${LEVEL_COLORS[lv]}12` : '#ffffff',
-                            color: selected ? LEVEL_COLORS[lv] : 'var(--text)',
-                          }}>
-                            <span style={{
-                              width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
-                              border: `2px solid ${selected ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.3)'}`,
-                              background: selected ? LEVEL_COLORS[lv] : 'transparent',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              {selected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', display: 'block' }} />}
-                            </span>
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* 補足コメント */}
-                    <input
-                      style={{ ...S.input, fontSize: 13, padding: '9px 12px' }}
-                      placeholder="補足コメント（任意）"
-                      value={cur.comment}
-                      onChange={e => setComment(axis.key, e.target.value)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-
-        {/* 保存ボタン */}
-        <button
-          style={{
-            ...S.btn, width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px', marginBottom: 24,
-            opacity: (!term.trim() || completed === 0) ? 0.4 : 1,
-          }}
-          onClick={handleSave}
-          disabled={!term.trim() || completed === 0}
-        >
-          <Save size={18} /> 保存する
-        </button>
-
-        {/* 履歴 */}
-        {history.length > 0 && (
-          <div>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
-              過去の回答
-            </h3>
-            {history.map(s => {
-              const vals = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
-              const a    = vals.length ? avg(vals).toFixed(1) : '—';
-              return (
-                <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
-                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                      平均 Lv.{a}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{s.term}</p>
-                  <div style={{ display: 'flex', gap: 3, marginTop: 10 }}>
-                    {AXES.map(ax => {
-                      const lv = s.axes?.[ax.key]?.level || 0;
-                      return (
-                        <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
-                          <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── ログ（YWT）入力 ──────────────────────────────────────────────────────────
-
-function LogView({ user }) {
-  const [yatta, setYatta]   = useState('');
-  const [wakatta, setWakatta] = useState('');
-  const [tsugi, setTsugi]   = useState('');
-  const [emotion, setEmotion] = useState(3);
-  const [logs, setLogs]     = useState([]);
-  const [saved, setSaved]   = useState(false);
-
-  useEffect(() => {
-    const keys = storage.keys(`log:${user.id}:`).sort().reverse();
-    setLogs(keys.map(k => storage.get(k)).filter(Boolean));
-  }, [user.id, saved]);
-
-  const handleSave = () => {
-    if (!yatta.trim() && !wakatta.trim() && !tsugi.trim()) return;
-    const ts = Date.now();
-    storage.set(`log:${user.id}:${ts}`, { userID: user.id, timestamp: ts, yatta, wakatta, tsugi, emotion });
-    setYatta(''); setWakatta(''); setTsugi(''); setEmotion(3);
-    setSaved(s => !s);
-  };
-
-  const handleDelete = (ts) => {
-    storage.delete(`log:${user.id}:${ts}`);
-    setSaved(s => !s);
-  };
-
-  const fields = [
-    { key: 'yatta',   label: 'Y やったこと',    val: yatta,   set: setYatta,   placeholder: '今日・今期に取り組んだこと' },
-    { key: 'wakatta', label: 'W わかったこと',   val: wakatta, set: setWakatta, placeholder: '気づき・学んだこと' },
-    { key: 'tsugi',   label: 'T 次にやること',   val: tsugi,   set: setTsugi,   placeholder: '次のアクション' },
-  ];
-
-  return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>LOG</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>ログ（YWT）</h2>
-        </div>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{logs.length} 件</span>
-      </div>
-
-      <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)' }}>
-          {fields.map(f => (
-            <div key={f.key} style={{ marginBottom: 16 }}>
-              <label style={{ ...S.label, color: '#7500C0' }}>{f.label}</label>
-              <textarea
-                style={{ ...S.input, minHeight: 72, resize: 'vertical', lineHeight: 1.6 }}
-                placeholder={f.placeholder}
-                value={f.val}
-                onChange={e => f.set(e.target.value)}
-              />
-            </div>
-          ))}
-
-          {/* 感情記録 */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={S.label}>感情記録</label>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              {EMOTIONS.map((em, i) => (
-                <button
-                  key={i}
-                  onClick={() => setEmotion(i + 1)}
-                  style={{
-                    fontSize: 28,
-                    background: emotion === i + 1 ? 'rgba(117,0,192,0.1)' : 'transparent',
-                    border: `2px solid ${emotion === i + 1 ? '#7500C0' : 'transparent'}`,
-                    borderRadius: 12,
-                    width: 52,
-                    height: 52,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {em}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            style={{
-              ...S.btn,
-              width: '100%',
-              justifyContent: 'center',
-              opacity: (!yatta.trim() && !wakatta.trim() && !tsugi.trim()) ? 0.4 : 1,
-            }}
-            onClick={handleSave}
-          >
-            <Save size={16} /> 保存する
-          </button>
-        </div>
-
-        {/* ログ一覧 */}
-        {logs.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
-              過去のログ
-            </h3>
-            {logs.map(log => (
-              <div key={log.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 20 }}>{EMOTIONS[log.emotion - 1]}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(log.timestamp)}</span>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(log.timestamp)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                {[
-                  { label: 'Y やったこと', val: log.yatta },
-                  { label: 'W わかったこと', val: log.wakatta },
-                  { label: 'T 次にやること', val: log.tsugi },
-                ].filter(f => f.val).map(f => (
-                  <div key={f.label} style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, color: '#7500C0', fontWeight: 700 }}>{f.label}</span>
-                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── ポートフォリオカード（共通）────────────────────────────────────────────
-
-function SurveyPortfolioCard({ survey }) {
-  const axesData   = AXES.map(ax => ({ ...ax, level: survey.axes?.[ax.key]?.level || 0, comment: survey.axes?.[ax.key]?.comment || '' }));
-  const vals       = axesData.map(a => a.level).filter(Boolean);
-  const avgLv      = vals.length ? avg(vals) : 0;
-  const strongAxes = axesData.filter(a => a.level >= 3);
-  const growthAxes = axesData.filter(a => a.level > 0 && a.level <= 2);
-
-  return (
-    <div style={{ ...S.card, padding: '16px' }}>
-      {/* ヘッダー */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(survey.timestamp)}</span>
-        <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 6 }}>
-          平均 Lv.{avgLv.toFixed(1)}
-        </span>
-      </div>
-
-      {/* 今期の目標 */}
-      {survey.term && (
-        <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(117,0,192,0.05)', borderRadius: 8, borderLeft: '3px solid #7500C0' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#7500C0', marginBottom: 4 }}>今期の目標</p>
-          <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{survey.term}</p>
-        </div>
-      )}
-
-      {/* 9軸レベルバー */}
-      <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
-        {AXES.map(ax => {
-          const lv = survey.axes?.[ax.key]?.level || 0;
-          return (
-            <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
-              <div style={{ height: 22, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 強み */}
-      {strongAxes.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#7500C0', marginBottom: 6 }}>強みのエリア</p>
-          {strongAxes.map(ax => (
-            <div key={ax.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
-              <span style={{ background: LEVEL_COLORS[ax.level], color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {ax.num} Lv.{ax.level}
-              </span>
-              <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5 }}>
-                {AXIS_QUESTIONS[ax.key].options[ax.level - 1]}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 成長エリア */}
-      {growthAxes.length > 0 && (
-        <div style={{ paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.1)' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>成長のエリア</p>
-          {growthAxes.map(ax => (
-            <div key={ax.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
-              <span style={{ background: LEVEL_COLORS[ax.level], color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {ax.num} Lv.{ax.level}
-              </span>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {AXIS_QUESTIONS[ax.key].options[ax.level - 1]}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── ポートフォリオ ───────────────────────────────────────────────────────────
-
-function PortfolioView({ user }) {
-  const [surveys, setSurveys] = useState([]);
-
-  useEffect(() => {
-    const keys = storage.keys(`survey:${user.id}:`).sort().reverse();
-    setSurveys(keys.map(k => storage.get(k)).filter(Boolean));
-  }, [user.id]);
-
-  return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PORTFOLIO</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>ポートフォリオ</h2>
-        </div>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{surveys.length} 件</span>
-      </div>
-
-      <div style={{ padding: '20px 20px 0' }}>
-        {surveys.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Briefcase size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-            <p style={{ fontSize: 14 }}>ポートフォリオがまだありません</p>
-            <p style={{ fontSize: 12, marginTop: 6 }}>アンケートを回答すると自動で生成されます</p>
-          </div>
-        ) : surveys.map(s => (
-          <SurveyPortfolioCard key={s.timestamp} survey={s} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── ボトムナビ ───────────────────────────────────────────────────────────────
-
-function BottomNav({ screen, setScreen }) {
-  const items = [
-    { key: 'home',      icon: Home,          label: 'ホーム' },
-    { key: 'survey',    icon: ClipboardList, label: 'アンケート' },
-    { key: 'log',       icon: BookOpen,      label: 'ログ' },
-    { key: 'portfolio', icon: Briefcase,     label: '成果物' },
-  ];
-
-  return (
-    <nav style={S.bottomNav}>
-      {items.map(item => {
-        const active = screen === item.key;
-        return (
-          <button
-            key={item.key}
-            onClick={() => setScreen(item.key)}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '10px 0 8px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: active ? '#7500C0' : 'var(--text-muted)',
-              gap: 4,
-              position: 'relative',
-              transition: 'color 0.2s',
-            }}
-          >
-            {active && (
-              <span style={{
-                position: 'absolute',
-                top: 0,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 32,
-                height: 2,
-                background: 'linear-gradient(90deg, #A100FF, #7500C0)',
-                borderRadius: '0 0 2px 2px',
-              }} />
-            )}
-            <item.icon size={20} />
-            <span style={{ fontSize: 10, fontWeight: active ? 700 : 400 }}>{item.label}</span>
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
-// ─── メンター：学生一覧ホーム ─────────────────────────────────────────────────
-
-function MentorHomeView({ user, onSelectStudent }) {
-  const [students, setStudents] = useState([]);
-
-  useEffect(() => {
-    setStudents(storage.get('students_list') || []);
-  }, []);
-
-  return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>MENTOR</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{user.name}</h2>
-        </div>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{students.length} 名</span>
-      </div>
-
-      <div style={{ padding: '20px 20px 0' }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
-          担当学生
-        </h3>
-        {students.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Users size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-            <p style={{ fontSize: 14 }}>学生がまだいません</p>
-            <p style={{ fontSize: 12, marginTop: 6 }}>学生がアプリにログインすると表示されます</p>
-          </div>
-        ) : students.map(student => {
-          const surveys      = storage.keys(`survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-          const mentorSurveys = storage.keys(`mentor_survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-          const logs         = storage.keys(`log:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-          const latest       = [...surveys].sort((a, b) => b.timestamp - a.timestamp)[0];
-          const avgLv        = latest
-            ? avg(AXES.map(a => latest.axes?.[a.key]?.level).filter(Boolean))
-            : null;
-
-          return (
-            <button
-              key={student.id}
-              onClick={() => onSelectStudent(student)}
-              style={{
-                ...S.card, width: '100%', textAlign: 'left', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 16,
-                boxShadow: '0 1px 4px rgba(117,0,192,0.06)', transition: 'border-color 0.2s',
-              }}
-            >
-              <div style={{
-                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                background: 'linear-gradient(135deg, rgba(117,0,192,0.15), rgba(70,0,115,0.15))',
-                border: '1px solid rgba(117,0,192,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, fontWeight: 700, color: '#7500C0',
-              }}>
-                {student.name.charAt(0)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>{student.name}</p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  アンケート {surveys.length}件 · ログ {logs.length}件
-                  {mentorSurveys.length > 0 && ` · メンター評価 ${mentorSurveys.length}件`}
-                </p>
-              </div>
-              {avgLv !== null ? (
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 10, color: '#7500C0', fontWeight: 700 }}>平均Lv</p>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: '#460073', lineHeight: 1.1 }}>{avgLv.toFixed(1)}</p>
-                </div>
-              ) : (
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</p>
-              )}
-              <ChevronRight size={16} color="var(--text-muted)" />
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── メンター：学生詳細 ───────────────────────────────────────────────────────
-
-function MentorStudentDetailView({ user, student, onBack, onAssess }) {
-  const [tab, setTab] = useState('survey');
-
-  const selfSurveys   = storage.keys(`survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-  const mentorSurveys = storage.keys(`mentor_survey:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-  const logs          = storage.keys(`log:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-  const portfolios    = storage.keys(`portfolio:${student.id}:`).map(k => storage.get(k)).filter(Boolean);
-
-  const allSurveys = [
-    ...selfSurveys.map(s => ({ ...s, source: 'self' })),
-    ...mentorSurveys.map(s => ({ ...s, source: 'mentor' })),
-  ].sort((a, b) => b.timestamp - a.timestamp);
-
-  const sortedLogs       = [...logs].sort((a, b) => b.timestamp - a.timestamp);
-  const sortedPortfolios = [...portfolios].sort((a, b) => b.timestamp - a.timestamp);
-
-  const tabs = [
-    { key: 'survey',    label: 'アンケート', count: allSurveys.length },
-    { key: 'log',       label: 'ログ',       count: sortedLogs.length },
-    { key: 'portfolio', label: '成果物',     count: sortedPortfolios.length },
-  ];
-
-  return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 4 }}>
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>STUDENT</p>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{student.name}</h2>
-          </div>
-        </div>
-        <button onClick={onAssess} style={{ ...S.btn, padding: '8px 16px', fontSize: 13 }}>
-          <Plus size={14} /> 評価入力
-        </button>
-      </div>
-
-      {/* タブ */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(117,0,192,0.15)', background: '#ffffff', position: 'sticky', top: 65, zIndex: 90 }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer',
-            borderBottom: `2px solid ${tab === t.key ? '#7500C0' : 'transparent'}`,
-            color: tab === t.key ? '#7500C0' : 'var(--text-muted)',
-            fontWeight: tab === t.key ? 700 : 400, fontSize: 14, transition: 'all 0.2s',
-          }}>
-            {t.label} ({t.count})
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: '20px 20px 0' }}>
-        {tab === 'survey' && (
-          allSurveys.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <ClipboardList size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-              <p>アンケートデータがありません</p>
-            </div>
-          ) : allSurveys.map(s => {
-            const vals  = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
-            const avgLv = vals.length ? avg(vals).toFixed(1) : '—';
-            return (
-              <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
-                    {s.source === 'mentor' && (
-                      <span style={{ background: '#460073', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>
-                        メンター
-                      </span>
-                    )}
-                  </div>
-                  <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                    平均 Lv.{avgLv}
-                  </span>
-                </div>
-                {s.term && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.term}</p>}
-                {s.note && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.note}</p>}
-                {s.source === 'mentor' && s.mentorName && (
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>評価者: {s.mentorName}</p>
-                )}
-                <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
-                  {AXES.map(ax => {
-                    const lv = s.axes?.[ax.key]?.level || 0;
-                    return (
-                      <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
-                        <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })
-        )}
-
-        {tab === 'log' && (
-          sortedLogs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <BookOpen size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-              <p>ログデータがありません</p>
-            </div>
-          ) : sortedLogs.map(log => (
-            <div key={log.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 20 }}>{EMOTIONS[log.emotion - 1]}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(log.timestamp)}</span>
-              </div>
-              {[
-                { label: 'Y やったこと',  val: log.yatta },
-                { label: 'W わかったこと', val: log.wakatta },
-                { label: 'T 次にやること', val: log.tsugi },
-              ].filter(f => f.val).map(f => (
-                <div key={f.label} style={{ marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: '#7500C0', fontWeight: 700 }}>{f.label}</span>
-                  <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, lineHeight: 1.6 }}>{f.val}</p>
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-
-        {tab === 'portfolio' && (
-          sortedPortfolios.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <Briefcase size={40} color="rgba(117,0,192,0.3)" style={{ marginBottom: 12 }} />
-              <p>成果物データがありません</p>
-            </div>
-          ) : sortedPortfolios.map(item => (
-            <div key={item.timestamp} style={{ ...S.card }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                      {item.type}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(item.timestamp)}</span>
-                  </div>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{item.title}</p>
-                </div>
-              </div>
-              {item.url && (
-                <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#7500C0', wordBreak: 'break-all', display: 'block', marginBottom: 8 }}>
-                  {item.url}
-                </a>
-              )}
-              {item.relatedAxes?.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                  {item.relatedAxes.map(key => {
-                    const ax = AXES.find(a => a.key === key);
-                    return ax ? (
-                      <span key={key} style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>
-                        {ax.num}{ax.name}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              )}
-              {item.reflection && (
-                <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(117,0,192,0.12)' }}>
-                  {item.reflection}
-                </p>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── メンター：評価入力 ───────────────────────────────────────────────────────
-
-function MentorSurveyView({ user, initialStudent }) {
-  const students = storage.get('students_list') || [];
-  const [selectedId, setSelectedId] = useState(initialStudent?.id || '');
-  const blankAxes = Object.fromEntries(AXES.map(a => [a.key, { level: 0, comment: '' }]));
-  const [note, setNote]   = useState('');
-  const [axes, setAxes]   = useState(blankAxes);
-  const [saved, setSaved] = useState(false);
-  const [history, setHistory] = useState([]);
-
-  const selectedStudent = students.find(s => s.id === selectedId) || null;
-
-  useEffect(() => {
-    if (!selectedId) { setHistory([]); return; }
-    const keys = storage.keys(`mentor_survey:${selectedId}:`).sort().reverse();
-    setHistory(keys.map(k => storage.get(k)).filter(Boolean));
-  }, [selectedId, saved]);
-
-  const completed = AXES.filter(a => axes[a.key]?.level > 0).length;
-  const avgLv = completed > 0
-    ? avg(AXES.filter(a => axes[a.key]?.level > 0).map(a => axes[a.key].level)).toFixed(1)
-    : '—';
-
-  const handleSave = () => {
-    if (!selectedId || completed === 0) return;
-    const ts = Date.now();
-    storage.set(`mentor_survey:${selectedId}:${ts}`, {
-      mentorID: user.id, mentorName: user.name,
-      studentID: selectedId, studentName: selectedStudent?.name || selectedId,
-      timestamp: ts, note, axes,
+// ─── スコア算出ロジック（JSON連携） ────────────────────────────────────────
+function calcAxesFromAnswers(answers, questions) {
+  // axisId → { raw, max }
+  const accum = {};
+  questions.forEach(q => {
+    const val = answers[q.id];
+    if (!val) return;
+    Object.entries(q.axisWeights).forEach(([axisId, weight]) => {
+      const id = parseInt(axisId);
+      if (!accum[id]) accum[id] = { raw: 0, max: 0 };
+      accum[id].raw += val * weight;
+      accum[id].max += 4 * weight; // 最大値は4
     });
-    setNote(''); setAxes(blankAxes); setSaved(s => !s);
+  });
+  const axes = {};
+  Object.entries(accum).forEach(([id, { raw, max }]) => {
+    if (max === 0) return;
+    const ratio = raw / max;
+    axes[parseInt(id)] = Math.max(1, Math.min(4, Math.round(ratio * 4)));
+  });
+  return axes;
+}
+
+// ─── SurveyScreen：JSON連携アンケート画面 ──────────────────────────────────
+function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAxisScores, saveSurvey }) {
+  // survey_questions.json を public/ から fetch
+  const [surveyDef, setSurveyDef]     = useState(null);
+  const [loadErr, setLoadErr]         = useState(null);
+  const [answers, setAnswers]         = useState({});
+  const [curSection, setCurSection]   = useState(0);
+  const [submitted, setSubmitted]     = useState(false);
+  const [previewAxes, setPreviewAxes] = useState(null);
+
+  useEffect(() => {
+    fetch("/survey_questions.json")
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => setSurveyDef(d))
+      .catch(e => setLoadErr(e.message));
+  }, []);
+
+  // 全質問をフラットに取得
+  const allQuestions = surveyDef
+    ? surveyDef.sections.flatMap(s => s.questions)
+    : [];
+
+  const answeredCount = Object.keys(answers).length;
+  const totalCount    = allQuestions.length;
+  const allAnswered   = answeredCount === totalCount;
+
+  // セクション内の回答完了率
+  const sectionProgress = (sec) =>
+    sec.questions.filter(q => answers[q.id] !== undefined).length;
+
+  // 回答するたびにプレビュースコアを更新
+  const handleAnswer = (qid, val) => {
+    const next = { ...answers, [qid]: val };
+    setAnswers(next);
+    setPreviewAxes(calcAxesFromAnswers(next, allQuestions));
   };
 
-  const setLevel   = (k, lv)  => setAxes(prev => ({ ...prev, [k]: { ...prev[k], level: lv } }));
-  const setComment = (k, val) => setAxes(prev => ({ ...prev, [k]: { ...prev[k], comment: val } }));
+  // 保存
+  const handleSave = () => {
+    if (!term.trim() || !allAnswered) return;
+    const axes = calcAxesFromAnswers(answers, allQuestions);
+    saveSurvey(axes);
+    setAnswers({});
+    setCurSection(0);
+    setSubmitted(false);
+    setPreviewAxes(null);
+  };
+
+  if (loadErr) return (
+    <div style={{ ...S.card, borderColor: C.accent2 + "66", textAlign:"center", padding:"2rem" }}>
+      <p style={{ color:C.accent2, fontWeight:700, marginBottom:8 }}>⚠ アンケートデータの読み込みに失敗しました</p>
+      <p style={{ fontSize:12, color:C.textSub, marginBottom:16 }}>
+        <code>public/survey_questions.json</code> を配置してください。<br/>エラー: {loadErr}
+      </p>
+      <p style={{ fontSize:12, color:C.textMuted }}>※ 開発時は <code>npm start</code> で自動検出されます。</p>
+    </div>
+  );
+
+  if (!surveyDef) return (
+    <div style={{ textAlign:"center", padding:"3rem", color:C.textSub }}>
+      <div style={{ fontSize:24, marginBottom:8 }}>⏳</div>
+      <p style={{ fontSize:13 }}>アンケートを読み込み中...</p>
+    </div>
+  );
+
+  const sections = surveyDef.sections;
+  const section  = sections[curSection];
 
   return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>ASSESSMENT</p>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>メンター評価</h2>
+    <div>
+      {/* 今期の目標 */}
+      <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
+        <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>今期の目標</p>
+        <p style={{ fontSize:12, color:C.textSub, marginBottom:10 }}>自分で立てた目標を記述してください。</p>
+        <textarea value={term} onChange={e=>setTerm(e.target.value)} placeholder="今期取り組みたいテーマ・目標..." style={{ ...S.textarea, marginBottom:0 }}/>
+      </div>
+
+      {/* 全体プログレス */}
+      <div style={{ marginBottom:"1.25rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.textSub, marginBottom:6 }}>
+          <span>{surveyDef.description?.slice(0,30)}...</span>
+          <span>{answeredCount} / {totalCount} 回答済み</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700 }}>{completed}/9</span>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>平均 {avgLv}</span>
+        <div style={{ height:4, background:C.surface3, borderRadius:99 }}>
+          <div style={{ height:4, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, width:`${totalCount>0?(answeredCount/totalCount)*100:0}%`, borderRadius:99, transition:"width 0.3s" }}/>
         </div>
       </div>
 
-      <div style={{ padding: '20px 20px 0' }}>
-        {/* 学生選択 */}
-        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
-          <label style={S.label}>対象学生 *</label>
-          {students.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-              学生がいません（学生がログインすると表示されます）
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {students.map(s => (
-                <button key={s.id} onClick={() => setSelectedId(s.id)} style={{
-                  padding: '8px 16px', borderRadius: 10, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s',
-                  border: `2px solid ${selectedId === s.id ? '#7500C0' : 'rgba(117,0,192,0.2)'}`,
-                  background: selectedId === s.id ? 'rgba(117,0,192,0.1)' : '#ffffff',
-                  color: selectedId === s.id ? '#7500C0' : 'var(--text-muted)',
-                  fontWeight: selectedId === s.id ? 700 : 400,
+      {/* セクションタブ */}
+      <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:"1.25rem" }}>
+        {sections.map((sec, i) => {
+          const done = sectionProgress(sec);
+          const total = sec.questions.length;
+          const complete = done === total;
+          return (
+            <button key={sec.id} onClick={()=>setCurSection(i)} style={{
+              ...S.navBtn(curSection===i),
+              position:"relative",
+              paddingRight: complete ? 28 : undefined,
+            }}>
+              {sec.label}
+              {complete && <span style={{ marginLeft:5, color:C.success, fontSize:11 }}>✓</span>}
+              {!complete && done>0 && <span style={{ marginLeft:5, color:C.warn, fontSize:10 }}>{done}/{total}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* セクション説明 */}
+      <div style={{ ...S.scard, borderLeft:`3px solid ${C.primary}`, marginBottom:"1.25rem" }}>
+        <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 3px" }}>{section.label}</p>
+        <p style={{ fontSize:12, color:C.textSub, margin:0 }}>{section.description}</p>
+      </div>
+
+      {/* 質問カード */}
+      {section.questions.map((q, qi) => {
+        const selected = answers[q.id];
+        return (
+          <div key={q.id} style={{
+            ...S.card,
+            padding:"1.25rem",
+            borderColor: selected ? C.primary+"55" : C.border,
+            background: selected ? C.primary+"08" : C.surface,
+            transition:"all 0.2s",
+            marginBottom:"0.75rem",
+          }}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"22", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px", flexShrink:0, marginTop:1 }}>
+                Q{(sections.slice(0,curSection).reduce((acc,s)=>acc+s.questions.length,0)) + qi + 1}
+              </span>
+              <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7, fontWeight:500 }}>{q.text}</p>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+              {q.options.map(opt => (
+                <button key={opt.value} onClick={()=>handleAnswer(q.id, opt.value)} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  padding:"10px 14px", borderRadius:10, cursor:"pointer",
+                  border:`1.5px solid ${selected===opt.value ? C.primary : C.border}`,
+                  background: selected===opt.value ? C.primary+"18" : C.surface2,
+                  color: selected===opt.value ? C.text : C.textSub,
+                  fontSize:13, fontFamily:"inherit", textAlign:"left",
+                  transition:"all 0.15s",
                 }}>
-                  {s.name}
+                  <span style={{
+                    width:20, height:20, borderRadius:"50%", flexShrink:0,
+                    border:`2px solid ${selected===opt.value ? C.primary : C.borderLight}`,
+                    background: selected===opt.value ? C.primary : "transparent",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    {selected===opt.value && <span style={{ width:8, height:8, borderRadius:"50%", background:"#fff", display:"block" }}/>}
+                  </span>
+                  <span style={{ lineHeight:1.5 }}>{opt.label}</span>
                 </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        );
+      })}
 
-        {/* 評価メモ */}
-        <div style={{ ...S.card, borderColor: 'rgba(117,0,192,0.25)', marginBottom: 20 }}>
-          <label style={S.label}>評価メモ（任意）</label>
-          <textarea
-            style={{ ...S.input, minHeight: 72, resize: 'vertical', lineHeight: 1.6 }}
-            placeholder="この評価セッションのメモ・コメント"
-            value={note}
-            onChange={e => setNote(e.target.value)}
-          />
-        </div>
+      {/* セクションナビ */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"1rem", marginBottom:"1.5rem" }}>
+        <button style={{ ...S.btn, opacity:curSection===0?0.3:1 }} disabled={curSection===0} onClick={()=>setCurSection(s=>s-1)}>← 前のセクション</button>
+        {curSection < sections.length-1
+          ? <button style={S.btnPrimary} onClick={()=>setCurSection(s=>s+1)}>次のセクション →</button>
+          : null
+        }
+      </div>
 
-        {/* 評価軸 */}
-        {['A', 'B', 'C'].map(cat => {
-          const catAxes = AXES.filter(a => a.category === cat);
-          const c = CATEGORY_COLORS[cat];
-          return (
-            <div key={cat} style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ background: c.badge, color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>{cat}</span>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.label}</span>
-              </div>
-              {catAxes.map(axis => {
-                const cur = axes[axis.key];
-                return (
-                  <div key={axis.key} style={{
-                    ...S.card, marginBottom: 10, transition: 'all 0.2s',
-                    background: cur.level > 0 ? LEVEL_BG[cur.level] : 'var(--bg-card)',
-                    borderColor: cur.level > 0 ? `${LEVEL_COLORS[cur.level]}50` : 'var(--border)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div>
-                        <span style={{ fontSize: 13, color: '#7500C0', fontWeight: 700, marginRight: 6 }}>{axis.num}</span>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{axis.name}</span>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{axis.desc}</p>
-                      </div>
-                      {cur.level > 0 && (
-                        <span style={{ background: LEVEL_COLORS[cur.level], color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', marginLeft: 8 }}>
-                          Lv.{cur.level}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                      {LEVELS.map(lv => (
-                        <button key={lv.lv} onClick={() => setLevel(axis.key, lv.lv)} style={{
-                          flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                          textAlign: 'center', transition: 'all 0.15s',
-                          border: `2px solid ${cur.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'rgba(117,0,192,0.15)'}`,
-                          background: cur.level === lv.lv ? `${LEVEL_COLORS[lv.lv]}25` : '#ffffff',
-                          color: cur.level === lv.lv ? LEVEL_COLORS[lv.lv] : 'var(--text-muted)',
-                        }}>
-                          <div style={{ fontSize: 10, marginBottom: 1, opacity: 0.7 }}>Lv.{lv.lv}</div>
-                          {lv.name}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      style={{ ...S.input, fontSize: 13, padding: '9px 12px' }}
-                      placeholder="補足コメント（任意）"
-                      value={cur.comment}
-                      onChange={e => setComment(axis.key, e.target.value)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-
-        {/* 保存ボタン */}
-        <button
-          style={{
-            ...S.btn, width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px', marginBottom: 24,
-            opacity: (!selectedId || completed === 0) ? 0.4 : 1,
-          }}
-          onClick={handleSave}
-          disabled={!selectedId || completed === 0}
-        >
-          <Save size={18} /> 保存する
-        </button>
-
-        {/* 評価履歴 */}
-        {history.length > 0 && selectedStudent && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
-              {selectedStudent.name} の評価履歴
-            </h3>
-            {history.map(s => {
-              const vals = AXES.map(a => s.axes?.[a.key]?.level).filter(Boolean);
-              const a   = vals.length ? avg(vals).toFixed(1) : '—';
+      {/* プレビュースコア */}
+      {previewAxes && answeredCount >= 5 && (
+        <div style={{ ...S.card, borderColor:C.primary+"33", marginBottom:"1rem" }}>
+          <p style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:4 }}>
+            📊 現時点のスコアプレビュー
+            <span style={{ fontSize:11, color:C.textSub, fontWeight:400, marginLeft:8 }}>（回答が増えるほど精度が上がります）</span>
+          </p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:8 }}>
+            {AXES.map(a => {
+              const lv = previewAxes[a.id];
+              if (!lv) return null;
               return (
-                <div key={s.timestamp} style={{ ...S.card, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(s.timestamp)}</span>
-                    <span style={{ background: 'rgba(117,0,192,0.1)', color: '#7500C0', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
-                      平均 Lv.{a}
-                    </span>
-                  </div>
-                  {s.note && <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8 }}>{s.note}</p>}
-                  <div style={{ display: 'flex', gap: 3 }}>
-                    {AXES.map(ax => {
-                      const lv = s.axes?.[ax.key]?.level || 0;
-                      return (
-                        <div key={ax.key} style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{ax.num}</div>
-                          <div style={{ height: 20, borderRadius: 4, background: lv > 0 ? LEVEL_COLORS[lv] : 'rgba(117,0,192,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {lv > 0 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>{lv}</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <span key={a.id} style={{ ...S.badge(lv), fontSize:11 }}>
+                  {a.short} Lv.{lv}
+                </span>
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* 保存ボタン */}
+      {allAnswered && (
+        <button style={{ ...S.btnPrimary, width:"100%", padding:"13px", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:"1.5rem" }} onClick={handleSave}>
+          <Save size={16}/> 回答を保存する
+        </button>
+      )}
+      {!allAnswered && (
+        <p style={{ fontSize:12, color:C.textMuted, textAlign:"center", marginBottom:"1.5rem" }}>
+          全 {totalCount} 問に回答するとスコアを計算して保存できます（残り {totalCount - answeredCount} 問）
+        </p>
+      )}
+
+      {/* 過去の回答履歴 */}
+      {mySurveys.length > 0 && (
+        <div style={{ marginTop:"0.5rem" }}>
+          <h3 style={{ fontSize:13, fontWeight:700, color:C.textSub, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>過去の回答</h3>
+          {mySurveys.map(sv => (
+            <div key={sv.timestamp} style={S.scard}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <span style={{ fontSize:12, color:C.textSub }}>{fmt(sv.timestamp)}</span>
+                <span style={S.tag(C.primary)}>平均 Lv {axisAvg(sv.axes).toFixed(1)}</span>
+              </div>
+              <p style={{ fontSize:13, color:C.text, marginBottom:8 }}>{sv.term}</p>
+              <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
+                {AXES.map(a => sv.axes?.[a.id] ? (
+                  <span key={a.id} style={{ ...S.tag(LEVEL_COLOR[sv.axes[a.id]]||C.textMuted), fontSize:10 }}>{a.short} {sv.axes[a.id]}</span>
+                ) : null)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── メンター ボトムナビ ──────────────────────────────────────────────────────
+function MentimeterReflection({ onSubmit }) {
+  const [step, setStep]       = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [comment, setComment] = useState("");
+  const total = REFLECTION_QUESTIONS.length;
+  const done  = Object.keys(answers).length === total;
+  const q     = REFLECTION_QUESTIONS[step];
 
-function MentorBottomNav({ screen, setScreen }) {
-  const items = [
-    { key: 'home',          icon: Users,         label: '学生一覧' },
-    { key: 'mentor_survey', icon: ClipboardList, label: '評価入力' },
-  ];
+  const select = (n) => {
+    const next = { ...answers, [q.id]: n };
+    setAnswers(next);
+    if (step < total - 1) setTimeout(() => setStep(s => s + 1), 280);
+  };
 
   return (
-    <nav style={S.bottomNav}>
-      {items.map(item => {
-        const active = screen === item.key || (item.key === 'home' && screen === 'student_detail');
-        return (
-          <button key={item.key} onClick={() => setScreen(item.key)} style={{
-            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 4,
-            color: active ? '#7500C0' : 'var(--text-muted)', position: 'relative', transition: 'color 0.2s',
-          }}>
-            {active && (
-              <span style={{
-                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
-                width: 32, height: 2, background: 'linear-gradient(90deg, #A100FF, #7500C0)',
-                borderRadius: '0 0 2px 2px',
-              }} />
-            )}
-            <item.icon size={20} />
-            <span style={{ fontSize: 10, fontWeight: active ? 700 : 400 }}>{item.label}</span>
-          </button>
-        );
-      })}
-    </nav>
+    <div style={{ maxWidth:520, margin:"0 auto" }}>
+      {/* プログレス */}
+      <div style={{ marginBottom:"1.5rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.textSub, marginBottom:6 }}>
+          <span>質問 {step+1} / {total}</span>
+          <span>{Math.round((step/total)*100)}%</span>
+        </div>
+        <div style={{ height:3, background:C.surface3, borderRadius:99 }}>
+          <div style={{ height:3, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, width:`${(step/total)*100}%`, borderRadius:99, transition:"width 0.3s" }}/>
+        </div>
+      </div>
+
+      {!done ? (
+        <div>
+          <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:14, padding:"2rem 1.5rem", marginBottom:"1.25rem", textAlign:"center" }}>
+            <p style={{ fontSize:15, lineHeight:1.8, margin:0, color:C.text }}>{q.text}</p>
+          </div>
+          <div style={{ display:"flex", gap:4, marginBottom:6 }}>
+            {[1,2,3,4,5,6,7,8,9,10].map(n => (
+              <button key={n} onClick={()=>select(n)} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${answers[q.id]===n?C.primary:C.border}`, background:answers[q.id]===n?C.primary:"transparent", color:answers[q.id]===n?"#fff":C.textSub, fontSize:13, fontWeight:600, cursor:"pointer", transition:"all 0.15s" }}>{n}</button>
+            ))}
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.textMuted, marginBottom:"1.5rem" }}>
+            <span>全くそう思わない</span><span>非常にそう思う</span>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            {step>0 && <button style={S.btn} onClick={()=>setStep(s=>s-1)}>← 前へ</button>}
+            {answers[q.id] && step<total-1 && <button style={S.btn} onClick={()=>setStep(s=>s+1)}>次へ →</button>}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p style={{ fontSize:14, fontWeight:700, marginBottom:"1rem", color:C.text }}>回答まとめ</p>
+          {REFLECTION_QUESTIONS.map(q => (
+            <div key={q.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+              <span style={{ fontSize:12, flex:1, color:C.textSub, lineHeight:1.5 }}>{q.text}</span>
+              <div style={{ height:5, width:`${(answers[q.id]||0)*9}px`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, minWidth:2, transition:"width 0.3s" }}/>
+              <span style={{ fontSize:13, fontWeight:700, minWidth:20, color:C.text }}>{answers[q.id]}</span>
+            </div>
+          ))}
+          <div style={{ marginTop:"1.25rem" }}>
+            <p style={{ fontSize:13, fontWeight:600, marginBottom:4, color:C.text }}>振り返りコメント（任意）</p>
+            <p style={{ fontSize:12, color:C.textSub, marginBottom:8 }}>数値では表しきれなかったことを自由に書いてください。</p>
+            <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="例：チームの雰囲気が良く自分から発言しやすかった。次回はもっと提案を具体化したい。" style={{ ...S.textarea, marginBottom:12 }}/>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button style={S.btnPrimary} onClick={()=>onSubmit(answers,"mentimeter",comment)}>提出する</button>
+            <button style={S.btn} onClick={()=>{setStep(0);setAnswers({});setComment("");}}>やり直す</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-// ─── アプリルート ─────────────────────────────────────────────────────────────
+// ─── 振り返り：アンケート形式 ─────────────────────────────────────────────
+function SurveyReflection({ onSubmit }) {
+  const [answers, setAnswers] = useState({});
+  const done = REFLECTION_QUESTIONS.every(q => answers[q.id]?.trim());
+  return (
+    <div>
+      <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>各質問に自由に回答してください。</p>
+      {REFLECTION_QUESTIONS.map(q => (
+        <div key={q.id} style={{ marginBottom:"1.25rem" }}>
+          <p style={{ fontSize:13, marginBottom:6, color:C.text, fontWeight:500 }}>{q.id}. {q.text}</p>
+          <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))} placeholder="自由に記入してください..." style={{ ...S.textarea, minHeight:60 }}/>
+        </div>
+      ))}
+      <button style={{ ...S.btnPrimary, opacity:done?1:0.4, cursor:done?"pointer":"default", marginTop:4 }} onClick={()=>done&&onSubmit(answers,"survey")} disabled={!done}>提出する</button>
+    </div>
+  );
+}
 
+// ─── メインアプリ ──────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser]                     = useState(null);
-  const [screen, setScreen]                 = useState('home');
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => storage.get("current_user"));
+  const [screen, setScreen]           = useState("home");
+  const [refresh, setRefresh]         = useState(0);
+  const tick = () => setRefresh(r => r + 1);
 
-  useEffect(() => {
-    const saved = storage.get('current_user');
-    if (saved) setUser(saved);
-  }, []);
+  // 学生用 state
+  const [term, setTerm]               = useState("");
+  const [axisScores, setAxisScores]   = useState({});
+  const [yatta, setYatta]             = useState("");
+  const [wakatta, setWakatta]         = useState("");
+  const [tsugi, setTsugi]             = useState("");
+  const [emotion, setEmotion]         = useState(3);
+  const [reflectMode, setReflectMode] = useState("mentimeter");
+  const [nextActInputs, setNextActInputs] = useState({});
 
-  const handleLogin = (u) => {
-    storage.set('current_user', u);
-    if (u.role === 'student') {
-      const list = storage.get('students_list') || [];
-      const exists = list.find(s => s.id === u.id);
-      if (!exists) {
-        storage.set('students_list', [...list, { id: u.id, name: u.name, registeredAt: Date.now() }]);
-      } else if (exists.name !== u.name) {
-        storage.set('students_list', list.map(s => s.id === u.id ? { ...s, name: u.name } : s));
+  // メンター用 state
+  const [selStudent, setSelStudent]   = useState(null);
+  const [mentorScores, setMentorScores] = useState({});
+  const [mentorNote, setMentorNote]   = useState("");
+  const [newQuestion, setNewQuestion] = useState("");
+  const [fbText, setFbText]           = useState("");
+  const [scoringTarget, setScoringTarget] = useState(null);
+  const [aiLoading, setAiLoading]     = useState(false);
+  const [aiResult, setAiResult]       = useState(null);
+  const [answerMap, setAnswerMap]     = useState({});
+  const [mentorAxisScores, setMentorAxisScores] = useState({});
+  const [mentorHistView, setMentorHistView] = useState("survey");
+
+  // ログイン
+  const [loginName, setLoginName]     = useState("");
+  const [loginId, setLoginId]         = useState("");
+  const [loginRole, setLoginRole]     = useState("student");
+
+  const login = (u) => { storage.set("current_user", u); setCurrentUser(u); setScreen("home"); };
+  const logout = () => { storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
+
+  const handleLogin = () => {
+    if (!loginName.trim() || !loginId.trim()) return;
+    const u = { id: loginId.trim(), name: loginName.trim(), role: loginRole };
+    if (loginRole === "student") {
+      const list = getStudents();
+      if (!list.find(s => s.id === u.id)) {
+        storage.set("students_list", [...list, { id:u.id, name:u.name, registeredAt:Date.now() }]);
       }
     }
-    setUser(u);
+    login(u);
   };
 
-  const handleLogout = () => {
-    storage.delete('current_user');
-    setUser(null);
-    setScreen('home');
-    setSelectedStudent(null);
+  // ─── データ取得 ──────────────────────────────────────────────────────────
+  const mySurveys  = useMemo(() => currentUser ? getSurveys(currentUser.id)  : [], [currentUser, refresh]);
+  const myLogs     = useMemo(() => currentUser ? getLogs(currentUser.id)     : [], [currentUser, refresh]);
+  const latestSurvey = mySurveys[0] || null;
+  const students   = useMemo(() => getStudents(), [refresh]);
+
+  // ─── レーダーチャートデータ ───────────────────────────────────────────
+  const radarData = (selfSurvey, mentorSurvey) =>
+    AXES.map(a => ({
+      subject: a.short,
+      自己: selfSurvey?.axes?.[a.id] || 0,
+      他者: mentorSurvey?.axes?.[a.id] || 0,
+      fullMark: 4,
+    }));
+
+  // ─── 学生：アンケート保存 ─────────────────────────────────────────────
+  // JSON由来のcomputedAxesを受け取る形に変更
+  const saveSurvey = (computedAxes) => {
+    const axes = computedAxes || axisScores;
+    const hasAny = AXES.some(a => axes[a.id]);
+    if (!term.trim() || !hasAny) { alert("今期の目標とすべての質問への回答が必要です。"); return; }
+    const ts = Date.now();
+    storage.set(`survey:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, term, axes });
+    setTerm(""); setAxisScores({}); tick();
+    alert("アンケートを保存しました。");
   };
 
-  const logoutBtn = (
-    <button
-      onClick={handleLogout}
-      style={{
-        position: 'fixed', bottom: 84, right: 20,
-        background: 'rgba(117,0,192,0.08)', border: '1px solid rgba(117,0,192,0.2)',
-        borderRadius: 10, padding: '8px 12px', color: 'var(--text-muted)',
-        fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, zIndex: 150,
-      }}
-    >
-      <LogOut size={13} /> ログアウト
-    </button>
+  // ─── 学生：ログ保存 ───────────────────────────────────────────────────
+  const saveLog = () => {
+    if (!yatta.trim() && !wakatta.trim() && !tsugi.trim()) return;
+    const ts = Date.now();
+    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, yatta, wakatta, tsugi, emotion });
+    setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); tick();
+  };
+
+  // ─── 学生：振り返り提出 ───────────────────────────────────────────────
+  const submitReflection = (answers, mode, comment="") => {
+    const summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
+    const pending = getPending();
+    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, status:"pending" }]);
+    tick();
+    alert("振り返りを提出しました。メンターが採点します。");
+    setScreen("home");
+  };
+
+  // ─── 学生：NextAction ────────────────────────────────────────────────
+  const saveNextAction = (axisId) => {
+    const text = nextActInputs[axisId];
+    if (!text?.trim()) return;
+    const cur = getNextActions(currentUser.id);
+    saveNextActions(currentUser.id, { ...cur, [axisId]:{ text, createdAt:fmt(Date.now()) } });
+    setNextActInputs(m => ({ ...m, [axisId]:"" })); tick();
+  };
+
+  // ─── メンター：AI採点 ─────────────────────────────────────────────────
+  const runAI = async (text) => {
+    setAiLoading(true); setAiResult(null);
+    try {
+      const ex = DEMO_EXAMPLES.map((e,i) =>
+        `【事例${i+1}】「${e.text}」採点:${AXES.map(a=>`${a.name}=${e.scores[a.id]}`).join("、")}`
+      ).join("\n");
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          messages:[{ role:"user", content:`PBL評価専門家として9軸4段階で採点。【軸】${AXES.map(a=>`${a.id}.${a.name}`).join("、")}【段階】1=受動性,2=能動性,3=自律性,4=創造性【事例】${ex}【対象】「${text}」JSONのみ:{"scores":{"1":数値,...,"9":数値},"rationale":{"1":"根拠",...,"9":"根拠"}}` }]
+        })
+      });
+      const data = await res.json();
+      const parsed = JSON.parse(data.content.map(c=>c.text||"").join("").replace(/```json|```/g,"").trim());
+      const scores = {};
+      Object.entries(parsed.scores).forEach(([k,v]) => scores[parseInt(k)] = parseInt(v));
+      setAiResult({ scores, rationale:parsed.rationale });
+      setMentorScores({ ...scores });
+    } catch(e) { alert("AI採点失敗: " + e.message); }
+    setAiLoading(false);
+  };
+
+  // ─── メンター：他者評価承認 ──────────────────────────────────────────
+  const approveEval = (pending) => {
+    const ts = Date.now();
+    storage.set(`mentor_survey:${pending.studentId}:${ts}`, {
+      studentId:pending.studentId, mentorId:currentUser.id,
+      timestamp:ts, axes:{ ...mentorScores }, note:mentorNote, aiSuggested:aiResult?.scores,
+      reflection:pending.reflection,
+    });
+    const newPending = getPending().filter(p => p.id !== pending.id);
+    savePending(newPending);
+    setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); tick();
+    alert("他者評価を確定しました。");
+  };
+
+  // ─── メンター：問い送信 ──────────────────────────────────────────────
+  const postQuestion = () => {
+    if (!newQuestion.trim() || !selStudent) return;
+    const qs = getQuestions();
+    saveQuestions([...qs, { id:"q"+Date.now(), mentorId:currentUser.id, studentId:selStudent.id, text:newQuestion, createdAt:fmt(Date.now()), answer:"" }]);
+    setNewQuestion(""); tick();
+  };
+
+  // ─── メンター：フィードバック送信 ───────────────────────────────────
+  const postFeedback = () => {
+    if (!fbText.trim() || !selStudent) return;
+    const fs = getFeedbacks();
+    saveFeedbacks([...fs, { id:"f"+Date.now(), mentorId:currentUser.id, studentId:selStudent.id, text:fbText, createdAt:fmt(Date.now()) }]);
+    setFbText(""); tick();
+  };
+
+  // ─── 学生：問い回答 ──────────────────────────────────────────────────
+  const submitAnswer = (qid) => {
+    const ans = answerMap[qid] || "";
+    if (!ans.trim()) return;
+    const qs = getQuestions().map(q => q.id===qid ? {...q, answer:ans} : q);
+    saveQuestions(qs); setAnswerMap(m => ({...m,[qid]:""})); tick();
+  };
+
+  // ─── メンター：学生評価入力 ──────────────────────────────────────────
+  const saveMentorEval = () => {
+    if (!selStudent) return;
+    const hasAny = AXES.some(a => mentorAxisScores[a.id]);
+    if (!hasAny) return;
+    const ts = Date.now();
+    storage.set(`mentor_survey:${selStudent.id}:${ts}`, {
+      studentId:selStudent.id, mentorId:currentUser.id,
+      timestamp:ts, axes:{ ...mentorAxisScores }, note:mentorNote,
+    });
+    setMentorAxisScores({}); setMentorNote(""); tick();
+    alert("評価を保存しました。");
+  };
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ログイン画面
+  // ─────────────────────────────────────────────────────────────────────
+  if (!currentUser) return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", fontFamily:"system-ui,sans-serif" }}>
+      <div style={{ width:"100%", maxWidth:420 }}>
+        <div style={{ textAlign:"center", marginBottom:"2rem" }}>
+          <div style={{ width:56, height:56, borderRadius:14, background:C.primary+"22", border:`1.5px solid ${C.primary}66`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 1rem", boxShadow:`0 0 32px ${C.primary}33` }}>
+            <Star size={26} color={C.primary}/>
+          </div>
+          <h1 style={{ fontSize:24, fontWeight:700, color:C.text, margin:"0 0 6px", letterSpacing:-0.5 }}>Be-Ready ポートフォリオ</h1>
+          <p style={{ color:C.textSub, fontSize:13, margin:0 }}>Project-Based Learning Portfolio</p>
+        </div>
+
+        <div style={{ ...S.card, padding:"1.75rem" }}>
+          {/* ロール切替 */}
+          <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", background:C.surface2, borderRadius:10, padding:4 }}>
+            {[{v:"student",l:"学生"},{v:"mentor",l:"メンター / 教員"}].map(r => (
+              <button key={r.v} onClick={()=>setLoginRole(r.v)} style={{ flex:1, padding:"8px", borderRadius:7, border:"none", background:loginRole===r.v?C.primary:"transparent", color:loginRole===r.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:loginRole===r.v?700:400, transition:"all 0.2s" }}>{r.l}</button>
+            ))}
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>氏名</label>
+            <input value={loginName} onChange={e=>setLoginName(e.target.value)} placeholder="例：山田 太郎" style={S.input}/>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>ユーザーID</label>
+            <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="例：yamada_taro" onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={S.input}/>
+          </div>
+          <button style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10 }} onClick={handleLogin}>
+            はじめる <ChevronRight size={16} style={{ verticalAlign:"middle" }}/>
+          </button>
+        </div>
+        <p style={{ fontSize:11, color:C.textMuted, textAlign:"center", marginTop:14 }}>デモ用：任意の氏名とIDで入れます</p>
+      </div>
+    </div>
   );
 
-  if (!user) return <LoginView onLogin={handleLogin} />;
+  // ─── 共通ヘッダー ─────────────────────────────────────────────────────
+  const Header = () => (
+    <div style={{ borderBottom:`1px solid ${C.border}`, padding:"0.875rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", background:C.surface, position:"sticky", top:0, zIndex:20, backdropFilter:"blur(12px)" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <Star size={16} color={C.primary}/>
+        <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <Avatar name={currentUser.name} size={28} color={currentUser.role==="student"?C.primary:C.success}/>
+        <span style={{ fontSize:13, color:C.textSub }}>{currentUser.name}</span>
+        <span style={S.tag(currentUser.role==="student"?C.primary:C.success)}>{currentUser.role==="student"?"学生":"メンター"}</span>
+        <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
+      </div>
+    </div>
+  );
 
-  // ─── メンターUI ────────────────────────────────────────────────────────────
-  if (user.role === 'mentor') {
-    const goToStudent = (student) => { setSelectedStudent(student); setScreen('student_detail'); };
-    const goToAssess  = (student) => { setSelectedStudent(student); setScreen('mentor_survey'); };
-    const mentorNav   = (s) => { setScreen(s); if (s === 'home') setSelectedStudent(null); };
-
+  // ─────────────────────────────────────────────────────────────────────
+  // メンター採点画面（フルスクリーン）
+  // ─────────────────────────────────────────────────────────────────────
+  if (currentUser.role==="mentor" && scoringTarget) {
+    const p = scoringTarget;
     return (
-      <div style={{ position: 'relative' }}>
-        {screen === 'home' && (
-          <MentorHomeView user={user} onSelectStudent={goToStudent} />
-        )}
-        {screen === 'student_detail' && selectedStudent && (
-          <MentorStudentDetailView
-            user={user}
-            student={selectedStudent}
-            onBack={() => mentorNav('home')}
-            onAssess={() => goToAssess(selectedStudent)}
-          />
-        )}
-        {screen === 'mentor_survey' && (
-          <MentorSurveyView user={user} initialStudent={selectedStudent} />
-        )}
-        <MentorBottomNav screen={screen} setScreen={mentorNav} />
-        {screen === 'home' && logoutBtn}
+      <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
+        <Header/>
+        <div style={{ maxWidth:780, margin:"0 auto", padding:"1.5rem" }}>
+          <button style={{ ...S.btn, marginBottom:"1rem" }} onClick={()=>{setScoringTarget(null);setAiResult(null);setMentorScores({});}}>← 戻る</button>
+          <div style={S.cardGlow}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+              <Avatar name={p.studentId} size={34}/>
+              <div>
+                <p style={{ margin:0, fontWeight:700, fontSize:14 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
+                <p style={{ margin:0, fontSize:12, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター形式":"アンケート形式"}</p>
+              </div>
+            </div>
+
+            {/* 振り返り内容 */}
+            <div style={{ background:C.surface2, borderRadius:10, padding:"1rem", marginBottom:"1rem" }}>
+              {p.answers ? REFLECTION_QUESTIONS.map(q => (
+                <div key={q.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                  <span style={{ fontSize:12, flex:1, color:C.textSub }}>{q.text}</span>
+                  <div style={{ height:5, width:`${(p.answers[q.id]||0)*9}px`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, minWidth:2 }}/>
+                  <span style={{ fontSize:13, fontWeight:600, minWidth:20, color:C.text }}>{p.answers[q.id]}</span>
+                </div>
+              )) : <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", margin:0, lineHeight:1.7 }}>{p.reflection}</p>}
+            </div>
+
+            {/* AI採点ボタン */}
+            <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:"1.5rem" }}>
+              <button style={{ ...S.btnPrimary, opacity:aiLoading?0.6:1, display:"flex", alignItems:"center", gap:6 }} onClick={()=>runAI(p.reflection)} disabled={aiLoading}>
+                <Zap size={14}/>{aiLoading?"AI採点中…":"✦ AIで他者評価を生成"}
+              </button>
+              {aiResult && <span style={{ fontSize:12, color:C.success, fontWeight:600 }}>✓ 確認・修正して承認してください</span>}
+            </div>
+
+            {/* 採点 */}
+            <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>他者評価スコア</p>
+            <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性</p>
+            {AXES.map(a => {
+              const aiScore = aiResult?.scores[a.id];
+              const cur = mentorScores[a.id] || aiScore || 1;
+              return (
+                <div key={a.id} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ minWidth:120 }}>
+                    <p style={{ margin:0, fontSize:13, color:C.text, fontWeight:500 }}>{a.name}</p>
+                    {aiScore && <p style={{ margin:0, fontSize:11, color:C.primary }}>AI提案: {aiScore}</p>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", gap:6, marginBottom:4 }}>
+                      {[1,2,3,4].map(s => (
+                        <button key={s} onClick={()=>setMentorScores(sc=>({...sc,[a.id]:s}))} style={{ padding:"5px 16px", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400, transition:"all 0.15s" }}>{s}</button>
+                      ))}
+                      {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
+                    </div>
+                    {aiResult?.rationale?.[a.id] && <p style={{ fontSize:11, color:C.textMuted, margin:0, lineHeight:1.5 }}>{aiResult.rationale[a.id]}</p>}
+                  </div>
+                </div>
+              );
+            })}
+            <textarea value={mentorNote} onChange={e=>setMentorNote(e.target.value)} placeholder="メンターコメント（任意）" style={{ ...S.textarea, marginBottom:12 }}/>
+            <button style={S.btnSuccess} onClick={()=>approveEval(p)}>他者評価を確定・承認する</button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // ─── 学生UI ────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────
+  // メンター画面
+  // ─────────────────────────────────────────────────────────────────────
+  if (currentUser.role === "mentor") {
+    const pending   = getPending();
+    const selQs     = selStudent ? getQuestions().filter(q=>q.studentId===selStudent.id) : [];
+    const selFbs    = selStudent ? getFeedbacks().filter(f=>f.studentId===selStudent.id) : [];
+    const selSurveys= selStudent ? getSurveys(selStudent.id) : [];
+    const selLogs   = selStudent ? getLogs(selStudent.id) : [];
+    const selMentorSvs = selStudent ? getMentorSurveys(selStudent.id) : [];
+    const latestSelf  = selSurveys[0];
+    const latestOther = selMentorSvs[0];
+
+    return (
+      <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
+        <Header/>
+        <div style={{ maxWidth:820, margin:"0 auto", padding:"1.5rem" }}>
+          {/* ナビ */}
+          <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", flexWrap:"wrap" }}>
+            {[
+              { v:"home",      l:"学生一覧",    icon:Users },
+              { v:"scoring",   l:`採点待ち${pending.length>0?" ("+pending.length+")":""}`, icon:ClipboardList },
+              { v:"eval",      l:"評価入力",    icon:Star },
+              { v:"questions", l:"問いを送る",  icon:MessageSquare },
+              { v:"feedback",  l:"フィードバック", icon:ThumbsUp },
+            ].map(item => (
+              <button key={item.v} style={S.navBtn(screen===item.v)} onClick={()=>setScreen(item.v)}>
+                <item.icon size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>{item.l}
+              </button>
+            ))}
+          </div>
+
+          {/* 学生一覧 */}
+          {screen==="home" && (
+            <div>
+              <h3 style={{ fontSize:16, fontWeight:700, marginBottom:"1rem", color:C.text }}>担当学生の進捗</h3>
+              {students.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>登録済み学生がいません。</p>}
+              {students.map(st => {
+                const svs  = getSurveys(st.id);
+                const latest = svs[0];
+                const pend = pending.filter(p=>p.studentId===st.id).length;
+                const avg1 = latest ? axisAvg(latest.axes).toFixed(1) : "—";
+                return (
+                  <div key={st.id} style={{ ...S.card, cursor:"pointer" }} onClick={()=>{setSelStudent(st);setScreen("eval");}}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <Avatar name={st.name} size={38}/>
+                        <div>
+                          <p style={{ margin:0, fontWeight:700, fontSize:14, color:C.text }}>{st.name}</p>
+                          <p style={{ margin:0, fontSize:12, color:C.textSub }}>ID: {st.id} · アンケート {svs.length}件</p>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        {pend>0 && <span style={S.tag(C.accent2)}>採点待ち {pend}件</span>}
+                        <div style={{ textAlign:"center" }}>
+                          <p style={{ fontSize:22, fontWeight:700, color:C.primary, margin:0 }}>{avg1}</p>
+                          <p style={{ fontSize:10, color:C.textMuted, margin:0 }}>平均Lv</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 採点待ち */}
+          {screen==="scoring" && (
+            <div>
+              <h3 style={{ fontSize:16, fontWeight:700, marginBottom:"1rem" }}>採点待ちの振り返り</h3>
+              {pending.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>採点待ちはありません。</p>}
+              {pending.map(p => (
+                <div key={p.id} style={S.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <Avatar name={p.studentId} size={30}/>
+                      <div>
+                        <p style={{ margin:0, fontSize:13, fontWeight:700 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
+                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター":"アンケート"}</p>
+                      </div>
+                    </div>
+                    <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);}}>採点する</button>
+                  </div>
+                  <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", lineHeight:1.7, margin:0 }}>{p.reflection.slice(0,200)}{p.reflection.length>200?"…":""}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 評価入力 */}
+          {screen==="eval" && (
+            <div>
+              {/* 学生選択 */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1.25rem" }}>
+                <label style={{ fontSize:13, color:C.textSub }}>対象学生：</label>
+                <select value={selStudent?.id||""} onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }} style={{ ...S.input, width:"auto", padding:"7px 12px" }}>
+                  <option value="">選択してください</option>
+                  {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              {selStudent && (
+                <>
+                  {/* レーダーチャート（自己vs他者） */}
+                  {latestSelf && (
+                    <div style={S.card}>
+                      <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>自己評価 vs 他者評価（最新）</p>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <RadarChart data={radarData(latestSelf, latestOther)}>
+                          <PolarGrid stroke={C.border}/>
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:C.textSub }}/>
+                          <Radar name="自己評価" dataKey="自己" stroke={C.primary} fill={C.primary} fillOpacity={0.25}/>
+                          <Radar name="他者評価" dataKey="他者" stroke={C.accent1} fill={C.accent1} fillOpacity={0.15}/>
+                          <Legend wrapperStyle={{ fontSize:12 }}/>
+                          <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12 }}/>
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* 閲覧タブ */}
+                  <div style={{ display:"flex", gap:6, marginBottom:"1rem" }}>
+                    {[{v:"survey",l:"アンケート"},{v:"logs",l:"ログ"},{v:"mentor_hist",l:"評価履歴"}].map(t => (
+                      <button key={t.v} style={S.navBtn(mentorHistView===t.v)} onClick={()=>setMentorHistView(t.v)}>{t.l}</button>
+                    ))}
+                  </div>
+
+                  {mentorHistView==="survey" && selSurveys.map(sv => (
+                    <div key={sv.timestamp} style={{ ...S.scard, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                        <span style={{ fontSize:12, color:C.textSub }}>{fmt(sv.timestamp)}</span>
+                        <span style={S.tag(C.primary)}>平均 Lv {axisAvg(sv.axes).toFixed(1)}</span>
+                      </div>
+                      <p style={{ fontSize:13, color:C.text, marginBottom:8 }}>{sv.term}</p>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {AXES.map(a => <span key={a.id} style={{ ...S.tag(LEVEL_COLOR[sv.axes?.[a.id]]||C.textMuted), fontSize:10 }}>{a.short} {sv.axes?.[a.id]||"—"}</span>)}
+                      </div>
+                    </div>
+                  ))}
+                  {mentorHistView==="logs" && selLogs.map(lg => (
+                    <div key={lg.timestamp} style={{ ...S.scard, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:20 }}>{EMOTIONS[lg.emotion-1]}</span>
+                        <span style={{ fontSize:12, color:C.textSub }}>{fmt(lg.timestamp)}</span>
+                      </div>
+                      {[{l:"Y やったこと",v:lg.yatta},{l:"W わかったこと",v:lg.wakatta},{l:"T 次にやること",v:lg.tsugi}].filter(f=>f.v).map(f => (
+                        <div key={f.l} style={{ marginBottom:6 }}>
+                          <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
+                          <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  {mentorHistView==="mentor_hist" && selMentorSvs.map(ms => (
+                    <div key={ms.timestamp} style={{ ...S.scard, borderLeft:`3px solid ${C.success}`, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                        <span style={{ fontSize:12, color:C.textSub }}>{fmt(ms.timestamp)}</span>
+                        {ms.aiSuggested && <span style={S.tag(C.primary)}>AI採点あり</span>}
+                      </div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                        {AXES.map(a => <span key={a.id} style={{ ...S.tag(LEVEL_COLOR[ms.axes?.[a.id]]||C.textMuted), fontSize:10 }}>{a.short} {ms.axes?.[a.id]||"—"}</span>)}
+                      </div>
+                      {ms.note && <p style={{ fontSize:13, color:C.textSub, margin:0 }}>コメント: {ms.note}</p>}
+                    </div>
+                  ))}
+
+                  {/* 評価入力フォーム */}
+                  <div style={{ ...S.card, marginTop:16 }}>
+                    <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>評価を入力（他者評価）</p>
+                    <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性</p>
+                    {AXES.map(a => {
+                      const cur = mentorAxisScores[a.id] || 0;
+                      return (
+                        <div key={a.id} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                          <span style={{ fontSize:13, minWidth:120, color:C.text, fontWeight:500 }}>{a.name}</span>
+                          <div style={{ display:"flex", gap:6 }}>
+                            {[1,2,3,4].map(s => (
+                              <button key={s} onClick={()=>setMentorAxisScores(sc=>({...sc,[a.id]:s}))} style={{ padding:"6px 16px", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400 }}>{s}</button>
+                            ))}
+                          </div>
+                          {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
+                        </div>
+                      );
+                    })}
+                    <textarea value={mentorNote} onChange={e=>setMentorNote(e.target.value)} placeholder="コメント（任意）" style={{ ...S.textarea, marginBottom:12 }}/>
+                    <button style={S.btnPrimary} onClick={saveMentorEval}>評価を保存</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* 問いを送る */}
+          {screen==="questions" && (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem" }}>
+                <label style={{ fontSize:13, color:C.textSub }}>対象学生：</label>
+                <select value={selStudent?.id||""} onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }} style={{ ...S.input, width:"auto", padding:"7px 12px" }}>
+                  <option value="">選択してください</option>
+                  {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              {selStudent && (
+                <>
+                  <div style={S.card}>
+                    <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>新しい問いを送る</p>
+                    <textarea value={newQuestion} onChange={e=>setNewQuestion(e.target.value)} placeholder="問いを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
+                    <button style={S.btnPrimary} onClick={postQuestion}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
+                  </div>
+                  {selQs.map(q => (
+                    <div key={q.id} style={S.scard}>
+                      <p style={{ fontSize:13, margin:"0 0 4px", color:C.text }}>{q.text}</p>
+                      <span style={{ fontSize:11, color:C.textMuted }}>{q.createdAt}</span>
+                      {q.answer && <div style={{ marginTop:8, background:C.surface3, borderRadius:8, padding:"8px 12px", fontSize:13, color:C.textSub }}><span style={{ fontSize:11, color:C.textMuted }}>回答：</span>{q.answer}</div>}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* フィードバック */}
+          {screen==="feedback" && (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem" }}>
+                <label style={{ fontSize:13, color:C.textSub }}>対象学生：</label>
+                <select value={selStudent?.id||""} onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }} style={{ ...S.input, width:"auto", padding:"7px 12px" }}>
+                  <option value="">選択してください</option>
+                  {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              {selStudent && (
+                <>
+                  <div style={S.card}>
+                    <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>フィードバックを送る</p>
+                    <textarea value={fbText} onChange={e=>setFbText(e.target.value)} placeholder="フィードバックを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
+                    <button style={S.btnPrimary} onClick={postFeedback}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
+                  </div>
+                  {selFbs.map(f => (
+                    <div key={f.id} style={{ ...S.scard, borderLeft:`3px solid ${C.success}` }}>
+                      <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt}</span>
+                      <p style={{ fontSize:13, margin:"6px 0 0", color:C.text }}>{f.text}</p>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 学生画面
+  // ─────────────────────────────────────────────────────────────────────
+  const myNextActions = getNextActions(currentUser.id);
+  const myPending     = getPending().filter(p=>p.studentId===currentUser.id);
+  const myQuestions   = getQuestions().filter(q=>q.studentId===currentUser.id);
+  const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
+  const latestMentor  = getMentorSurveys(currentUser.id)[0];
+
+  const STUDENT_NAV = [
+    { v:"home",       l:"ホーム",       icon:Home },
+    { v:"survey",     l:"アンケート",   icon:ClipboardList },
+    { v:"log",        l:"ログ",         icon:BookOpen },
+    { v:"portfolio",  l:"ポートフォリオ",icon:Briefcase },
+    { v:"reflection", l:"振り返り",     icon:TrendingUp },
+    { v:"questions",  l:`問いへの回答${myQuestions.filter(q=>!q.answer).length>0?" ("+myQuestions.filter(q=>!q.answer).length+")":""}`, icon:MessageSquare },
+    { v:"feedback",   l:"フィードバック",icon:ThumbsUp },
+  ];
+
   return (
-    <div style={{ position: 'relative' }}>
-      {screen === 'home'      && <HomeView user={user} setScreen={setScreen} />}
-      {screen === 'survey'    && <SurveyView user={user} />}
-      {screen === 'log'       && <LogView user={user} />}
-      {screen === 'portfolio' && <PortfolioView user={user} />}
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
+      <Header/>
+      <div style={{ maxWidth:860, margin:"0 auto", padding:"1.5rem" }}>
+        {/* ナビ */}
+        <div style={{ display:"flex", gap:5, marginBottom:"1.5rem", flexWrap:"wrap" }}>
+          {STUDENT_NAV.map(item => (
+            <button key={item.v} style={S.navBtn(screen===item.v)} onClick={()=>setScreen(item.v)}>
+              <item.icon size={12} style={{ verticalAlign:"middle", marginRight:4 }}/>{item.l}
+            </button>
+          ))}
+        </div>
 
-      <BottomNav screen={screen} setScreen={setScreen} />
+        {/* ─── ホーム ─────────────────────────────────────────────── */}
+        {screen==="home" && (
+          <div>
+            {/* 統計カード */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:"1.25rem" }}>
+              {[
+                { l:"アンケート", v:mySurveys.length,  c:C.primary, icon:ClipboardList, s:"survey" },
+                { l:"ログ",      v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
+                { l:"採点待ち",  v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
+              ].map(item => (
+                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1.25rem 0.75rem", border:`1px solid ${item.c}33` }}>
+                  <item.icon size={20} color={item.c} style={{ marginBottom:6 }}/>
+                  <p style={{ fontSize:28, fontWeight:700, color:item.c, margin:"0 0 4px" }}>{item.v}</p>
+                  <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{item.l}</p>
+                </button>
+              ))}
+            </div>
 
-      {screen === 'home' && logoutBtn}
+            {/* 通知 */}
+            {myPending.length>0 && (
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem" }}>
+                <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
+              </div>
+            )}
+            {myQuestions.filter(q=>!q.answer).length>0 && (
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"1rem", cursor:"pointer" }} onClick={()=>setScreen("questions")}>
+                <p style={{ fontSize:13, color:C.accent1, fontWeight:600, margin:0 }}>💬 メンターから未回答の問いが {myQuestions.filter(q=>!q.answer).length}件 あります。</p>
+              </div>
+            )}
+
+            {/* クイックアクション */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {[
+                { l:"アンケートを記入", d:"今期の目標と9軸評価", icon:ClipboardList, s:"survey", c:C.primary },
+                { l:"ログを追加",       d:"YWT振り返りを記録",  icon:BookOpen,      s:"log",    c:C.accent1 },
+                { l:"振り返りを提出",   d:"メンターに振り返りを送る", icon:TrendingUp, s:"reflection", c:C.warn },
+                { l:"ポートフォリオ",   d:"成長の可視化を確認",  icon:Briefcase,    s:"portfolio", c:C.success },
+              ].map(item => (
+                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12, border:`1px solid ${item.c}22` }}>
+                  <div style={{ width:38, height:38, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <item.icon size={18} color={item.c}/>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 2px" }}>{item.l}</p>
+                    <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{item.d}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── アンケート（間接評価・JSON連携） ──────────────────── */}
+        {screen==="survey" && (
+          <SurveyScreen
+            currentUser={currentUser}
+            mySurveys={mySurveys}
+            term={term} setTerm={setTerm}
+            axisScores={axisScores} setAxisScores={setAxisScores}
+            saveSurvey={saveSurvey}
+          />
+        )}
+
+        {/* ─── ログ（YWT） ─────────────────────────────────────────── */}
+        {screen==="log" && (
+          <div>
+            <div style={S.cardGlow}>
+              {[
+                { l:"Y やったこと", v:yatta, set:setYatta, ph:"今日・今期に取り組んだこと" },
+                { l:"W わかったこと", v:wakatta, set:setWakatta, ph:"気づき・学んだこと" },
+                { l:"T 次にやること", v:tsugi, set:setTsugi, ph:"次のアクション" },
+              ].map(f => (
+                <div key={f.l} style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:C.primary, display:"block", marginBottom:6 }}>{f.l}</label>
+                  <textarea value={f.v} onChange={e=>f.set(e.target.value)} placeholder={f.ph} style={{ ...S.textarea, minHeight:60 }}/>
+                </div>
+              ))}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:8 }}>感情記録</label>
+                <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+                  {EMOTIONS.map((em,i) => (
+                    <button key={i} onClick={()=>setEmotion(i+1)} style={{ fontSize:26, background:emotion===i+1?C.primary+"22":"transparent", border:`2px solid ${emotion===i+1?C.primary:"transparent"}`, borderRadius:12, width:48, height:48, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}>{em}</button>
+                  ))}
+                </div>
+              </div>
+              <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8 }} onClick={saveLog}><Save size={14}/> 保存する</button>
+            </div>
+
+            {myLogs.length>0 && (
+              <div style={{ marginTop:"1rem" }}>
+                <h3 style={{ fontSize:14, fontWeight:700, color:C.textSub, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>過去のログ</h3>
+                {myLogs.map(lg => (
+                  <div key={lg.timestamp} style={S.scard}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:20 }}>{EMOTIONS[lg.emotion-1]}</span>
+                        <span style={{ fontSize:12, color:C.textSub }}>{fmt(lg.timestamp)}</span>
+                      </div>
+                      <button onClick={()=>{ storage.del(`log:${currentUser.id}:${lg.timestamp}`); tick(); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted, padding:4 }}><Trash2 size={13}/></button>
+                    </div>
+                    {[{l:"Y やったこと",v:lg.yatta},{l:"W わかったこと",v:lg.wakatta},{l:"T 次にやること",v:lg.tsugi}].filter(f=>f.v).map(f => (
+                      <div key={f.l} style={{ marginBottom:6 }}>
+                        <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
+                        <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── ポートフォリオ ──────────────────────────────────────── */}
+        {screen==="portfolio" && (
+          <div>
+            {!latestSurvey ? (
+              <div style={{ ...S.card, textAlign:"center", padding:"3rem" }}>
+                <BarChart2 size={40} color={C.primary+"44"} style={{ marginBottom:12 }}/>
+                <p style={{ color:C.textSub, marginBottom:16 }}>まだアンケートが記録されていません。</p>
+                <button style={S.btnPrimary} onClick={()=>setScreen("survey")}>アンケートを入力する</button>
+              </div>
+            ) : (
+              <>
+                {/* レーダーチャート */}
+                <div style={S.card}>
+                  <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>自己評価 vs 他者評価</p>
+                  <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>最新のアンケートとメンター評価を重ねて表示します。</p>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart data={radarData(latestSurvey, latestMentor)}>
+                      <PolarGrid stroke={C.border}/>
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:C.textSub }}/>
+                      <Radar name="自己評価" dataKey="自己" stroke={C.primary} fill={C.primary} fillOpacity={0.25}/>
+                      <Radar name="他者評価" dataKey="他者" stroke={C.accent1} fill={C.accent1} fillOpacity={0.15}/>
+                      <Legend wrapperStyle={{ fontSize:12 }}/>
+                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12 }}/>
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* 今期目標 */}
+                <div style={{ ...S.card, borderColor:C.primary+"44" }}>
+                  <p style={{ fontSize:12, fontWeight:700, color:C.primary, marginBottom:6 }}>今期の目標</p>
+                  <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7 }}>{latestSurvey.term}</p>
+                </div>
+
+                {/* GAPとNextAction */}
+                <div style={S.card}>
+                  <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>GAP と NextAction</p>
+                  <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>
+                    <span style={{ color:C.primary }}>■ 自己</span>　<span style={{ color:C.accent1 }}>■ 他者</span>　GAPを確認して次の行動を設定してください。
+                  </p>
+                  {AXES.map(a => {
+                    const self  = latestSurvey?.axes?.[a.id] || 0;
+                    const other = latestMentor?.axes?.[a.id] || 0;
+                    const gap   = self - other;
+                    const existing = myNextActions[a.id];
+                    return (
+                      <div key={a.id} style={{ marginBottom:"1rem", paddingBottom:"1rem", borderBottom:`1px solid ${C.border}` }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                          <span style={{ fontSize:13, fontWeight:700, minWidth:110, color:C.text }}>{a.name}</span>
+                          {self>0 && <span style={S.tag(C.primary)}>自己 {self}</span>}
+                          {other>0 && <span style={S.tag(C.accent1)}>他者 {other}</span>}
+                          {self>0 && other>0 && (
+                            <span style={S.tag(gap>0?C.warn:gap<0?C.accent1:C.success)}>
+                              {gap>0?`自己+${gap}`:gap<0?`他者+${Math.abs(gap)}`:"一致"}
+                            </span>
+                          )}
+                        </div>
+                        {existing ? (
+                          <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <span style={{ fontSize:13, color:C.text }}><ArrowRight size={12} style={{ verticalAlign:"middle", marginRight:4, color:C.success }}/>{existing.text}</span>
+                            <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>{ const na=getNextActions(currentUser.id); delete na[a.id]; saveNextActions(currentUser.id,na); tick(); }}>変更</button>
+                          </div>
+                        ) : (
+                          <div style={{ display:"flex", gap:8 }}>
+                            <input value={nextActInputs[a.id]||""} onChange={e=>setNextActInputs(m=>({...m,[a.id]:e.target.value}))} placeholder="NextActionを入力..." style={{ ...S.input, flex:1 }}/>
+                            <button style={S.btnPrimary} onClick={()=>saveNextAction(a.id)}>保存</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 9軸レベルバー */}
+                <div style={S.card}>
+                  <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>9軸スコア（最新）</p>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
+                    {AXES.map(a => {
+                      const self  = latestSurvey?.axes?.[a.id] || 0;
+                      const other = latestMentor?.axes?.[a.id] || 0;
+                      return (
+                        <div key={a.id} style={{ background:C.surface2, borderRadius:10, padding:"10px 12px", border:`1px solid ${C.border}` }}>
+                          <p style={{ fontSize:11, color:C.textSub, margin:"0 0 6px" }}>{a.name}</p>
+                          <LvBar lv={self} label="自己" maxLv={4}/>
+                          <div style={{ marginTop:4 }}>
+                            <LvBar lv={other} label="他者" maxLv={4}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 強み・成長エリア */}
+                {(() => {
+                  const strong = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) >= 3);
+                  const grow   = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) <= 2 && (latestSurvey.axes?.[a.id]||0) > 0);
+                  return strong.length>0 || grow.length>0 ? (
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                      {strong.length>0 && (
+                        <div style={{ ...S.card, borderColor:C.success+"44" }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>💪 強みのエリア（Lv3以上）</p>
+                          {strong.map(a => <div key={a.id} style={{ ...S.tag(C.success), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                        </div>
+                      )}
+                      {grow.length>0 && (
+                        <div style={{ ...S.card, borderColor:C.warn+"44" }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>🌱 成長のエリア</p>
+                          {grow.map(a => <div key={a.id} style={{ ...S.tag(C.warn), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ─── 振り返り ────────────────────────────────────────────── */}
+        {screen==="reflection" && (
+          <div>
+            {myPending.length>0 && (
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem" }}>
+                <p style={{ fontSize:13, color:C.warn, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
+              </div>
+            )}
+            <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", background:C.surface2, borderRadius:10, padding:4, width:"fit-content" }}>
+              {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式"}].map(m => (
+                <button key={m.v} onClick={()=>setReflectMode(m.v)} style={{ padding:"8px 16px", borderRadius:7, border:"none", background:reflectMode===m.v?C.primary:"transparent", color:reflectMode===m.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectMode===m.v?700:400, transition:"all 0.2s" }}>{m.l}</button>
+              ))}
+            </div>
+            <div style={S.card}>
+              <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>
+                {reflectMode==="mentimeter"?"1問ずつ回答する":"全問まとめて回答する"}
+              </p>
+              <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>
+                {reflectMode==="mentimeter"?"質問が1問ずつ表示されます。直感で回答してください。":"全ての質問が表示されます。自分のペースで回答してください。"}
+              </p>
+              {reflectMode==="mentimeter"
+                ? <MentimeterReflection onSubmit={submitReflection}/>
+                : <SurveyReflection onSubmit={submitReflection}/>
+              }
+            </div>
+          </div>
+        )}
+
+        {/* ─── 問いへの回答 ────────────────────────────────────────── */}
+        {screen==="questions" && (
+          <div>
+            {myQuestions.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだメンターから問いはありません。</p>}
+            {myQuestions.map(q => (
+              <div key={q.id} style={S.card}>
+                <span style={{ fontSize:11, color:C.textMuted }}>メンターより · {q.createdAt}</span>
+                <p style={{ fontSize:14, fontWeight:600, margin:"8px 0 10px", color:C.text }}>{q.text}</p>
+                {q.answer ? (
+                  <div style={{ background:C.surface2, borderRadius:8, padding:"8px 12px" }}>
+                    <span style={{ fontSize:11, color:C.textMuted }}>あなたの回答：</span>
+                    <p style={{ fontSize:13, margin:"4px 0 0", color:C.text }}>{q.answer}</p>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <textarea value={answerMap[q.id]||""} onChange={e=>setAnswerMap(m=>({...m,[q.id]:e.target.value}))} placeholder="回答を入力..." style={{ ...S.textarea, flex:1, minHeight:50 }}/>
+                    <button style={S.btnPrimary} onClick={()=>submitAnswer(q.id)}><Send size={14}/></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ─── フィードバック ──────────────────────────────────────── */}
+        {screen==="feedback" && (
+          <div>
+            {myFeedbacks.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだフィードバックはありません。</p>}
+            {myFeedbacks.map(f => (
+              <div key={f.id} style={{ ...S.card, borderLeft:`3px solid ${C.success}` }}>
+                <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt} · メンターより</span>
+                <p style={{ fontSize:14, marginTop:8, color:C.text, lineHeight:1.7 }}>{f.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
