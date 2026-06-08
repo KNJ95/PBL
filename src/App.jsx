@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Home, ClipboardList, BookOpen, Briefcase, LogOut,
+  ClipboardList, BookOpen, Briefcase, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
   BarChart2, Send, ArrowRight
@@ -483,7 +483,8 @@ export default function App() {
   const [wakatta, setWakatta]         = useState("");
   const [tsugi, setTsugi]             = useState("");
   const [emotion, setEmotion]         = useState(3);
-  const [reflectMode, setReflectMode] = useState("mentimeter");
+  const [reflectMode, setReflectMode]       = useState("mentimeter");
+  const [reflectionTab, setReflectionTab]   = useState("reflection");
   const [nextActInputs, setNextActInputs] = useState({});
 
   // メンター用 state
@@ -695,16 +696,11 @@ export default function App() {
   // ─── 共通ヘッダー ─────────────────────────────────────────────────────
   const Header = () => (
     <div style={{ borderBottom:`1px solid ${C.border}`, padding:"0.875rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", background:C.surface, position:"sticky", top:0, zIndex:20, backdropFilter:"blur(12px)" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <button style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:10, padding:0 }} onClick={() => setScreen("home")}>
         <Star size={16} color={C.primary}/>
         <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
-      </div>
-      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-        <Avatar name={currentUser.name} size={28} color={currentUser.role==="student"?C.primary:C.success}/>
-        <span style={{ fontSize:13, color:C.textSub }}>{currentUser.name}</span>
-        <span style={S.tag(currentUser.role==="student"?C.primary:C.success)}>{currentUser.role==="student"?"学生":"メンター"}</span>
-        <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
-      </div>
+      </button>
+      <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
     </div>
   );
 
@@ -887,12 +883,12 @@ export default function App() {
                       <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>自己評価 vs 他者評価（最新）</p>
                       <ResponsiveContainer width="100%" height={240}>
                         <RadarChart data={radarData(latestSelf, latestOther)}>
-                          <PolarGrid stroke={C.border}/>
-                          <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:C.textSub }}/>
-                          <Radar name="自己評価" dataKey="自己" stroke={C.primary} fill={C.primary} fillOpacity={0.25}/>
-                          <Radar name="他者評価" dataKey="他者" stroke={C.accent1} fill={C.accent1} fillOpacity={0.15}/>
+                          <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                          <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
+                          <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>
                           <Legend wrapperStyle={{ fontSize:12 }}/>
-                          <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12 }}/>
+                          <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1040,28 +1036,12 @@ export default function App() {
   const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
   const latestMentor  = getMentorSurveys(currentUser.id)[0];
 
-  const STUDENT_NAV = [
-    { v:"home",       l:"ホーム",       icon:Home },
-    { v:"survey",     l:"アンケート",   icon:ClipboardList },
-    { v:"log",        l:"ログ",         icon:BookOpen },
-    { v:"portfolio",  l:"ポートフォリオ",icon:Briefcase },
-    { v:"reflection", l:"振り返り",     icon:TrendingUp },
-    { v:"questions",  l:`問いへの回答${myQuestions.filter(q=>!q.answer).length>0?" ("+myQuestions.filter(q=>!q.answer).length+")":""}`, icon:MessageSquare },
-    { v:"feedback",   l:"フィードバック",icon:ThumbsUp },
-  ];
+  const unreadQ = myQuestions.filter(q=>!q.answer).length;
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       <Header/>
-      <div style={{ maxWidth:860, margin:"0 auto", padding:"1.5rem" }}>
-        {/* ナビ */}
-        <div style={{ display:"flex", gap:5, marginBottom:"1.5rem", flexWrap:"wrap" }}>
-          {STUDENT_NAV.map(item => (
-            <button key={item.v} style={S.navBtn(screen===item.v)} onClick={()=>setScreen(item.v)}>
-              <item.icon size={12} style={{ verticalAlign:"middle", marginRight:4 }}/>{item.l}
-            </button>
-          ))}
-        </div>
+      <div style={{ maxWidth:860, margin:"0 auto", padding:"1.5rem 1.5rem 5rem" }}>
 
         {/* ─── ホーム ─────────────────────────────────────────────── */}
         {screen==="home" && (
@@ -1087,9 +1067,29 @@ export default function App() {
                 <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
               </div>
             )}
-            {myQuestions.filter(q=>!q.answer).length>0 && (
-              <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"1rem", cursor:"pointer" }} onClick={()=>setScreen("questions")}>
-                <p style={{ fontSize:13, color:C.accent1, fontWeight:600, margin:0 }}>💬 メンターから未回答の問いが {myQuestions.filter(q=>!q.answer).length}件 あります。</p>
+            {unreadQ>0 && (
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"1rem", cursor:"pointer" }} onClick={()=>{setScreen("reflection");setReflectionTab("questions");}}>
+                <p style={{ fontSize:13, color:C.accent1, fontWeight:600, margin:0 }}>💬 メンターから未回答の問いが {unreadQ}件 あります。</p>
+              </div>
+            )}
+
+            {/* レーダーチャート */}
+            {latestSurvey && (
+              <div style={{ ...S.card, marginBottom:"1.25rem" }}>
+                <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>Be-Ready 評価レーダー</p>
+                <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
+                  自己評価{latestMentor ? " / メンター評価" : ""}（最新）
+                </p>
+                <ResponsiveContainer width="100%" height={260}>
+                  <RadarChart data={radarData(latestSurvey, latestMentor)}>
+                    <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                    <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
+                    {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>}
+                    <Legend wrapperStyle={{ fontSize:12, color:C.textSub }}/>
+                    <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
             )}
 
@@ -1193,12 +1193,12 @@ export default function App() {
                   <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>最新のアンケートとメンター評価を重ねて表示します。</p>
                   <ResponsiveContainer width="100%" height={260}>
                     <RadarChart data={radarData(latestSurvey, latestMentor)}>
-                      <PolarGrid stroke={C.border}/>
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:C.textSub }}/>
-                      <Radar name="自己評価" dataKey="自己" stroke={C.primary} fill={C.primary} fillOpacity={0.25}/>
-                      <Radar name="他者評価" dataKey="他者" stroke={C.accent1} fill={C.accent1} fillOpacity={0.15}/>
+                      <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                      <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
+                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>}
                       <Legend wrapperStyle={{ fontSize:12 }}/>
-                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12 }}/>
+                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1294,70 +1294,105 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── 振り返り ────────────────────────────────────────────── */}
+        {/* ─── 振り返り（問いへの回答・フィードバック含む） ──────── */}
         {screen==="reflection" && (
           <div>
-            {myPending.length>0 && (
-              <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem" }}>
-                <p style={{ fontSize:13, color:C.warn, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
-              </div>
-            )}
-            <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", background:C.surface2, borderRadius:10, padding:4, width:"fit-content" }}>
-              {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式"}].map(m => (
-                <button key={m.v} onClick={()=>setReflectMode(m.v)} style={{ padding:"8px 16px", borderRadius:7, border:"none", background:reflectMode===m.v?C.primary:"transparent", color:reflectMode===m.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectMode===m.v?700:400, transition:"all 0.2s" }}>{m.l}</button>
+            {/* サブタブ */}
+            <div style={{ display:"flex", gap:4, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4 }}>
+              {[
+                { v:"reflection", l:"振り返り" },
+                { v:"questions",  l:`問いへの回答${unreadQ>0?` (${unreadQ})`:""}` },
+                { v:"feedback",   l:"フィードバック" },
+              ].map(t => (
+                <button key={t.v} onClick={()=>setReflectionTab(t.v)} style={{ flex:1, padding:"8px 12px", borderRadius:7, border:"none", background:reflectionTab===t.v?C.primary:"transparent", color:reflectionTab===t.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectionTab===t.v?700:400, transition:"all 0.2s" }}>{t.l}</button>
               ))}
             </div>
-            <div style={S.card}>
-              <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>
-                {reflectMode==="mentimeter"?"1問ずつ回答する":"全問まとめて回答する"}
-              </p>
-              <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>
-                {reflectMode==="mentimeter"?"質問が1問ずつ表示されます。直感で回答してください。":"全ての質問が表示されます。自分のペースで回答してください。"}
-              </p>
-              {reflectMode==="mentimeter"
-                ? <MentimeterReflection onSubmit={submitReflection}/>
-                : <SurveyReflection onSubmit={submitReflection}/>
-              }
-            </div>
-          </div>
-        )}
 
-        {/* ─── 問いへの回答 ────────────────────────────────────────── */}
-        {screen==="questions" && (
-          <div>
-            {myQuestions.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだメンターから問いはありません。</p>}
-            {myQuestions.map(q => (
-              <div key={q.id} style={S.card}>
-                <span style={{ fontSize:11, color:C.textMuted }}>メンターより · {q.createdAt}</span>
-                <p style={{ fontSize:14, fontWeight:600, margin:"8px 0 10px", color:C.text }}>{q.text}</p>
-                {q.answer ? (
-                  <div style={{ background:C.surface2, borderRadius:8, padding:"8px 12px" }}>
-                    <span style={{ fontSize:11, color:C.textMuted }}>あなたの回答：</span>
-                    <p style={{ fontSize:13, margin:"4px 0 0", color:C.text }}>{q.answer}</p>
-                  </div>
-                ) : (
-                  <div style={{ display:"flex", gap:8 }}>
-                    <textarea value={answerMap[q.id]||""} onChange={e=>setAnswerMap(m=>({...m,[q.id]:e.target.value}))} placeholder="回答を入力..." style={{ ...S.textarea, flex:1, minHeight:50 }}/>
-                    <button style={S.btnPrimary} onClick={()=>submitAnswer(q.id)}><Send size={14}/></button>
+            {/* 振り返り入力 */}
+            {reflectionTab==="reflection" && (
+              <div>
+                {myPending.length>0 && (
+                  <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem" }}>
+                    <p style={{ fontSize:13, color:C.warn, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
                   </div>
                 )}
+                <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", background:C.surface2, borderRadius:10, padding:4, width:"fit-content" }}>
+                  {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式"}].map(m => (
+                    <button key={m.v} onClick={()=>setReflectMode(m.v)} style={{ padding:"8px 16px", borderRadius:7, border:"none", background:reflectMode===m.v?C.primary:"transparent", color:reflectMode===m.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectMode===m.v?700:400, transition:"all 0.2s" }}>{m.l}</button>
+                  ))}
+                </div>
+                <div style={S.card}>
+                  <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>
+                    {reflectMode==="mentimeter"?"1問ずつ回答する":"全問まとめて回答する"}
+                  </p>
+                  <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>
+                    {reflectMode==="mentimeter"?"質問が1問ずつ表示されます。直感で回答してください。":"全ての質問が表示されます。自分のペースで回答してください。"}
+                  </p>
+                  {reflectMode==="mentimeter"
+                    ? <MentimeterReflection onSubmit={submitReflection}/>
+                    : <SurveyReflection onSubmit={submitReflection}/>
+                  }
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {/* ─── フィードバック ──────────────────────────────────────── */}
-        {screen==="feedback" && (
-          <div>
-            {myFeedbacks.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだフィードバックはありません。</p>}
-            {myFeedbacks.map(f => (
-              <div key={f.id} style={{ ...S.card, borderLeft:`3px solid ${C.success}` }}>
-                <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt} · メンターより</span>
-                <p style={{ fontSize:14, marginTop:8, color:C.text, lineHeight:1.7 }}>{f.text}</p>
+            {/* 問いへの回答 */}
+            {reflectionTab==="questions" && (
+              <div>
+                {myQuestions.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだメンターから問いはありません。</p>}
+                {myQuestions.map(q => (
+                  <div key={q.id} style={S.card}>
+                    <span style={{ fontSize:11, color:C.textMuted }}>メンターより · {q.createdAt}</span>
+                    <p style={{ fontSize:14, fontWeight:600, margin:"8px 0 10px", color:C.text }}>{q.text}</p>
+                    {q.answer ? (
+                      <div style={{ background:C.surface2, borderRadius:8, padding:"8px 12px" }}>
+                        <span style={{ fontSize:11, color:C.textMuted }}>あなたの回答：</span>
+                        <p style={{ fontSize:13, margin:"4px 0 0", color:C.text }}>{q.answer}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", gap:8 }}>
+                        <textarea value={answerMap[q.id]||""} onChange={e=>setAnswerMap(m=>({...m,[q.id]:e.target.value}))} placeholder="回答を入力..." style={{ ...S.textarea, flex:1, minHeight:50 }}/>
+                        <button style={S.btnPrimary} onClick={()=>submitAnswer(q.id)}><Send size={14}/></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* フィードバック */}
+            {reflectionTab==="feedback" && (
+              <div>
+                {myFeedbacks.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>まだフィードバックはありません。</p>}
+                {myFeedbacks.map(f => (
+                  <div key={f.id} style={{ ...S.card, borderLeft:`3px solid ${C.success}` }}>
+                    <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt} · メンターより</span>
+                    <p style={{ fontSize:14, marginTop:8, color:C.text, lineHeight:1.7 }}>{f.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
+      </div>
+
+      {/* ─── ボトムナビゲーション ──────────────────────────────────── */}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30 }}>
+        {[
+          { v:"survey",    l:"アンケート",    icon:ClipboardList },
+          { v:"log",       l:"ログ",          icon:BookOpen },
+          { v:"portfolio", l:"ポートフォリオ", icon:Briefcase },
+          { v:"reflection",l:"振り返り",      icon:TrendingUp },
+        ].map(item => {
+          const active = screen===item.v;
+          return (
+            <button key={item.v} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px 0 calc(10px + env(safe-area-inset-bottom))", background:"none", border:"none", borderTop:`2px solid ${active?C.primary:"transparent"}`, cursor:"pointer", color:active?C.primary:C.textMuted, gap:3, transition:"all 0.15s" }}
+              onClick={() => setScreen(item.v)}>
+              <item.icon size={20}/>
+              <span style={{ fontSize:10, fontWeight:active?700:400 }}>{item.l}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
