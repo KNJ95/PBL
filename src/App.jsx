@@ -165,7 +165,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   const [loadErr, setLoadErr]         = useState(null);
   const [answers, setAnswers]         = useState({});
   const [curSection, setCurSection]   = useState(0);
-  const [previewAxes, setPreviewAxes] = useState(null);
 
   useEffect(() => {
     fetch("/survey_questions.json")
@@ -187,11 +186,8 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   const sectionProgress = (sec) =>
     sec.questions.filter(q => answers[q.id] !== undefined).length;
 
-  // 回答するたびにプレビュースコアを更新
   const handleAnswer = (qid, val) => {
-    const next = { ...answers, [qid]: val };
-    setAnswers(next);
-    setPreviewAxes(calcAxesFromAnswers(next, allQuestions));
+    setAnswers(prev => ({ ...prev, [qid]: val }));
   };
 
   // 保存
@@ -201,7 +197,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
     saveSurvey(axes);
     setAnswers({});
     setCurSection(0);
-    setPreviewAxes(null);
   };
 
   if (loadErr) return (
@@ -324,26 +319,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
         }
       </div>
 
-      {/* プレビュースコア */}
-      {previewAxes && answeredCount >= 5 && (
-        <div style={{ ...S.card, borderColor:C.primary+"33", marginBottom:"1rem" }}>
-          <p style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:4 }}>
-            📊 現時点のスコアプレビュー
-            <span style={{ fontSize:11, color:C.textSub, fontWeight:400, marginLeft:8 }}>（回答が増えるほど精度が上がります）</span>
-          </p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:8 }}>
-            {AXES.map(a => {
-              const lv = previewAxes[a.id];
-              if (!lv) return null;
-              return (
-                <span key={a.id} style={{ ...S.badge(lv), fontSize:11 }}>
-                  {a.short} Lv.{lv}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* 保存ボタン */}
       {allAnswered && (
