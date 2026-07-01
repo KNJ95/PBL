@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Home, ClipboardList, BookOpen, Briefcase, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
-  BarChart2, Send, ArrowRight
+  BarChart2, Send, ArrowRight, Camera, Sparkles, X
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -467,6 +467,10 @@ export default function App() {
   const [reflectMode, setReflectMode]       = useState("mentimeter");
   const [reflectionTab, setReflectionTab]   = useState("reflection");
   const [nextActInputs, setNextActInputs] = useState({});
+  const [logPhoto, setLogPhoto]             = useState(null);
+  const [portfolioAiLoading, setPortfolioAiLoading] = useState(false);
+  const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
+  const photoInputRef = useRef(null);
 
   // メンター用 state
   const [selStudent, setSelStudent]   = useState(null);
@@ -531,12 +535,68 @@ export default function App() {
     alert("アンケートを保存しました。");
   };
 
+  // ─── 画像圧縮 ────────────────────────────────────────────────────────
+  const compressImage = (file, maxPx=640, quality=0.65) => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file);
+    setLogPhoto(compressed);
+    e.target.value = "";
+  };
+
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
     if (!yatta.trim() && !wakatta.trim() && !tsugi.trim()) return;
     const ts = Date.now();
-    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, yatta, wakatta, tsugi, emotion });
-    setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); tick();
+    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, yatta, wakatta, tsugi, emotion, photo: logPhoto || null });
+    setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); setLogPhoto(null); tick();
+  };
+
+  // ─── ポートフォリオ：AIモック分析 ────────────────────────────────────
+  const runMockAiAnalysis = () => {
+    setPortfolioAiLoading(true);
+    setPortfolioAiResult(null);
+    const axes = latestSurvey?.axes || {};
+    const logCount = myLogs.length;
+    const photoCount = myLogs.filter(l => l.photo).length;
+    const strong = AXES.filter(a => !a.ref && (axes[a.id]||0) >= 3);
+    const grow   = AXES.filter(a => !a.ref && (axes[a.id]||0) > 0 && (axes[a.id]||0) <= 2);
+    const strongText = strong.length ? strong.map(a=>`「${a.name}」Lv.${axes[a.id]}`).join("、") : "（データ不足）";
+    const growText  = grow.length   ? grow.map(a=>`「${a.name}」Lv.${axes[a.id]}`).join("、") : "（データ不足）";
+    setTimeout(() => {
+      setPortfolioAiResult(
+        `【第三者視点 AI 評価レポート（モック）】\n\n` +
+        `📊 分析データ：ログ ${logCount} 件（うち写真付き ${photoCount} 件）\n\n` +
+        `◆ 総合所見\n` +
+        `蓄積されたログと9軸自己評価から、この学生は自分の活動を丁寧に言語化する習慣が形成されつつあります。` +
+        `特に行動記録の継続性から、内発的な動機づけの萌芽が見受けられます。\n\n` +
+        `💪 強みと判断される軸\n${strongText}\n\n` +
+        `🌱 成長が期待される軸\n${growText}\n\n` +
+        `📸 写真ログからの観察\n` +
+        (photoCount > 0
+          ? `${photoCount}件の写真ログが蓄積されています。成果物・活動の記録から実践的な関与が確認できます。`
+          : `写真ログはまだありません。活動の様子や成果物を写真で記録すると、より精度の高い分析が可能になります。`) +
+        `\n\n※ これはモック評価です。実際のAI分析にはAPIキーの設定が必要です。`
+      );
+      setPortfolioAiLoading(false);
+    }, 1800);
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
@@ -1083,7 +1143,7 @@ export default function App() {
                 { l:"振り返りを提出",   d:"メンターに振り返りを送る", icon:TrendingUp, s:"reflection", c:C.warn },
                 { l:"ポートフォリオ",   d:"成長の可視化を確認",  icon:Briefcase,    s:"portfolio", c:C.success },
               ].map(item => (
-                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12, border:`1px solid ${item.c}22` }}>
+                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12, border:`1px solid ${item.c}22`, minWidth:0, overflow:"hidden" }}>
                   <div style={{ width:38, height:38, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                     <item.icon size={18} color={item.c}/>
                   </div>
@@ -1130,6 +1190,21 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              {/* 写真ログ */}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:8 }}>写真ログ（任意）</label>
+                <input ref={photoInputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handlePhotoSelect}/>
+                {logPhoto ? (
+                  <div style={{ position:"relative", display:"inline-block" }}>
+                    <img src={logPhoto} alt="log" style={{ width:120, height:90, objectFit:"cover", borderRadius:10, border:`1px solid ${C.border}` }}/>
+                    <button onClick={()=>setLogPhoto(null)} style={{ position:"absolute", top:-8, right:-8, background:C.surface, border:`1px solid ${C.border}`, borderRadius:"50%", width:22, height:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}><X size={12} color={C.textSub}/></button>
+                  </div>
+                ) : (
+                  <button onClick={()=>photoInputRef.current?.click()} style={{ ...S.btn, display:"flex", alignItems:"center", gap:6 }}><Camera size={14}/> 写真を追加</button>
+                )}
+              </div>
+
               <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8 }} onClick={saveLog}><Save size={14}/> 保存する</button>
             </div>
 
@@ -1151,6 +1226,9 @@ export default function App() {
                         <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
                       </div>
                     ))}
+                    {lg.photo && (
+                      <img src={lg.photo} alt="log" style={{ marginTop:8, width:"100%", maxHeight:180, objectFit:"cover", borderRadius:8, border:`1px solid ${C.border}` }}/>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1288,6 +1366,37 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {/* AI分析 */}
+                <div style={{ ...S.card, borderColor:C.accent1+"44", marginTop:12 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <Sparkles size={16} color={C.accent1}/>
+                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>AI 第三者評価（モック）</p>
+                    <span style={{ fontSize:10, background:C.accent1+"22", color:C.accent1, borderRadius:4, padding:"2px 6px" }}>DEMO</span>
+                  </div>
+                  <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
+                    蓄積されたログ・写真・評価スコアをもとに第三者視点での評価を生成します。
+                  </p>
+                  {portfolioAiResult ? (
+                    <div>
+                      <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10, padding:"1rem", fontSize:13, color:C.text, lineHeight:1.75, whiteSpace:"pre-wrap", marginBottom:12 }}>
+                        {portfolioAiResult}
+                      </div>
+                      <button style={{ ...S.btn, display:"flex", alignItems:"center", gap:6 }} onClick={()=>setPortfolioAiResult(null)}>
+                        <Sparkles size={13}/> 再分析する
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8, background:`linear-gradient(135deg,${C.primary},${C.accent1})` }}
+                      onClick={runMockAiAnalysis}
+                      disabled={portfolioAiLoading}
+                    >
+                      <Sparkles size={14}/>
+                      {portfolioAiLoading ? "分析中..." : "AI で分析する"}
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>
