@@ -32,22 +32,23 @@ const C = {
 
 // ─── 評価定数 ──────────────────────────────────────────────────────────────
 const AXES = [
-  { id:1, key:"axis1", name:"課題設定力",      short:"課題",  category:"A" },
-  { id:2, key:"axis2", name:"情報活用力",      short:"情報",  category:"A" },
-  { id:3, key:"axis3", name:"不確実性への耐性", short:"不確実",category:"A" },
-  { id:4, key:"axis4", name:"提案・発信力",    short:"提案",  category:"B" },
-  { id:5, key:"axis5", name:"実行・改善力",    short:"実行",  category:"B" },
-  { id:6, key:"axis6", name:"オーナーシップ",  short:"所有",  category:"B" },
-  { id:7, key:"axis7", name:"協働・調整力",    short:"協働",  category:"C" },
-  { id:8, key:"axis8", name:"自律・内発的動機", short:"動機",  category:"C" },
-  { id:9, key:"axis9", name:"行動変容力",      short:"変容",  category:"C" },
+  { id:1, key:"axis1", name:"課題設定力",      short:"課題",  category:"A", ref:false, evalText:"仕事について自分の視点からその価値・意味を理解しているか" },
+  { id:2, key:"axis2", name:"情報活用力",      short:"情報",  category:"A", ref:true,  evalText:"情報を活用できるか（※基準未確定・参考値）" },
+  { id:3, key:"axis3", name:"不確実性への耐性", short:"不確実",category:"A", ref:false, evalText:"不確実性の高い仕事でも粘り強くかつ柔軟に取り組めるか" },
+  { id:4, key:"axis4", name:"提案・発信力",    short:"提案",  category:"B", ref:false, evalText:"やるべき・やりたいと考えることを他者に伝えられるか" },
+  { id:5, key:"axis5", name:"実行・改善力",    short:"実行",  category:"B", ref:false, evalText:"他でもない自分のこととして粘り強く関われるか" },
+  { id:6, key:"axis6", name:"オーナーシップ",  short:"責任",  category:"B", ref:false, evalText:"やりたいと思っているか・意味を自分なりに理解できているか" },
+  { id:7, key:"axis7", name:"協働・調整力",    short:"協働",  category:"C", ref:false, evalText:"他者の意見を取り入れつつ柔軟に対応できるか" },
+  { id:8, key:"axis8", name:"自律・内発的動機", short:"動機",  category:"C", ref:true,  evalText:"なぜやるかを自分で語れるか（※基準未確定・参考値）" },
+  { id:9, key:"axis9", name:"行動変容力",      short:"変容",  category:"C", ref:false, evalText:"フィードバックを行動の変化につなげられるか" },
 ];
 
+// 0626ルーブリック準拠のレベル定義
 const LEVELS = [
-  { lv:1, name:"受動性", color:"#6B7280" },
-  { lv:2, name:"能動性", color:C.accent1 },
-  { lv:3, name:"自律性", color:C.primary },
-  { lv:4, name:"創造性", color:C.warn },
+  { lv:1, name:"受動性", color:"#6B7280", def:"対象を外から（外在的視点）見て、傍観者的・人ごと的にただ知っているだけの状態" },
+  { lv:2, name:"能動性", color:C.accent1, def:"他者の立場に立てば確かにそう思える、となっている状態" },
+  { lv:3, name:"自律性", color:C.primary, def:"他者ではなく、自分の視点から見て確かにそう思える、となっている状態" },
+  { lv:4, name:"創造性", color:C.warn,    def:"自らの行為・経験から新たにやりたい・やるべきことを見つけ出している" },
 ];
 
 const LEVEL_COLOR = { 1:"#6B7280", 2:C.accent1, 3:C.primary, 4:C.warn };
@@ -345,9 +346,14 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
               <p style={{ fontSize:13, color:C.text, marginBottom:8 }}>{sv.term}</p>
               <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
                 {AXES.map(a => sv.axes?.[a.id] ? (
-                  <span key={a.id} style={{ ...S.tag(LEVEL_COLOR[sv.axes[a.id]]||C.textMuted), fontSize:10 }}>{a.short} {sv.axes[a.id]}</span>
+                  <span key={a.id} style={{ ...S.tag(a.ref ? C.textMuted : (LEVEL_COLOR[sv.axes[a.id]]||C.textMuted)), fontSize:10, opacity: a.ref ? 0.65 : 1 }}>
+                    {a.short} {sv.axes[a.id]}{a.ref ? " ※" : ""}
+                  </span>
                 ) : null)}
               </div>
+              {AXES.some(a => a.ref && sv.axes?.[a.id]) && (
+                <p style={{ fontSize:10, color:C.textMuted, margin:"4px 0 0" }}>※ 参考値（基準未確定）</p>
+              )}
             </div>
           ))}
         </div>
@@ -507,7 +513,7 @@ export default function App() {
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
     AXES.map(a => ({
-      subject: a.short,
+      subject: a.ref ? `${a.short}※` : a.short,
       自己: selfSurvey?.axes?.[a.id] || 0,
       他者: mentorSurvey?.axes?.[a.id] || 0,
       fullMark: 4,
@@ -1065,6 +1071,7 @@ export default function App() {
                     <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                   </RadarChart>
                 </ResponsiveContainer>
+                <p style={{ fontSize:10, color:C.textMuted, marginTop:4 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
               </div>
             )}
 
@@ -1176,6 +1183,7 @@ export default function App() {
                       <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                     </RadarChart>
                   </ResponsiveContainer>
+                  <p style={{ fontSize:10, color:C.textMuted, marginTop:4 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
                 </div>
 
                 {/* 今期目標 */}
@@ -1231,8 +1239,11 @@ export default function App() {
                       const self  = latestSurvey?.axes?.[a.id] || 0;
                       const other = latestMentor?.axes?.[a.id] || 0;
                       return (
-                        <div key={a.id} style={{ background:C.surface2, borderRadius:10, padding:"10px 12px", border:`1px solid ${C.border}` }}>
-                          <p style={{ fontSize:11, color:C.textSub, margin:"0 0 6px" }}>{a.name}</p>
+                        <div key={a.id} style={{ background:C.surface2, borderRadius:10, padding:"10px 12px", border:`1px solid ${C.border}`, opacity: a.ref ? 0.7 : 1 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:6 }}>
+                            <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{a.name}</p>
+                            {a.ref && <span style={{ fontSize:9, color:C.textMuted, background:C.surface3, borderRadius:4, padding:"1px 4px" }}>参考値</span>}
+                          </div>
                           <LvBar lv={self} label="自己" maxLv={4}/>
                           <div style={{ marginTop:4 }}>
                             <LvBar lv={other} label="他者" maxLv={4}/>
@@ -1245,24 +1256,37 @@ export default function App() {
 
                 {/* 強み・成長エリア */}
                 {(() => {
-                  const strong = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) >= 3);
-                  const grow   = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) <= 2 && (latestSurvey.axes?.[a.id]||0) > 0);
-                  return strong.length>0 || grow.length>0 ? (
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                      {strong.length>0 && (
-                        <div style={{ ...S.card, borderColor:C.success+"44" }}>
-                          <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>💪 強みのエリア（Lv3以上）</p>
-                          {strong.map(a => <div key={a.id} style={{ ...S.tag(C.success), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                  const strong = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) >= 3 && !a.ref);
+                  const grow   = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) <= 2 && (latestSurvey.axes?.[a.id]||0) > 0 && !a.ref);
+                  const refAxes = AXES.filter(a => a.ref && (latestSurvey.axes?.[a.id]||0) > 0);
+                  return (
+                    <div>
+                      {(strong.length>0 || grow.length>0) && (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                          {strong.length>0 && (
+                            <div style={{ ...S.card, borderColor:C.success+"44" }}>
+                              <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>💪 強みのエリア（Lv3以上）</p>
+                              {strong.map(a => <div key={a.id} style={{ ...S.tag(C.success), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                            </div>
+                          )}
+                          {grow.length>0 && (
+                            <div style={{ ...S.card, borderColor:C.warn+"44" }}>
+                              <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>🌱 成長のエリア</p>
+                              {grow.map(a => <div key={a.id} style={{ ...S.tag(C.warn), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                            </div>
+                          )}
                         </div>
                       )}
-                      {grow.length>0 && (
-                        <div style={{ ...S.card, borderColor:C.warn+"44" }}>
-                          <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>🌱 成長のエリア</p>
-                          {grow.map(a => <div key={a.id} style={{ ...S.tag(C.warn), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
+                      {refAxes.length>0 && (
+                        <div style={{ ...S.scard, borderLeft:`3px solid ${C.textMuted}`, opacity:0.7 }}>
+                          <p style={{ fontSize:11, fontWeight:700, color:C.textMuted, marginBottom:6 }}>参考値（評価基準未確定）</p>
+                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                            {refAxes.map(a => <span key={a.id} style={{ ...S.tag(C.textMuted), fontSize:11 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
+                          </div>
                         </div>
                       )}
                     </div>
-                  ) : null;
+                  );
                 })()}
               </>
             )}
