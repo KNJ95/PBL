@@ -165,7 +165,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   const [surveyDef, setSurveyDef]     = useState(null);
   const [loadErr, setLoadErr]         = useState(null);
   const [answers, setAnswers]         = useState({});
-  const [curSection, setCurSection]   = useState(0);
 
   useEffect(() => {
     fetch("/survey_questions.json")
@@ -183,10 +182,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   const totalCount    = allQuestions.length;
   const allAnswered   = answeredCount === totalCount;
 
-  // セクション内の回答完了率
-  const sectionProgress = (sec) =>
-    sec.questions.filter(q => answers[q.id] !== undefined).length;
-
   const handleAnswer = (qid, val) => {
     setAnswers(prev => ({ ...prev, [qid]: val }));
   };
@@ -197,7 +192,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
     const axes = calcAxesFromAnswers(answers, allQuestions);
     saveSurvey(axes);
     setAnswers({});
-    setCurSection(0);
   };
 
   if (loadErr) return (
@@ -218,7 +212,6 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
   );
 
   const sections = surveyDef.sections;
-  const section  = sections[curSection];
 
   return (
     <div>
@@ -240,85 +233,63 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
         </div>
       </div>
 
-      {/* セクションタブ */}
-      <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:"1.25rem" }}>
-        {sections.map((sec, i) => {
-          const done = sectionProgress(sec);
-          const total = sec.questions.length;
-          const complete = done === total;
-          return (
-            <button key={sec.id} onClick={()=>setCurSection(i)} style={{
-              ...S.navBtn(curSection===i),
-              position:"relative",
-              paddingRight: complete ? 28 : undefined,
-            }}>
-              {sec.label}
-              {complete && <span style={{ marginLeft:5, color:C.success, fontSize:11 }}>✓</span>}
-              {!complete && done>0 && <span style={{ marginLeft:5, color:C.warn, fontSize:10 }}>{done}/{total}</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* セクション説明 */}
-      <div style={{ ...S.scard, borderLeft:`3px solid ${C.primary}`, marginBottom:"1.25rem" }}>
-        <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 3px" }}>{section.label}</p>
-        <p style={{ fontSize:12, color:C.textSub, margin:0 }}>{section.description}</p>
-      </div>
-
-      {/* 質問カード */}
-      {section.questions.map((q, qi) => {
-        const selected = answers[q.id];
-        return (
-          <div key={q.id} style={{
-            ...S.card,
-            padding:"1.25rem",
-            borderColor: selected ? C.primary+"55" : C.border,
-            background: selected ? C.primary+"08" : C.surface,
-            transition:"all 0.2s",
-            marginBottom:"0.75rem",
-          }}>
-            <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:14 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"22", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px", flexShrink:0, marginTop:1 }}>
-                Q{(sections.slice(0,curSection).reduce((acc,s)=>acc+s.questions.length,0)) + qi + 1}
-              </span>
-              <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7, fontWeight:500 }}>{q.text}</p>
+      {/* 質問カード（全セクション一括表示） */}
+      {(() => {
+        let qNum = 0;
+        return sections.map(sec => (
+          <div key={sec.id}>
+            <div style={{ ...S.scard, borderLeft:`3px solid ${C.primary}`, marginBottom:"1rem" }}>
+              <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 3px" }}>{sec.label}</p>
+              <p style={{ fontSize:12, color:C.textSub, margin:0 }}>{sec.description}</p>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-              {q.options.map(opt => (
-                <button key={opt.value} onClick={()=>handleAnswer(q.id, opt.value)} style={{
-                  display:"flex", alignItems:"center", gap:12,
-                  padding:"10px 14px", borderRadius:10, cursor:"pointer",
-                  border:`1.5px solid ${selected===opt.value ? C.primary : C.border}`,
-                  background: selected===opt.value ? C.primary+"18" : C.surface2,
-                  color: selected===opt.value ? C.text : C.textSub,
-                  fontSize:13, fontFamily:"inherit", textAlign:"left",
-                  transition:"all 0.15s",
+            {sec.questions.map(q => {
+              qNum++;
+              const qIndex = qNum;
+              const selected = answers[q.id];
+              return (
+                <div key={q.id} style={{
+                  ...S.card,
+                  padding:"1.25rem",
+                  borderColor: selected ? C.primary+"55" : C.border,
+                  background: selected ? C.primary+"08" : C.surface,
+                  transition:"all 0.2s",
+                  marginBottom:"0.75rem",
                 }}>
-                  <span style={{
-                    width:20, height:20, borderRadius:"50%", flexShrink:0,
-                    border:`2px solid ${selected===opt.value ? C.primary : C.borderLight}`,
-                    background: selected===opt.value ? C.primary : "transparent",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                  }}>
-                    {selected===opt.value && <span style={{ width:8, height:8, borderRadius:"50%", background:"#fff", display:"block" }}/>}
-                  </span>
-                  <span style={{ lineHeight:1.5 }}>{opt.label}</span>
-                </button>
-              ))}
-            </div>
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:14 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"22", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px", flexShrink:0, marginTop:1 }}>
+                      Q{qIndex}
+                    </span>
+                    <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7, fontWeight:500 }}>{q.text}</p>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                    {q.options.map(opt => (
+                      <button key={opt.value} onClick={()=>handleAnswer(q.id, opt.value)} style={{
+                        display:"flex", alignItems:"center", gap:12,
+                        padding:"10px 14px", borderRadius:10, cursor:"pointer",
+                        border:`1.5px solid ${selected===opt.value ? C.primary : C.border}`,
+                        background: selected===opt.value ? C.primary+"18" : C.surface2,
+                        color: selected===opt.value ? C.text : C.textSub,
+                        fontSize:13, fontFamily:"inherit", textAlign:"left",
+                        transition:"all 0.15s",
+                      }}>
+                        <span style={{
+                          width:20, height:20, borderRadius:"50%", flexShrink:0,
+                          border:`2px solid ${selected===opt.value ? C.primary : C.borderLight}`,
+                          background: selected===opt.value ? C.primary : "transparent",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                        }}>
+                          {selected===opt.value && <span style={{ width:8, height:8, borderRadius:"50%", background:"#fff", display:"block" }}/>}
+                        </span>
+                        <span style={{ lineHeight:1.5 }}>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-
-      {/* セクションナビ */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"1rem", marginBottom:"1.5rem" }}>
-        <button style={{ ...S.btn, opacity:curSection===0?0.3:1 }} disabled={curSection===0} onClick={()=>setCurSection(s=>s-1)}>← 前のセクション</button>
-        {curSection < sections.length-1
-          ? <button style={S.btnPrimary} onClick={()=>setCurSection(s=>s+1)}>次のセクション →</button>
-          : null
-        }
-      </div>
+        ));
+      })()}
 
 
       {/* 保存ボタン */}
