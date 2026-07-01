@@ -232,8 +232,8 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
       {/* 全体プログレス */}
       <div style={{ marginBottom:"1.25rem" }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.textSub, marginBottom:6 }}>
-          <span>{surveyDef.description?.slice(0,30)}...</span>
-          <span>{answeredCount} / {totalCount} 回答済み</span>
+          <span>{answeredCount} / {totalCount} 問回答済み</span>
+          <span style={{ color: answeredCount===totalCount ? C.success : C.textSub }}>{answeredCount===totalCount?"完了":"未完了"}</span>
         </div>
         <div style={{ height:4, background:C.surface3, borderRadius:99 }}>
           <div style={{ height:4, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, width:`${totalCount>0?(answeredCount/totalCount)*100:0}%`, borderRadius:99, transition:"width 0.3s" }}/>
@@ -1022,7 +1022,7 @@ export default function App() {
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       <Header/>
-      <div style={{ maxWidth:860, margin:"0 auto", padding:"1.5rem 1.5rem 5rem" }}>
+      <div style={{ maxWidth:860, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
         {/* ─── ホーム ─────────────────────────────────────────────── */}
         {screen==="home" && (
@@ -1087,9 +1087,9 @@ export default function App() {
                   <div style={{ width:38, height:38, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                     <item.icon size={18} color={item.c}/>
                   </div>
-                  <div>
-                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 2px" }}>{item.l}</p>
-                    <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{item.d}</p>
+                  <div style={{ minWidth:0, overflow:"hidden" }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 2px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.l}</p>
+                    <p style={{ fontSize:11, color:C.textSub, margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.d}</p>
                   </div>
                 </button>
               ))}
@@ -1376,20 +1376,20 @@ export default function App() {
       </div>
 
       {/* ─── ボトムナビゲーション ──────────────────────────────────── */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30 }}>
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, overflowX:"hidden", paddingBottom:"env(safe-area-inset-bottom)" }}>
         {[
-          { v:"home",      l:"ホーム",        icon:Home },
-          { v:"survey",    l:"アンケート",    icon:ClipboardList },
-          { v:"log",       l:"ログ",          icon:BookOpen },
-          { v:"portfolio", l:"ポートフォリオ", icon:Briefcase },
-          { v:"reflection",l:"振り返り",      icon:TrendingUp },
+          { v:"home",      l:"ホーム",   icon:Home },
+          { v:"survey",    l:"評価",     icon:ClipboardList },
+          { v:"log",       l:"ログ",     icon:BookOpen },
+          { v:"portfolio", l:"成果物",   icon:Briefcase },
+          { v:"reflection",l:"振り返り", icon:TrendingUp },
         ].map(item => {
           const active = screen===item.v;
           return (
-            <button key={item.v} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px 0 calc(10px + env(safe-area-inset-bottom))", background:"none", border:"none", borderTop:`2px solid ${active?C.primary:"transparent"}`, cursor:"pointer", color:active?C.primary:C.textMuted, gap:3, transition:"all 0.15s" }}
+            <button key={item.v} style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px 4px", background:"none", border:"none", borderTop:`2px solid ${active?C.primary:"transparent"}`, cursor:"pointer", color:active?C.primary:C.textMuted, gap:3, transition:"all 0.15s" }}
               onClick={() => setScreen(item.v)}>
               <item.icon size={20}/>
-              <span style={{ fontSize:10, fontWeight:active?700:400 }}>{item.l}</span>
+              <span style={{ fontSize:10, fontWeight:active?700:400, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%" }}>{item.l}</span>
             </button>
           );
         })}
