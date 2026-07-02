@@ -855,7 +855,7 @@ export default function App() {
     return (
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
         <Header/>
-        <div style={{ maxWidth:780, margin:"0 auto", padding:"1.5rem" }}>
+        <div style={{ maxWidth:780, margin:"0 auto", padding:`1.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom))` }}>
           <button style={{ ...S.btn, marginBottom:"1rem" }} onClick={()=>{setScoringTarget(null);setAiResult(null);setMentorScores({});}}>← 戻る</button>
           <div style={S.cardGlow}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
@@ -892,20 +892,20 @@ export default function App() {
               const aiScore = aiResult?.scores[a.id];
               const cur = mentorScores[a.id] || aiScore || 1;
               return (
-                <div key={a.id} style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
-                  <div style={{ minWidth:120 }}>
-                    <p style={{ margin:0, fontSize:13, color:C.text, fontWeight:500 }}>{a.name}</p>
-                    {aiScore && <p style={{ margin:0, fontSize:11, color:C.primary }}>AI提案: {aiScore}</p>}
-                  </div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:"flex", gap:6, marginBottom:4 }}>
-                      {[1,2,3,4].map(s => (
-                        <button key={s} onClick={()=>setMentorScores(sc=>({...sc,[a.id]:s}))} style={{ padding:"5px 16px", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400, transition:"all 0.15s" }}>{s}</button>
-                      ))}
-                      {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
+                <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                    <div>
+                      <p style={{ margin:0, fontSize:13, color:C.text, fontWeight:600 }}>{a.name}</p>
+                      {aiScore && <p style={{ margin:0, fontSize:11, color:C.primary }}>AI提案: Lv.{aiScore}</p>}
                     </div>
-                    {aiResult?.rationale?.[a.id] && <p style={{ fontSize:11, color:C.textMuted, margin:0, lineHeight:1.5 }}>{aiResult.rationale[a.id]}</p>}
+                    {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
                   </div>
+                  <div style={{ display:"flex", gap:6, marginBottom:4 }}>
+                    {[1,2,3,4].map(s => (
+                      <button key={s} onClick={()=>setMentorScores(sc=>({...sc,[a.id]:s}))} style={{ flex:1, padding:"8px 0", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400, transition:"all 0.15s" }}>{s}</button>
+                    ))}
+                  </div>
+                  {aiResult?.rationale?.[a.id] && <p style={{ fontSize:11, color:C.textMuted, margin:0, lineHeight:1.5 }}>{aiResult.rationale[a.id]}</p>}
                 </div>
               );
             })}
@@ -921,7 +921,7 @@ export default function App() {
   // メンター画面
   // ─────────────────────────────────────────────────────────────────────
   if (currentUser.role === "mentor") {
-    const pending   = getPending();
+    const pending   = getPending().filter(p => students.some(s => s.id === p.studentId));
     const selQs     = selStudent ? getQuestions().filter(q=>q.studentId===selStudent.id) : [];
     const selFbs    = selStudent ? getFeedbacks().filter(f=>f.studentId===selStudent.id) : [];
     const selSurveys= selStudent ? getSurveys(selStudent.id) : [];
@@ -933,21 +933,7 @@ export default function App() {
     return (
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
         <Header/>
-        <div style={{ maxWidth:820, margin:"0 auto", padding:"1.5rem" }}>
-          {/* ナビ */}
-          <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", flexWrap:"wrap" }}>
-            {[
-              { v:"home",      l:"学生一覧",    icon:Users },
-              { v:"scoring",   l:`採点待ち${pending.length>0?" ("+pending.length+")":""}`, icon:ClipboardList },
-              { v:"eval",      l:"評価入力",    icon:Star },
-              { v:"questions", l:"問いを送る",  icon:MessageSquare },
-              { v:"feedback",  l:"フィードバック", icon:ThumbsUp },
-            ].map(item => (
-              <button key={item.v} style={S.navBtn(screen===item.v)} onClick={()=>setScreen(item.v)}>
-                <item.icon size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>{item.l}
-              </button>
-            ))}
-          </div>
+        <div style={{ maxWidth:820, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
           {/* 学生一覧 */}
           {screen==="home" && (
@@ -1090,14 +1076,16 @@ export default function App() {
                     {AXES.map(a => {
                       const cur = mentorAxisScores[a.id] || 0;
                       return (
-                        <div key={a.id} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
-                          <span style={{ fontSize:13, minWidth:120, color:C.text, fontWeight:500 }}>{a.name}</span>
+                        <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                            <span style={{ fontSize:13, color:C.text, fontWeight:600 }}>{a.name}</span>
+                            {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
+                          </div>
                           <div style={{ display:"flex", gap:6 }}>
                             {[1,2,3,4].map(s => (
-                              <button key={s} onClick={()=>setMentorAxisScores(sc=>({...sc,[a.id]:s}))} style={{ padding:"6px 16px", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400 }}>{s}</button>
+                              <button key={s} onClick={()=>setMentorAxisScores(sc=>({...sc,[a.id]:s}))} style={{ flex:1, padding:"8px 0", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400, transition:"all 0.15s" }}>{s}</button>
                             ))}
                           </div>
-                          {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
                         </div>
                       );
                     })}
@@ -1165,6 +1153,29 @@ export default function App() {
               )}
             </div>
           )}
+        </div>
+
+        {/* ─── フッターナビ（メンター用） */}
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, paddingBottom:"env(safe-area-inset-bottom)" }}>
+          {[
+            { v:"home",      l:"一覧",  icon:Users,         badge:0 },
+            { v:"scoring",   l:"採点",  icon:ClipboardList, badge:pending.length },
+            { v:"eval",      l:"評価",  icon:Star,          badge:0 },
+            { v:"questions", l:"問い",  icon:MessageSquare, badge:0 },
+            { v:"feedback",  l:"FB",    icon:ThumbsUp,      badge:0 },
+          ].map(item => {
+            const active = screen===item.v;
+            return (
+              <button key={item.v} style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px 4px", background:"none", border:"none", borderTop:`2px solid ${active?C.primary:"transparent"}`, cursor:"pointer", color:active?C.primary:C.textMuted, gap:3, transition:"all 0.15s" }}
+                onClick={()=>setScreen(item.v)}>
+                <div style={{ position:"relative" }}>
+                  <item.icon size={22}/>
+                  {item.badge > 0 && <span style={{ position:"absolute", top:-5, right:-8, background:C.accent2, color:"#fff", borderRadius:99, fontSize:9, fontWeight:700, minWidth:16, height:16, lineHeight:"16px", textAlign:"center", padding:"0 3px" }}>{item.badge}</span>}
+                </div>
+                <span style={{ fontSize:10, fontWeight:active?700:400 }}>{item.l}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
