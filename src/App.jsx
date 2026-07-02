@@ -422,6 +422,114 @@ function SurveyReflection({ onSubmit }) {
   );
 }
 
+// ─── アンケート保存後フィードバックモーダル ────────────────────────────────
+function SurveyResultModal({ result, onClose, onPortfolio }) {
+  const { axes, term } = result;
+  const strong   = AXES.filter(a => !a.ref && (axes[a.id] || 0) >= 3);
+  const grow     = AXES.filter(a => !a.ref && (axes[a.id] || 0) > 0 && (axes[a.id] || 0) <= 2);
+  const refAxes  = AXES.filter(a => a.ref  && (axes[a.id] || 0) > 0);
+  const allVals  = AXES.map(a => axes[a.id]).filter(Boolean);
+  const avgLv    = allVals.length ? (allVals.reduce((a,b) => a+b,0) / allVals.length).toFixed(1) : "—";
+
+  const radarD = AXES.map(a => ({
+    subject: a.ref ? `${a.short}※` : a.short,
+    自己: axes[a.id] || 0,
+    fullMark: 4,
+  }));
+
+  const lvComment = (lv) => [
+    "まだ外からの視点で見ている段階です。少しずつ自分事として考えてみましょう。",
+    "他者の立場から理解できています。次は自分の視点で深めましょう。",
+    "自分の視点から確かに理解できています。この強みを広げていきましょう！",
+    "自ら新たな価値を生み出せています。ぜひその視点を周囲と共有してください！",
+  ][lv - 1] || "";
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(90,0,160,0.12)", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"1rem" }}>
+      <div style={{ width:"100%", maxWidth:520, background:C.surface, borderRadius:20, border:`1.5px solid ${C.primary}55`, boxShadow:`0 8px 40px ${C.primary}20`, padding:"1.5rem", margin:"auto" }}>
+
+        {/* ヘッダー */}
+        <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
+          <div style={{ fontSize:40, marginBottom:8 }}>🎉</div>
+          <h2 style={{ fontSize:20, fontWeight:700, color:C.text, margin:"0 0 6px" }}>アンケートを保存しました！</h2>
+          <p style={{ fontSize:12, color:C.textSub, margin:0 }}>今期の目標：{term}</p>
+        </div>
+
+        {/* 平均レベル */}
+        <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:10, background:C.primary+"15", border:`1px solid ${C.primary}44`, borderRadius:12, padding:"8px 24px" }}>
+            <span style={{ fontSize:13, color:C.textSub }}>平均レベル</span>
+            <span style={{ fontSize:26, fontWeight:700, color:C.primary }}>{avgLv}</span>
+          </div>
+        </div>
+
+        {/* レーダーチャート */}
+        <div style={{ height:200, marginBottom:"1.25rem" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarD}>
+              <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+              <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:"#460073", fontWeight:600 }}/>
+              <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.4}/>
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 強みのエリア */}
+        {strong.length > 0 && (
+          <div style={{ marginBottom:"1rem" }}>
+            <p style={{ fontSize:13, fontWeight:700, color:C.success, margin:"0 0 8px" }}>💪 強みのエリア（Lv.3以上）</p>
+            {strong.map(a => (
+              <div key={a.id} style={{ ...S.scard, borderLeft:`3px solid ${C.success}`, marginBottom:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <span style={S.badge(axes[a.id])}>{LEVELS.find(l=>l.lv===axes[a.id])?.name} Lv.{axes[a.id]}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{a.name}</span>
+                </div>
+                <p style={{ fontSize:12, color:C.textSub, margin:0, lineHeight:1.6 }}>{lvComment(axes[a.id])}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 成長のエリア */}
+        {grow.length > 0 && (
+          <div style={{ marginBottom:"1rem" }}>
+            <p style={{ fontSize:13, fontWeight:700, color:C.accent1, margin:"0 0 8px" }}>🌱 成長のエリア（Lv.1〜2）</p>
+            {grow.map(a => (
+              <div key={a.id} style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <span style={S.badge(axes[a.id])}>{LEVELS.find(l=>l.lv===axes[a.id])?.name} Lv.{axes[a.id]}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{a.name}</span>
+                </div>
+                <p style={{ fontSize:12, color:C.textSub, margin:0, lineHeight:1.6 }}>{lvComment(axes[a.id])}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 参考値 */}
+        {refAxes.length > 0 && (
+          <div style={{ marginBottom:"1rem" }}>
+            <p style={{ fontSize:11, color:C.textMuted, margin:"0 0 6px" }}>※ 参考値（基準未確定）</p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {refAxes.map(a => (
+                <span key={a.id} style={{ ...S.tag(C.textMuted), opacity:0.7 }}>{a.name} Lv.{axes[a.id]}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ボタン */}
+        <div style={{ display:"flex", gap:10, marginTop:8 }}>
+          <button style={{ ...S.btn, flex:1, justifyContent:"center" }} onClick={onClose}>閉じる</button>
+          <button style={{ ...S.btnPrimary, flex:2, justifyContent:"center", display:"flex", alignItems:"center", gap:6 }} onClick={onPortfolio}>
+            <Briefcase size={14}/> ポートフォリオを確認
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── メインアプリ ──────────────────────────────────────────────────────────
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => storage.get("current_user"));
@@ -442,6 +550,7 @@ export default function App() {
   const [logPhoto, setLogPhoto]             = useState(null);
   const [portfolioAiLoading, setPortfolioAiLoading] = useState(false);
   const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
+  const [surveyResult, setSurveyResult]             = useState(null);
   const photoInputRef = useRef(null);
 
   // メンター用 state
@@ -502,9 +611,10 @@ export default function App() {
     const hasAny = AXES.some(a => axes[a.id]);
     if (!term.trim() || !hasAny) { alert("今期の目標とすべての質問への回答が必要です。"); return; }
     const ts = Date.now();
+    const savedTerm = term;
     storage.set(`survey:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, term, axes });
+    setSurveyResult({ axes, term: savedTerm });
     setTerm(""); setAxisScores({}); tick();
-    alert("アンケートを保存しました。");
   };
 
   // ─── 画像圧縮 ────────────────────────────────────────────────────────
@@ -1455,6 +1565,15 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* ─── アンケート保存後フィードバックモーダル ─────────────────── */}
+      {surveyResult && (
+        <SurveyResultModal
+          result={surveyResult}
+          onClose={() => setSurveyResult(null)}
+          onPortfolio={() => { setSurveyResult(null); setScreen("portfolio"); }}
+        />
+      )}
 
       {/* ─── ボトムナビゲーション ──────────────────────────────────── */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, overflowX:"hidden", paddingBottom:"env(safe-area-inset-bottom)" }}>
