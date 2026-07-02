@@ -25,9 +25,9 @@ html {
 body {
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
+  background-color: #f5f3ff;
+  color: #1a0030;
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }

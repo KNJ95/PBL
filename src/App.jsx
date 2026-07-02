@@ -15,19 +15,19 @@ const C = {
   primary:      "#A100FF",
   primaryDark:  "#7500C0",
   primaryLight: "#E8CCFF",
-  bg:           "#0A0A14",
-  surface:      "#12111E",
-  surface2:     "#1C1A2E",
-  surface3:     "#252340",
-  border:       "#2E2B4A",
-  borderLight:  "#3D3A5C",
-  text:         "#F0ECFF",
-  textSub:      "#9B97BC",
-  textMuted:    "#5E5A7A",
-  accent1:      "#00C2FF",
-  accent2:      "#FF6B6B",
-  success:      "#00D48A",
-  warn:         "#FFB800",
+  bg:           "#f5f3ff",
+  surface:      "#ffffff",
+  surface2:     "#f0eeff",
+  surface3:     "#e4dff5",
+  border:       "rgba(117,0,192,0.15)",
+  borderLight:  "rgba(117,0,192,0.1)",
+  text:         "#1a0030",
+  textSub:      "#6b5f8a",
+  textMuted:    "#a09abf",
+  accent1:      "#0088aa",
+  accent2:      "#cc3333",
+  success:      "#007a52",
+  warn:         "#7a5900",
 };
 
 // ─── 評価定数 ──────────────────────────────────────────────────────────────
@@ -896,10 +896,10 @@ export default function App() {
                       <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>自己評価 vs 他者評価（最新）</p>
                       <ResponsiveContainer width="100%" height={240}>
                         <RadarChart data={radarData(latestSelf, latestOther)}>
-                          <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
-                          <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                          <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
                           <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                          <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>
+                          <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>
                           <Legend wrapperStyle={{ fontSize:12 }}/>
                           <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                         </RadarChart>
@@ -1095,10 +1095,10 @@ export default function App() {
                 </p>
                 <ResponsiveContainer width="100%" height={260}>
                   <RadarChart data={radarData(latestSurvey, latestMentor)}>
-                    <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                    <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
                     <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                    {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>}
+                    {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
                     <Legend wrapperStyle={{ fontSize:12, color:C.textSub }}/>
                     <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                   </RadarChart>
@@ -1225,10 +1225,10 @@ export default function App() {
                   <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>最新のアンケートとメンター評価を重ねて表示します。</p>
                   <ResponsiveContainer width="100%" height={260}>
                     <RadarChart data={radarData(latestSurvey, latestMentor)}>
-                      <PolarGrid stroke="#5A5880" strokeDasharray="3 3"/>
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#D0CCEE", fontWeight:600 }}/>
+                      <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
                       <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#00E5FF" fill="#00E5FF" fillOpacity={0.35}/>}
+                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
                       <Legend wrapperStyle={{ fontSize:12 }}/>
                       <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                     </RadarChart>
