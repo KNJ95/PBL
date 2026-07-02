@@ -1169,16 +1169,115 @@ export default function App() {
         {/* ─── ホーム ─────────────────────────────────────────────── */}
         {screen==="home" && (
           <div>
+            {/* グリーティング */}
+            <div style={{ marginBottom:"1.25rem" }}>
+              <p style={{ fontSize:20, fontWeight:700, color:C.text, margin:0 }}>
+                こんにちは、{currentUser.name}さん
+              </p>
+              <p style={{ fontSize:12, color:C.textSub, margin:"4px 0 0" }}>
+                {new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"long", day:"numeric", weekday:"short" })}
+              </p>
+            </div>
+
+            {/* レーダーチャート（最優先表示） */}
+            {latestSurvey ? (
+              <>
+                <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                    <div>
+                      <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:0 }}>Be-Ready 評価レーダー</p>
+                      <p style={{ fontSize:11, color:C.textSub, marginTop:3 }}>
+                        自己評価{latestMentor ? " / メンター評価" : ""}（最新）
+                      </p>
+                    </div>
+                    <button onClick={()=>setScreen("portfolio")} style={{ ...S.btn, fontSize:11, padding:"4px 10px", display:"flex", alignItems:"center", gap:4 }}>
+                      詳細 <ChevronRight size={12}/>
+                    </button>
+                  </div>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={radarData(latestSurvey, latestMentor)}>
+                      <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
+                      <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
+                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
+                      <Legend wrapperStyle={{ fontSize:12, color:C.textSub }}/>
+                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <p style={{ fontSize:10, color:C.textMuted, marginTop:2 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
+                </div>
+
+                {/* 成長ポイント & ネクストアクション */}
+                {(() => {
+                  const grow   = AXES.filter(a => !a.ref && (latestSurvey.axes?.[a.id]||0) > 0 && (latestSurvey.axes?.[a.id]||0) <= 2);
+                  const strong = AXES.filter(a => !a.ref && (latestSurvey.axes?.[a.id]||0) >= 3);
+                  if (grow.length === 0 && strong.length === 0) return null;
+                  return (
+                    <div style={{ ...S.card, marginBottom:"1.25rem", borderColor:`${C.primary}33` }}>
+                      <p style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:"1rem", display:"flex", alignItems:"center", gap:6 }}>
+                        <Sparkles size={14} color={C.primary}/> 成長ポイント & ネクストアクション
+                      </p>
+
+                      {grow.length > 0 && (
+                        <div style={{ marginBottom: strong.length > 0 ? "1rem" : 0 }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>📈 重点成長軸</p>
+                          {grow.map(a => {
+                            const na = myNextActions[a.id];
+                            return (
+                              <div key={a.id} style={{ marginBottom:8, padding:"10px 12px", background:C.surface2, borderRadius:10, border:`1px solid ${C.warn}22` }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: na ? 6 : 0 }}>
+                                  <span style={S.tag(C.warn)}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>
+                                  {!na && (
+                                    <button onClick={()=>setScreen("portfolio")} style={{ ...S.btn, fontSize:11, padding:"3px 10px", marginLeft:"auto" }}>
+                                      NextAction を設定 →
+                                    </button>
+                                  )}
+                                </div>
+                                {na && (
+                                  <div style={{ display:"flex", alignItems:"flex-start", gap:6 }}>
+                                    <ArrowRight size={13} color={C.success} style={{ flexShrink:0, marginTop:2 }}/>
+                                    <span style={{ fontSize:12, color:C.text, lineHeight:1.5 }}>{na.text}</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {strong.length > 0 && (
+                        <div>
+                          <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>⭐ 強み</p>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                            {strong.map(a => (
+                              <span key={a.id} style={{ ...S.tag(C.success), fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
+                <ClipboardList size={40} color={C.primary+"88"} style={{ marginBottom:12 }}/>
+                <p style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>まだアンケートがありません</p>
+                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>アンケートを記入して、あなたのBe-Readyを可視化しましょう。</p>
+                <button style={S.btnPrimary} onClick={()=>setScreen("survey")}>アンケートを記入する</button>
+              </div>
+            )}
+
             {/* 統計カード */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:"1.25rem" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
               {[
                 { l:"アンケート", v:mySurveys.length,  c:C.primary, icon:ClipboardList, s:"survey" },
                 { l:"ログ",      v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
                 { l:"採点待ち",  v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
-                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1.25rem 0.75rem", border:`1px solid ${item.c}33` }}>
-                  <item.icon size={20} color={item.c} style={{ marginBottom:6 }}/>
-                  <p style={{ fontSize:28, fontWeight:700, color:item.c, margin:"0 0 4px" }}>{item.v}</p>
+                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
+                  <item.icon size={18} color={item.c} style={{ marginBottom:4 }}/>
+                  <p style={{ fontSize:24, fontWeight:700, color:item.c, margin:"0 0 2px" }}>{item.v}</p>
                   <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{item.l}</p>
                 </button>
               ))}
@@ -1186,51 +1285,30 @@ export default function App() {
 
             {/* 通知 */}
             {myPending.length>0 && (
-              <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem" }}>
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"0.75rem" }}>
                 <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
               </div>
             )}
             {unreadQ>0 && (
-              <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"1rem", cursor:"pointer" }} onClick={()=>{setScreen("reflection");setReflectionTab("questions");}}>
+              <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"0.75rem", cursor:"pointer" }} onClick={()=>{setScreen("reflection");setReflectionTab("questions");}}>
                 <p style={{ fontSize:13, color:C.accent1, fontWeight:600, margin:0 }}>💬 メンターから未回答の問いが {unreadQ}件 あります。</p>
               </div>
             )}
 
-            {/* レーダーチャート */}
-            {latestSurvey && (
-              <div style={{ ...S.card, marginBottom:"1.25rem" }}>
-                <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>Be-Ready 評価レーダー</p>
-                <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
-                  自己評価{latestMentor ? " / メンター評価" : ""}（最新）
-                </p>
-                <ResponsiveContainer width="100%" height={260}>
-                  <RadarChart data={radarData(latestSurvey, latestMentor)}>
-                    <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
-                    <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                    {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
-                    <Legend wrapperStyle={{ fontSize:12, color:C.textSub }}/>
-                    <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
-                  </RadarChart>
-                </ResponsiveContainer>
-                <p style={{ fontSize:10, color:C.textMuted, marginTop:4 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
-              </div>
-            )}
-
             {/* クイックアクション */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:"0.5rem" }}>
               {[
                 { l:"アンケートを記入", d:"今期の目標と9軸評価", icon:ClipboardList, s:"survey", c:C.primary },
                 { l:"ログを追加",       d:"YWT振り返りを記録",  icon:BookOpen,      s:"log",    c:C.accent1 },
                 { l:"振り返りを提出",   d:"メンターに振り返りを送る", icon:TrendingUp, s:"reflection", c:C.warn },
                 { l:"ポートフォリオ",   d:"成長の可視化を確認",  icon:Briefcase,    s:"portfolio", c:C.success },
               ].map(item => (
-                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12, border:`1px solid ${item.c}22`, minWidth:0, overflow:"hidden" }}>
-                  <div style={{ width:38, height:38, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    <item.icon size={18} color={item.c}/>
+                <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}22`, minWidth:0, overflow:"hidden", marginBottom:0 }}>
+                  <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <item.icon size={16} color={item.c}/>
                   </div>
                   <div style={{ minWidth:0, overflow:"hidden" }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 2px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.l}</p>
+                    <p style={{ fontSize:12, fontWeight:700, color:C.text, margin:"0 0 2px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.l}</p>
                     <p style={{ fontSize:11, color:C.textSub, margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.d}</p>
                   </div>
                 </button>
