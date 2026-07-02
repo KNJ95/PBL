@@ -570,18 +570,22 @@ export default function App() {
   // ログイン
   const [loginName, setLoginName]     = useState("");
   const [loginId, setLoginId]         = useState("");
+  const [loginTeam, setLoginTeam]     = useState("");
   const [loginRole, setLoginRole]     = useState("student");
 
   const login = (u) => { storage.set("current_user", u); setCurrentUser(u); setScreen("home"); };
   const logout = () => { storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
 
   const handleLogin = () => {
-    if (!loginName.trim() || !loginId.trim()) return;
-    const u = { id: loginId.trim(), name: loginName.trim(), role: loginRole };
+    if (!loginName.trim() || !loginId.trim() || !loginTeam.trim()) return;
+    const u = { id: loginId.trim(), name: loginName.trim(), role: loginRole, team: loginTeam.trim() };
     if (loginRole === "student") {
       const list = getStudents();
-      if (!list.find(s => s.id === u.id)) {
-        storage.set("students_list", [...list, { id:u.id, name:u.name, registeredAt:Date.now() }]);
+      const existing = list.find(s => s.id === u.id);
+      if (!existing) {
+        storage.set("students_list", [...list, { id:u.id, name:u.name, team:u.team, registeredAt:Date.now() }]);
+      } else if (existing.team !== u.team) {
+        storage.set("students_list", list.map(s => s.id === u.id ? { ...s, team:u.team } : s));
       }
     }
     login(u);
@@ -594,7 +598,11 @@ export default function App() {
   const myLogs     = useMemo(() => currentUser ? getLogs(currentUser.id)     : [], [currentUser, refresh]);
   const latestSurvey = mySurveys[0] || null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const students   = useMemo(() => getStudents(), [refresh]);
+  const students   = useMemo(() => {
+    const all = getStudents();
+    if (currentUser?.team) return all.filter(s => s.team === currentUser.team);
+    return all;
+  }, [currentUser, refresh]);
 
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
@@ -800,6 +808,11 @@ export default function App() {
             ))}
           </div>
           <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>チームID</label>
+            <input value={loginTeam} onChange={e=>setLoginTeam(e.target.value)} placeholder="例：PBLチーム1" style={S.input}/>
+            <p style={{ fontSize:11, color:C.textMuted, margin:"5px 0 0" }}>学生・メンターで同じIDを入力してください</p>
+          </div>
+          <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>氏名</label>
             <input value={loginName} onChange={e=>setLoginName(e.target.value)} placeholder="例：山田 太郎" style={S.input}/>
           </div>
@@ -807,11 +820,14 @@ export default function App() {
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>ユーザーID</label>
             <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="例：yamada_taro" onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={S.input}/>
           </div>
-          <button style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10 }} onClick={handleLogin}>
+          <button
+            style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10, opacity:(!loginTeam.trim()||!loginName.trim()||!loginId.trim())?0.5:1, cursor:(!loginTeam.trim()||!loginName.trim()||!loginId.trim())?"not-allowed":"pointer" }}
+            onClick={handleLogin}
+          >
             はじめる <ChevronRight size={16} style={{ verticalAlign:"middle" }}/>
           </button>
         </div>
-        <p style={{ fontSize:11, color:C.textMuted, textAlign:"center", marginTop:14 }}>デモ用：任意の氏名とIDで入れます</p>
+        <p style={{ fontSize:11, color:C.textMuted, textAlign:"center", marginTop:14 }}>チームIDで学生とメンターが自動的に紐づきます</p>
       </div>
     </div>
   );
@@ -822,6 +838,9 @@ export default function App() {
       <button style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:10, padding:0 }} onClick={() => setScreen("home")}>
         <Star size={16} color={C.primary}/>
         <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
+        {currentUser?.team && (
+          <span style={{ fontSize:11, color:C.textSub, background:C.surface2, border:`1px solid ${C.border}`, borderRadius:6, padding:"2px 8px" }}>{currentUser.team}</span>
+        )}
       </button>
       <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
     </div>
