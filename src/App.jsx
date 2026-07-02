@@ -246,12 +246,13 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
               qNum++;
               const qIndex = qNum;
               const selected = answers[q.id];
+              const isAnswered = q.id in answers;
               return (
                 <div key={q.id} style={{
                   ...S.card,
                   padding:"1.25rem",
-                  borderColor: selected ? C.primary+"55" : C.border,
-                  background: selected ? C.primary+"08" : C.surface,
+                  borderColor: isAnswered ? C.primary+"55" : C.border,
+                  background: isAnswered ? C.primary+"08" : C.surface,
                   transition:"all 0.2s",
                   marginBottom:"0.75rem",
                 }}>
@@ -1283,15 +1284,15 @@ export default function App() {
                 {/* 9軸レベルバー */}
                 <div style={S.card}>
                   <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>9軸スコア（最新）</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                     {AXES.map(a => {
                       const self  = latestSurvey?.axes?.[a.id] || 0;
                       const other = latestMentor?.axes?.[a.id] || 0;
                       return (
                         <div key={a.id} style={{ background:C.surface2, borderRadius:10, padding:"10px 12px", border:`1px solid ${C.border}`, opacity: a.ref ? 0.7 : 1 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:6 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:6, flexWrap:"wrap" }}>
                             <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{a.name}</p>
-                            {a.ref && <span style={{ fontSize:9, color:C.textMuted, background:C.surface3, borderRadius:4, padding:"1px 4px" }}>参考値</span>}
+                            {a.ref && <span style={{ fontSize:9, color:C.textMuted, background:C.surface3, borderRadius:4, padding:"1px 4px", flexShrink:0 }}>参考値</span>}
                           </div>
                           <LvBar lv={self} label="自己" maxLv={4}/>
                           <div style={{ marginTop:4 }}>
@@ -1310,20 +1311,20 @@ export default function App() {
                   const refAxes = AXES.filter(a => a.ref && (latestSurvey.axes?.[a.id]||0) > 0);
                   return (
                     <div>
-                      {(strong.length>0 || grow.length>0) && (
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-                          {strong.length>0 && (
-                            <div style={{ ...S.card, borderColor:C.success+"44" }}>
-                              <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>💪 強みのエリア（Lv3以上）</p>
-                              {strong.map(a => <div key={a.id} style={{ ...S.tag(C.success), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
-                            </div>
-                          )}
-                          {grow.length>0 && (
-                            <div style={{ ...S.card, borderColor:C.warn+"44" }}>
-                              <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>🌱 成長のエリア</p>
-                              {grow.map(a => <div key={a.id} style={{ ...S.tag(C.warn), display:"block", marginBottom:4, fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</div>)}
-                            </div>
-                          )}
+                      {strong.length>0 && (
+                        <div style={{ ...S.card, borderColor:C.success+"44", marginBottom:10 }}>
+                          <p style={{ fontSize:13, fontWeight:700, color:C.success, marginBottom:10 }}>💪 強みのエリア（Lv3以上）</p>
+                          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                            {strong.map(a => <span key={a.id} style={{ ...S.tag(C.success), fontSize:13 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
+                          </div>
+                        </div>
+                      )}
+                      {grow.length>0 && (
+                        <div style={{ ...S.card, borderColor:C.warn+"44", marginBottom:10 }}>
+                          <p style={{ fontSize:13, fontWeight:700, color:C.warn, marginBottom:10 }}>🌱 成長のエリア</p>
+                          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                            {grow.map(a => <span key={a.id} style={{ ...S.tag(C.warn), fontSize:13 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
+                          </div>
                         </div>
                       )}
                       {refAxes.length>0 && (
