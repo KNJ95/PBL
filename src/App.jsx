@@ -591,7 +591,6 @@ export default function App() {
   const [mentorScores, setMentorScores] = useState({});
   const [mentorNote, setMentorNote]   = useState("");
   const [newQuestion, setNewQuestion] = useState("");
-  const [fbText, setFbText]           = useState("");
   const [scoringTarget, setScoringTarget] = useState(null);
   const [aiLoading, setAiLoading]     = useState(false);
   const [aiResult, setAiResult]       = useState(null);
@@ -789,14 +788,6 @@ export default function App() {
     setNewQuestion(""); tick();
   };
 
-  // ─── メンター：フィードバック送信 ───────────────────────────────────
-  const postFeedback = () => {
-    if (!fbText.trim() || !selStudent) return;
-    const fs = getFeedbacks();
-    saveFeedbacks([...fs, { id:"f"+Date.now(), mentorId:currentUser.id, studentId:selStudent.id, text:fbText, createdAt:fmt(Date.now()) }]);
-    setFbText(""); tick();
-  };
-
   // ─── 学生：問い回答 ──────────────────────────────────────────────────
   const submitAnswer = (qid) => {
     const ans = answerMap[qid] || "";
@@ -966,8 +957,6 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────
   if (currentUser.role === "mentor") {
     const pending   = getPending().filter(p => students.some(s => s.id === p.studentId));
-    const selQs     = selStudent ? getQuestions().filter(q=>q.studentId===selStudent.id) : [];
-    const selFbs    = selStudent ? getFeedbacks().filter(f=>f.studentId===selStudent.id) : [];
     const selSurveys= selStudent ? getSurveys(selStudent.id) : [];
     const selLogs   = selStudent ? getLogs(selStudent.id) : [];
     const selMentorSvs = selStudent ? getMentorSurveys(selStudent.id) : [];
@@ -1165,67 +1154,62 @@ export default function App() {
           {/* 問いを送る */}
           {screen==="questions" && (
             <div>
-              {!selStudent ? (
-                <div style={{ ...S.card, textAlign:"center", padding:"2.5rem 1.5rem" }}>
-                  <MessageSquare size={36} color={C.primary+"44"} style={{ marginBottom:12 }}/>
-                  <p style={{ color:C.textSub, fontSize:13, marginBottom:16 }}>「学生/評価」タブで対象学生を選択してください。</p>
-                  <button style={S.btnPrimary} onClick={()=>setScreen("home")}>学生を選ぶ</button>
+              {/* 送信フォーム */}
+              <div style={S.card}>
+                <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>問いを送る</p>
+                <div style={{ marginBottom:10 }}>
+                  <select
+                    value={selStudent?.id||""}
+                    onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }}
+                    style={{ width:"100%", padding:"8px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontSize:13, color:C.text, background:C.surface, outline:"none" }}
+                  >
+                    <option value="">学生を選択...</option>
+                    {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
                 </div>
-              ) : (
-                <>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", padding:"10px 14px", background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10 }}>
-                    <Avatar name={selStudent.name} size={28}/>
-                    <span style={{ fontSize:13, fontWeight:600, color:C.text, flex:1 }}>{selStudent.name}</span>
-                    <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>setScreen("home")}>変更</button>
-                  </div>
-                  <div style={S.card}>
-                    <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>新しい問いを送る</p>
-                    <textarea value={newQuestion} onChange={e=>setNewQuestion(e.target.value)} placeholder="問いを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
-                    <button style={S.btnPrimary} onClick={postQuestion}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
-                  </div>
-                  {selQs.length===0 && <p style={{ fontSize:13, color:C.textSub, textAlign:"center", marginTop:8 }}>まだ問いを送っていません。</p>}
-                  {selQs.map(q => (
-                    <div key={q.id} style={S.scard}>
-                      <p style={{ fontSize:13, margin:"0 0 4px", color:C.text }}>{q.text}</p>
-                      <span style={{ fontSize:11, color:C.textMuted }}>{q.createdAt}</span>
-                      {q.answer && <div style={{ marginTop:8, background:C.surface3, borderRadius:8, padding:"8px 12px", fontSize:13, color:C.textSub }}><span style={{ fontSize:11, color:C.textMuted }}>回答：</span>{q.answer}</div>}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          )}
+                <textarea value={newQuestion} onChange={e=>setNewQuestion(e.target.value)} placeholder="問いを入力..." style={{ ...S.textarea, marginBottom:10, minHeight:60 }}/>
+                <button
+                  style={{ ...S.btnPrimary, opacity:(!selStudent||!newQuestion.trim())?0.45:1, cursor:(!selStudent||!newQuestion.trim())?"not-allowed":"pointer" }}
+                  onClick={postQuestion}
+                  disabled={!selStudent||!newQuestion.trim()}
+                >
+                  <Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信
+                </button>
+              </div>
 
-          {/* フィードバック */}
-          {screen==="feedback" && (
-            <div>
-              {!selStudent ? (
-                <div style={{ ...S.card, textAlign:"center", padding:"2.5rem 1.5rem" }}>
-                  <ThumbsUp size={36} color={C.success+"44"} style={{ marginBottom:12 }}/>
-                  <p style={{ color:C.textSub, fontSize:13, marginBottom:16 }}>「学生/評価」タブで対象学生を選択してください。</p>
-                  <button style={S.btnPrimary} onClick={()=>setScreen("home")}>学生を選ぶ</button>
-                </div>
-              ) : (
-                <>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", padding:"10px 14px", background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10 }}>
-                    <Avatar name={selStudent.name} size={28}/>
-                    <span style={{ fontSize:13, fontWeight:600, color:C.text, flex:1 }}>{selStudent.name}</span>
-                    <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>setScreen("home")}>変更</button>
-                  </div>
-                  <div style={S.card}>
-                    <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>フィードバックを送る</p>
-                    <textarea value={fbText} onChange={e=>setFbText(e.target.value)} placeholder="フィードバックを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
-                    <button style={S.btnPrimary} onClick={postFeedback}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
-                  </div>
-                  {selFbs.length===0 && <p style={{ fontSize:13, color:C.textSub, textAlign:"center", marginTop:8 }}>まだフィードバックを送っていません。</p>}
-                  {selFbs.map(f => (
-                    <div key={f.id} style={{ ...S.scard, borderLeft:`3px solid ${C.success}` }}>
-                      <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt}</span>
-                      <p style={{ fontSize:13, margin:"6px 0 0", color:C.text }}>{f.text}</p>
+              {/* 問い一覧（全学生） */}
+              <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:"1.25rem 0 0.75rem" }}>問い一覧</p>
+              {(() => {
+                const allQs = students.flatMap(st =>
+                  getQuestions().filter(q=>q.studentId===st.id).map(q=>({...q, studentName:st.name}))
+                ).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+                if (allQs.length===0) return (
+                  <p style={{ fontSize:13, color:C.textSub, textAlign:"center", padding:"2rem 0" }}>まだ問いを送っていません。</p>
+                );
+                return allQs.map(q=>(
+                  <div key={q.id} style={{ ...S.scard, borderLeft:`3px solid ${q.answer?C.success:C.warn}`, marginBottom:"0.75rem" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <Avatar name={q.studentName} size={22}/>
+                        <span style={{ fontSize:12, fontWeight:600, color:C.text }}>{q.studentName}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        {q.answer
+                          ? <span style={S.tag(C.success)}>回答済</span>
+                          : <span style={S.tag(C.warn)}>未回答</span>}
+                        <span style={{ fontSize:11, color:C.textMuted }}>{q.createdAt}</span>
+                      </div>
                     </div>
-                  ))}
-                </>
-              )}
+                    <p style={{ fontSize:13, color:C.text, margin:"0 0 6px", lineHeight:1.5 }}>{q.text}</p>
+                    {q.answer && (
+                      <div style={{ background:C.surface3, borderRadius:8, padding:"6px 10px" }}>
+                        <span style={{ fontSize:11, color:C.textMuted }}>回答：</span>
+                        <span style={{ fontSize:13, color:C.textSub }}>{q.answer}</span>
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>
@@ -1236,7 +1220,6 @@ export default function App() {
             { v:"home",      l:"学生/評価", icon:Users,         badge:0 },
             { v:"scoring",   l:"採点",     icon:ClipboardList, badge:pending.length },
             { v:"questions", l:"問い",     icon:MessageSquare, badge:0 },
-            { v:"feedback",  l:"FB",       icon:ThumbsUp,      badge:0 },
           ].map(item => {
             const active = screen===item.v;
             return (
