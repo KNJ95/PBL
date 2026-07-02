@@ -602,6 +602,7 @@ export default function App() {
     const all = getStudents();
     if (currentUser?.team) return all.filter(s => s.team === currentUser.team);
     return all;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, refresh]);
 
   // ─── レーダーチャートデータ ───────────────────────────────────────────
