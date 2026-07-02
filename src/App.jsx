@@ -90,7 +90,6 @@ const getNextActions= (uid) => storage.get(`next_actions:${uid}`) || {};
 const getPending    = () => storage.get("pending_evals") || [];
 
 const saveQuestions  = (d) => storage.set("questions_store", d);
-const saveFeedbacks  = (d) => storage.set("feedbacks_store", d);
 const saveNextActions= (uid,d) => storage.set(`next_actions:${uid}`, d);
 const savePending    = (d) => storage.set("pending_evals", d);
 
