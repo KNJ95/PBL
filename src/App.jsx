@@ -899,14 +899,26 @@ export default function App() {
             </div>
 
             {/* 振り返り内容 */}
-            <div style={{ background:C.surface2, borderRadius:10, padding:"1rem", marginBottom:"1rem" }}>
-              {p.answers ? REFLECTION_QUESTIONS.map(q => (
-                <div key={q.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                  <span style={{ fontSize:12, flex:1, color:C.textSub }}>{q.text}</span>
-                  <div style={{ height:5, width:`${(p.answers[q.id]||0)*9}px`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, minWidth:2 }}/>
-                  <span style={{ fontSize:13, fontWeight:600, minWidth:20, color:C.text }}>{p.answers[q.id]}</span>
-                </div>
-              )) : <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", margin:0, lineHeight:1.7 }}>{p.reflection}</p>}
+            <div style={{ marginBottom:"1.25rem" }}>
+              <p style={{ fontSize:12, fontWeight:700, color:C.textSub, marginBottom:8, letterSpacing:"0.06em", textTransform:"uppercase" }}>振り返り回答内容</p>
+              <div style={{ background:C.surface2, borderRadius:10, padding:"0.875rem" }}>
+                {p.answers ? REFLECTION_QUESTIONS.map((q, i) => {
+                  const val = p.answers[q.id] || 0;
+                  return (
+                    <div key={q.id} style={{ marginBottom: i < REFLECTION_QUESTIONS.length-1 ? 14 : 0, paddingBottom: i < REFLECTION_QUESTIONS.length-1 ? 14 : 0, borderBottom: i < REFLECTION_QUESTIONS.length-1 ? `1px solid ${C.border}` : "none" }}>
+                      <p style={{ fontSize:13, color:C.text, margin:"0 0 8px", lineHeight:1.5 }}>{q.text}</p>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ flex:1, height:7, background:C.surface3, borderRadius:99, overflow:"hidden" }}>
+                          <div style={{ height:"100%", width:`${(val/10)*100}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99 }}/>
+                        </div>
+                        <span style={{ fontSize:14, fontWeight:700, color:C.primary, minWidth:38, textAlign:"right" }}>
+                          {val}<span style={{ fontSize:10, fontWeight:400, color:C.textSub }}>/10</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }) : <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", margin:0, lineHeight:1.7 }}>{p.reflection}</p>}
+              </div>
             </div>
 
             {/* AI採点ボタン */}
@@ -1153,20 +1165,25 @@ export default function App() {
           {/* 問いを送る */}
           {screen==="questions" && (
             <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem" }}>
-                <label style={{ fontSize:13, color:C.textSub }}>対象学生：</label>
-                <select value={selStudent?.id||""} onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }} style={{ ...S.input, width:"auto", padding:"7px 12px" }}>
-                  <option value="">選択してください</option>
-                  {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              {selStudent && (
+              {!selStudent ? (
+                <div style={{ ...S.card, textAlign:"center", padding:"2.5rem 1.5rem" }}>
+                  <MessageSquare size={36} color={C.primary+"44"} style={{ marginBottom:12 }}/>
+                  <p style={{ color:C.textSub, fontSize:13, marginBottom:16 }}>「学生/評価」タブで対象学生を選択してください。</p>
+                  <button style={S.btnPrimary} onClick={()=>setScreen("home")}>学生を選ぶ</button>
+                </div>
+              ) : (
                 <>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", padding:"10px 14px", background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10 }}>
+                    <Avatar name={selStudent.name} size={28}/>
+                    <span style={{ fontSize:13, fontWeight:600, color:C.text, flex:1 }}>{selStudent.name}</span>
+                    <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>setScreen("home")}>変更</button>
+                  </div>
                   <div style={S.card}>
                     <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>新しい問いを送る</p>
                     <textarea value={newQuestion} onChange={e=>setNewQuestion(e.target.value)} placeholder="問いを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
                     <button style={S.btnPrimary} onClick={postQuestion}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
                   </div>
+                  {selQs.length===0 && <p style={{ fontSize:13, color:C.textSub, textAlign:"center", marginTop:8 }}>まだ問いを送っていません。</p>}
                   {selQs.map(q => (
                     <div key={q.id} style={S.scard}>
                       <p style={{ fontSize:13, margin:"0 0 4px", color:C.text }}>{q.text}</p>
@@ -1182,20 +1199,25 @@ export default function App() {
           {/* フィードバック */}
           {screen==="feedback" && (
             <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem" }}>
-                <label style={{ fontSize:13, color:C.textSub }}>対象学生：</label>
-                <select value={selStudent?.id||""} onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }} style={{ ...S.input, width:"auto", padding:"7px 12px" }}>
-                  <option value="">選択してください</option>
-                  {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              {selStudent && (
+              {!selStudent ? (
+                <div style={{ ...S.card, textAlign:"center", padding:"2.5rem 1.5rem" }}>
+                  <ThumbsUp size={36} color={C.success+"44"} style={{ marginBottom:12 }}/>
+                  <p style={{ color:C.textSub, fontSize:13, marginBottom:16 }}>「学生/評価」タブで対象学生を選択してください。</p>
+                  <button style={S.btnPrimary} onClick={()=>setScreen("home")}>学生を選ぶ</button>
+                </div>
+              ) : (
                 <>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", padding:"10px 14px", background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10 }}>
+                    <Avatar name={selStudent.name} size={28}/>
+                    <span style={{ fontSize:13, fontWeight:600, color:C.text, flex:1 }}>{selStudent.name}</span>
+                    <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>setScreen("home")}>変更</button>
+                  </div>
                   <div style={S.card}>
                     <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>フィードバックを送る</p>
                     <textarea value={fbText} onChange={e=>setFbText(e.target.value)} placeholder="フィードバックを入力..." style={{ ...S.textarea, marginBottom:10 }}/>
                     <button style={S.btnPrimary} onClick={postFeedback}><Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信</button>
                   </div>
+                  {selFbs.length===0 && <p style={{ fontSize:13, color:C.textSub, textAlign:"center", marginTop:8 }}>まだフィードバックを送っていません。</p>}
                   {selFbs.map(f => (
                     <div key={f.id} style={{ ...S.scard, borderLeft:`3px solid ${C.success}` }}>
                       <span style={{ fontSize:11, color:C.textMuted }}>{f.createdAt}</span>
