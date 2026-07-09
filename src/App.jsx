@@ -3,7 +3,8 @@ import {
   Home, ClipboardList, BookOpen, Briefcase, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
-  BarChart2, Send, ArrowRight, Camera, Sparkles, X
+  BarChart2, Send, ArrowRight, Camera, Sparkles, X,
+  HelpCircle, Info, ChevronLeft
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -52,6 +53,83 @@ const LEVELS = [
 ];
 
 const LEVEL_COLOR = { 1:"#6B7280", 2:C.accent1, 3:C.primary, 4:C.warn };
+
+const RUBRIC_DATA = {
+  1: { levels: [
+    "他者から示された課題を受け売り的に知っているだけで、自分ごとして課題を受け取れていない。",
+    "他者（管理者）の課題感を他者の視点から理解・共有できており、それを意識している。ただしあくまで他者の課題を理解しているに過ぎず、自分の課題として取り組んでいるわけではない。",
+    "他者から与えられた課題について、自分なりの根拠（原因・理由）を見つけ出し納得できている。",
+    "他者に与えられた課題ではなく、自分の経験から課題をオリジナルに設定している。",
+  ]},
+  2: { levels: null },
+  3: { levels: [
+    "指示される仕事の価値や意味を理解しておらず、与えられた仕事しか取り組まない。不確実性や偶発性に直面した段階で諦めてしまう。",
+    "上司から説明されることで「そう言うのも分かる」という理解で仕事に取り組み、不確実性に直面しても一応柔軟に対応しようとする。ただし他者視点での理解にすぎないため耐性は強くない。",
+    "自分自身がやるべき・やりたいと思うようになっているので、不確実性にできるだけ対応しようとするし、そうした状況への耐性が強い。",
+    "仕事を指示されるのではなく、自らやるべき・やりたい仕事を見出して行為している。そもそも模索的に行為しているので耐性は非常に強い。",
+  ]},
+  4: { levels: [
+    "与えられた仕事をこなしているだけなので、自ら意見を伝えたり提案を行うことはない。",
+    "仕事の価値や意味を管理者の立場から理解しているだけなので、提案や意見の発信は少ないかほとんどない。",
+    "仕事の価値や意味を自分のこととして理解しているので、提案や意見を自ら発信しようとする。",
+    "そもそも自分で始めたことなので、積極的に自らの提案や意見を発信しようとする。",
+  ]},
+  5: { levels: [
+    "与えられた仕事をこなしているだけなので、すぐに諦めるし最後までやりきろうとする粘り強さはない。",
+    "仕事の価値や意味を管理者の立場から理解しているだけなので、改善しながらやりきろうとはするが粘り強さはない。",
+    "仕事の価値や意味を自分のこととして理解しているので、できるだけ改善しつつ粘り強くやりきろうとする。",
+    "そもそも自分で始めたことなので、継続的に改善を繰り返し最後までやりきろうとする。",
+  ]},
+  6: { levels: [
+    "与えられた仕事をこなしているだけなので、人ごと的に取り組んでいて無責任。",
+    "仕事の価値や意味を管理者の立場から理解しているだけなので、ひとまず当事者的に取り組むものの責任感は弱い。",
+    "仕事の価値や意味を自分のこととして理解しているので、責任を持って取り組もうとする。",
+    "そもそも自分で始めたことなので、責任を持って取り組むし、孤立しても最後までやりきろうとする。",
+  ]},
+  7: { levels: [
+    "与えられた仕事をこなしているだけなので、他者とのコミュニケーションは最低限か避けようとする。",
+    "仕事の価値や意味を管理者の立場からは理解しており必要に応じて協働に取り組めるが、煩わしい人間関係には脆弱でコミュニケーションを諦めてしまいやすい。",
+    "仕事の価値や意味を自分のこととして理解しているので、必要があれば積極的にコミュニケーションを取り協働しようとする。",
+    "そもそも自分で始めたことなので、必要があれば他者とのコミュニケーションを取るし、協働にも積極的に関与する。",
+  ]},
+  8: { levels: null },
+  9: { levels: [
+    "与えられた仕事をただこなしているだけなので、FBがあるだけでは自分から行動変容を起こせず、他者が改めて指示を出す必要がある。",
+    "一応当事者的にその仕事をすべき・したい理由を理解しているので、FBがあれば対応しようとする。ただし微修正はできるものの根本的な行動の変化は起こしにくい。",
+    "自分自身の仕事として飲み込めているので、FBがあれば自分自身の成果を上げるために行為を変えようとする。根本的な変容が求められる場合も対応できる。",
+    "自分自身の問題意識で始めた取り組みなので、もともとが模索的な行為となっている。FBを他者にもらうことなく、自分自身で柔軟に状況に対応しながら行為する。",
+  ]},
+};
+
+const TUTORIAL_STEPS = [
+  {
+    title: "Be-Readyへようこそ",
+    content: "このアプリは、PBLにおける学生の成長を「Be-Ready人材」の観点で可視化するツールです。\n\n自己評価・メンター評価・AI分析を組み合わせて、あなたの強みと成長ポイントを明らかにします。",
+    visual: "radar",
+  },
+  {
+    title: "4つの成長レベル",
+    content: "評価は「受動性→能動性→自律性→創造性」の4段階で行います。\n\nレベルが上がるほど、仕事への関わり方が「与えられる」から「自ら生み出す」へと変化します。",
+    visual: "levels",
+  },
+  {
+    title: "9つの評価軸",
+    content: "Be-Ready人材を9つの観点から評価します。各軸は「A：探索系」「B：実行系」「C：協働系」の3カテゴリに分類されます。\n\n※②情報活用力・⑧内発的動機は参考値として表示されます。",
+    visual: "axes",
+  },
+  {
+    title: "学生の使い方",
+    content: "① アンケートに回答して自己評価を記録\n② 振り返りを提出してメンターに共有\n③ ホーム画面でレーダーチャートの変化を確認\n④ メンターからの「問い」に回答して深化",
+    visual: "student",
+  },
+  {
+    title: "メンターの使い方",
+    content: "① 「学生/評価」タブで担当学生の状況を確認\n② 「採点」タブで振り返りを読んで他者評価を入力\n   （評価軸名をタップすると採点基準を確認できます）\n③ 「問い」タブで学生に問いを送る",
+    visual: "mentor",
+  },
+];
+
+
 
 const REFLECTION_QUESTIONS = [
   { id:1, text:"以前に比べて積極的に発言できましたか？" },
@@ -585,6 +663,11 @@ export default function App() {
   const [surveyResult, setSurveyResult]             = useState(null);
   const photoInputRef = useRef(null);
 
+  // チュートリアル・ポップアップ state
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [rubricAxis, setRubricAxis]     = useState(null);
+
   // メンター用 state
   const [selStudent, setSelStudent]   = useState(null);
   const [mentorScores, setMentorScores] = useState({});
@@ -603,7 +686,12 @@ export default function App() {
   const [loginTeam, setLoginTeam]     = useState("");
   const [loginRole, setLoginRole]     = useState("student");
 
-  const login = (u) => { storage.set("current_user", u); setCurrentUser(u); setScreen("home"); };
+  const login = (u) => {
+    storage.set("current_user", u);
+    setCurrentUser(u);
+    setScreen("home");
+    if (!storage.get("tutorial_seen")) { setShowTutorial(true); setTutorialStep(0); }
+  };
   const logout = () => { storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
 
   const handleLogin = () => {
@@ -865,7 +953,12 @@ export default function App() {
           <span style={{ fontSize:11, color:C.textSub, background:C.surface2, border:`1px solid ${C.border}`, borderRadius:6, padding:"2px 8px" }}>{currentUser.team}</span>
         )}
       </button>
-      <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
+      <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+        <button style={{ background:"none", border:"none", cursor:"pointer", padding:"4px", color:C.textMuted, display:"flex", alignItems:"center" }} onClick={()=>{ setTutorialStep(0); setShowTutorial(true); }} title="使い方">
+          <HelpCircle size={18}/>
+        </button>
+        <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
+      </div>
     </div>
   );
 
@@ -929,7 +1022,12 @@ export default function App() {
                 <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                     <div>
-                      <p style={{ margin:0, fontSize:13, color:C.text, fontWeight:600 }}>{a.name}</p>
+                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <p style={{ margin:0, fontSize:13, color:C.text, fontWeight:600 }}>{a.name}</p>
+                        <button onClick={()=>setRubricAxis(a)} style={{ background:"none", border:"none", cursor:"pointer", padding:"2px", color:C.primary, display:"flex", alignItems:"center" }} title="採点基準を見る">
+                          <Info size={14}/>
+                        </button>
+                      </div>
                       {aiScore && <p style={{ margin:0, fontSize:11, color:C.primary }}>AI提案: Lv.{aiScore}</p>}
                     </div>
                     {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
@@ -947,6 +1045,31 @@ export default function App() {
             <button style={S.btnSuccess} onClick={()=>approveEval(p)}>他者評価を確定・承認する</button>
           </div>
         </div>
+
+        {/* ─── ルーブリックポップアップ */}
+        {rubricAxis && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={()=>setRubricAxis(null)}>
+            <div style={{ background:C.surface, borderRadius:"20px 20px 0 0", padding:"1.5rem", width:"100%", maxWidth:640, maxHeight:"85vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
+                <p style={{ margin:0, fontWeight:700, fontSize:16, color:C.text }}>{rubricAxis.name}</p>
+                <button onClick={()=>setRubricAxis(null)} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={20}/></button>
+              </div>
+              <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem", lineHeight:1.6 }}>{rubricAxis.evalText}</p>
+              {RUBRIC_DATA[rubricAxis.id]?.levels ? (
+                LEVELS.map((lv, i) => (
+                  <div key={lv.lv} style={{ borderLeft:`4px solid ${lv.color}`, padding:"10px 14px", marginBottom:10, background:C.surface2, borderRadius:"0 10px 10px 0" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                      <span style={{ fontWeight:700, fontSize:13, color:lv.color }}>Lv.{lv.lv} {lv.name}</span>
+                    </div>
+                    <p style={{ margin:0, fontSize:13, color:C.text, lineHeight:1.65 }}>{RUBRIC_DATA[rubricAxis.id].levels[i]}</p>
+                  </div>
+                ))
+              ) : (
+                <p style={{ fontSize:13, color:C.textSub, padding:"1rem 0" }}>この評価軸は参考値のため、詳細な採点基準は未確定です。</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -962,9 +1085,80 @@ export default function App() {
     const latestSelf  = selSurveys[0];
     const latestOther = selMentorSvs[0];
 
+    const TutorialModal = showTutorial ? (
+      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+        <div style={{ background:C.surface, borderRadius:20, padding:"1.75rem", width:"100%", maxWidth:480, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+          {/* ステップ表示 */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
+            <div style={{ display:"flex", gap:5 }}>
+              {TUTORIAL_STEPS.map((_,i) => (
+                <div key={i} style={{ width: i===tutorialStep?20:7, height:7, borderRadius:99, background: i===tutorialStep?C.primary:C.surface3, transition:"width 0.2s" }}/>
+              ))}
+            </div>
+            <button onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={18}/></button>
+          </div>
+
+          {/* ビジュアル */}
+          <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
+            {TUTORIAL_STEPS[tutorialStep].visual === "levels" && (
+              <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
+                {LEVELS.map(lv => (
+                  <div key={lv.lv} style={{ flex:1, background:lv.color+"22", border:`1px solid ${lv.color}44`, borderRadius:10, padding:"8px 4px", textAlign:"center" }}>
+                    <p style={{ margin:0, fontWeight:700, fontSize:12, color:lv.color }}>Lv.{lv.lv}</p>
+                    <p style={{ margin:"2px 0 0", fontSize:10, color:C.textSub }}>{lv.name}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {TUTORIAL_STEPS[tutorialStep].visual === "axes" && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:5, justifyContent:"center" }}>
+                {AXES.map(a => (
+                  <span key={a.id} style={{ ...S.tag(a.ref?C.textMuted:C.primary), fontSize:11 }}>
+                    {a.name}{a.ref?" ※":""}
+                  </span>
+                ))}
+              </div>
+            )}
+            {TUTORIAL_STEPS[tutorialStep].visual === "radar" && (
+              <div style={{ fontSize:40 }}>⭐</div>
+            )}
+            {TUTORIAL_STEPS[tutorialStep].visual === "student" && (
+              <div style={{ fontSize:40 }}>📝</div>
+            )}
+            {TUTORIAL_STEPS[tutorialStep].visual === "mentor" && (
+              <div style={{ fontSize:40 }}>🎯</div>
+            )}
+          </div>
+
+          {/* テキスト */}
+          <p style={{ fontWeight:700, fontSize:17, color:C.text, margin:"0 0 10px" }}>{TUTORIAL_STEPS[tutorialStep].title}</p>
+          <p style={{ fontSize:13, color:C.textSub, lineHeight:1.8, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{TUTORIAL_STEPS[tutorialStep].content}</p>
+
+          {/* ナビゲーション */}
+          <div style={{ display:"flex", gap:8 }}>
+            {tutorialStep > 0 && (
+              <button style={{ ...S.btn, flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s-1)}>
+                <ChevronLeft size={14}/>前へ
+              </button>
+            )}
+            {tutorialStep < TUTORIAL_STEPS.length-1 ? (
+              <button style={{ ...S.btnPrimary, flex:2, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s+1)}>
+                次へ<ChevronRight size={14}/>
+              </button>
+            ) : (
+              <button style={{ ...S.btnSuccess, flex:2 }} onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }}>
+                はじめる ✓
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null;
+
     return (
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
         <Header/>
+        {TutorialModal}
         <div style={{ maxWidth:820, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
           {/* 学生一覧 + 評価（マージ） */}
@@ -1248,9 +1442,67 @@ export default function App() {
 
   const unreadQ = myQuestions.filter(q=>!q.answer).length;
 
+  const StudentTutorialModal = showTutorial ? (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+      <div style={{ background:C.surface, borderRadius:20, padding:"1.75rem", width:"100%", maxWidth:480, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
+          <div style={{ display:"flex", gap:5 }}>
+            {TUTORIAL_STEPS.map((_,i) => (
+              <div key={i} style={{ width: i===tutorialStep?20:7, height:7, borderRadius:99, background: i===tutorialStep?C.primary:C.surface3, transition:"width 0.2s" }}/>
+            ))}
+          </div>
+          <button onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={18}/></button>
+        </div>
+        <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
+          {TUTORIAL_STEPS[tutorialStep].visual === "levels" && (
+            <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
+              {LEVELS.map(lv => (
+                <div key={lv.lv} style={{ flex:1, background:lv.color+"22", border:`1px solid ${lv.color}44`, borderRadius:10, padding:"8px 4px", textAlign:"center" }}>
+                  <p style={{ margin:0, fontWeight:700, fontSize:12, color:lv.color }}>Lv.{lv.lv}</p>
+                  <p style={{ margin:"2px 0 0", fontSize:10, color:C.textSub }}>{lv.name}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {TUTORIAL_STEPS[tutorialStep].visual === "axes" && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:5, justifyContent:"center" }}>
+              {AXES.map(a => (
+                <span key={a.id} style={{ ...S.tag(a.ref?C.textMuted:C.primary), fontSize:11 }}>
+                  {a.name}{a.ref?" ※":""}
+                </span>
+              ))}
+            </div>
+          )}
+          {TUTORIAL_STEPS[tutorialStep].visual === "radar" && <div style={{ fontSize:40 }}>⭐</div>}
+          {TUTORIAL_STEPS[tutorialStep].visual === "student" && <div style={{ fontSize:40 }}>📝</div>}
+          {TUTORIAL_STEPS[tutorialStep].visual === "mentor" && <div style={{ fontSize:40 }}>🎯</div>}
+        </div>
+        <p style={{ fontWeight:700, fontSize:17, color:C.text, margin:"0 0 10px" }}>{TUTORIAL_STEPS[tutorialStep].title}</p>
+        <p style={{ fontSize:13, color:C.textSub, lineHeight:1.8, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{TUTORIAL_STEPS[tutorialStep].content}</p>
+        <div style={{ display:"flex", gap:8 }}>
+          {tutorialStep > 0 && (
+            <button style={{ ...S.btn, flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s-1)}>
+              <ChevronLeft size={14}/>前へ
+            </button>
+          )}
+          {tutorialStep < TUTORIAL_STEPS.length-1 ? (
+            <button style={{ ...S.btnPrimary, flex:2, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s+1)}>
+              次へ<ChevronRight size={14}/>
+            </button>
+          ) : (
+            <button style={{ ...S.btnSuccess, flex:2 }} onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }}>
+              はじめる ✓
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       <Header/>
+      {StudentTutorialModal}
       <div style={{ maxWidth:860, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
         {/* ─── ホーム ─────────────────────────────────────────────── */}
