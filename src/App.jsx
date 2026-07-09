@@ -1123,7 +1123,7 @@ export default function App() {
 
     const TutorialModal = showTutorial ? (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
-        <div style={{ background:C.surface, borderRadius:20, padding:"1.75rem", width:"100%", maxWidth:480, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+        <div style={{ background:C.surface, borderRadius:20, padding:"2rem", width:"100%", maxWidth:520, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
           {/* ステップ表示 */}
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
             <div style={{ display:"flex", gap:5 }}>
@@ -1136,17 +1136,17 @@ export default function App() {
 
           {/* ビジュアル */}
           <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-            <div style={{ fontSize:44, lineHeight:1, marginBottom:8 }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].icon}</div>
+            <div style={{ fontSize:52, lineHeight:1, marginBottom:10 }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].icon}</div>
             {MENTOR_TUTORIAL_STEPS[tutorialStep].tab && (
-              <span style={{ ...S.tag(C.primary), fontSize:12, padding:"4px 14px" }}>
+              <span style={{ ...S.tag(C.primary), fontSize:14, padding:"5px 16px" }}>
                 画面：{MENTOR_TUTORIAL_STEPS[tutorialStep].tab}
               </span>
             )}
           </div>
 
           {/* テキスト */}
-          <p style={{ fontWeight:700, fontSize:16, color:C.text, margin:"0 0 10px" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].title}</p>
-          <p style={{ fontSize:13, color:C.textSub, lineHeight:1.9, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].content}</p>
+          <p style={{ fontWeight:700, fontSize:19, color:C.text, margin:"0 0 12px" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].title}</p>
+          <p style={{ fontSize:15, color:C.textSub, lineHeight:2.0, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].content}</p>
 
           {/* ナビゲーション */}
           <div style={{ display:"flex", gap:8 }}>
@@ -1484,7 +1484,7 @@ export default function App() {
 
   const StudentTutorialModal = showTutorial ? (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
-      <div style={{ background:C.surface, borderRadius:20, padding:"1.75rem", width:"100%", maxWidth:480, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+      <div style={{ background:C.surface, borderRadius:20, padding:"2rem", width:"100%", maxWidth:520, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
           <div style={{ display:"flex", gap:5 }}>
             {STUDENT_TUTORIAL_STEPS.map((_,i) => (
@@ -1494,15 +1494,15 @@ export default function App() {
           <button onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={18}/></button>
         </div>
         <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-          <div style={{ fontSize:44, lineHeight:1, marginBottom:8 }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].icon}</div>
+          <div style={{ fontSize:52, lineHeight:1, marginBottom:10 }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].icon}</div>
           {STUDENT_TUTORIAL_STEPS[tutorialStep].tab && (
-            <span style={{ ...S.tag(C.primary), fontSize:12, padding:"4px 14px" }}>
+            <span style={{ ...S.tag(C.primary), fontSize:14, padding:"5px 16px" }}>
               画面：{STUDENT_TUTORIAL_STEPS[tutorialStep].tab}
             </span>
           )}
         </div>
-        <p style={{ fontWeight:700, fontSize:16, color:C.text, margin:"0 0 10px" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].title}</p>
-        <p style={{ fontSize:13, color:C.textSub, lineHeight:1.9, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].content}</p>
+        <p style={{ fontWeight:700, fontSize:19, color:C.text, margin:"0 0 12px" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].title}</p>
+        <p style={{ fontSize:15, color:C.textSub, lineHeight:2.0, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].content}</p>
         <div style={{ display:"flex", gap:8 }}>
           {tutorialStep > 0 && (
             <button style={{ ...S.btn, flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s-1)}>
