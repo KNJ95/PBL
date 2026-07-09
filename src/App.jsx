@@ -101,39 +101,72 @@ const RUBRIC_DATA = {
   ]},
 };
 
-const TUTORIAL_COMMON = [
+const STUDENT_TUTORIAL_STEPS = [
   {
     title: "Be-Readyへようこそ",
-    content: "このアプリは、PBLにおける学生の成長を「Be-Ready人材」の観点で可視化するツールです。\n\n自己評価・メンター評価・AI分析を組み合わせて、あなたの強みと成長ポイントを明らかにします。",
+    icon: "⭐",
+    tab: null,
+    content: "このアプリは、PBLの活動を通じてあなたの成長を「Be-Ready人材」の観点で記録・可視化するツールです。\n\n自己評価・メンター評価・AI分析を組み合わせて、あなたの強みと成長ポイントを明らかにします。",
     visual: "radar",
   },
   {
-    title: "4つの成長レベル",
-    content: "評価は「受動性→能動性→自律性→創造性」の4段階で行います。\n\nレベルが上がるほど、仕事への関わり方が「与えられる」から「自ら生み出す」へと変化します。",
-    visual: "levels",
+    title: "ホーム画面",
+    icon: "🏠",
+    tab: "ホーム",
+    content: "【できること】\n• レーダーチャートで自己評価とメンター評価を比較\n• 過去の評価の推移をグラフで確認\n• ネクストアクション（次の目標）を設定・管理\n\n【使い方】\n画面下のナビから「ホーム」を選択。チャートをタップするとスコアの詳細が確認できます。",
+    visual: "home",
   },
   {
-    title: "9つの評価軸",
-    content: "Be-Ready人材を9つの観点から評価します。各軸は「A：探索系」「B：実行系」「C：協働系」の3カテゴリに分類されます。\n\n※②情報活用力・⑧内発的動機は参考値として表示されます。",
-    visual: "axes",
+    title: "アンケートタブ",
+    icon: "📋",
+    tab: "アンケート",
+    content: "【できること】\n• 9つの評価軸について自分で採点（1〜4）\n• 期・日付を選んで保存\n• 回答途中でも「下書き保存」されるので安心\n\n【使い方】\n各質問に回答 → 期と日付を入力 → 「回答を保存する」を押す。\n保存後はホームのレーダーチャートに反映されます。",
+    visual: "survey",
   },
-];
-
-const STUDENT_TUTORIAL_STEPS = [
-  ...TUTORIAL_COMMON,
   {
-    title: "学生の使い方",
-    content: "① ホーム画面でレーダーチャートにより自分の成長を確認\n② 「アンケート」タブでセルフ評価を記録・保存\n③ 「振り返り」タブで振り返りを提出してメンターに共有\n④ 「問い」タブでメンターからの問いに回答して深化",
+    title: "振り返りタブ",
+    icon: "📝",
+    tab: "振り返り",
+    content: "【できること】\n• 活動の振り返りをメンターに提出\n• メンチメーター形式（10段階スライダー）で回答\n• 提出するとメンターが採点・フィードバックできる\n\n【使い方】\n各質問に回答 → 「振り返りを提出する」を押す。\nメンターが採点すると「フィードバック」タブに結果が届きます。",
     visual: "student",
+  },
+  {
+    title: "問いタブ",
+    icon: "💬",
+    tab: "問い",
+    content: "【できること】\n• メンターからあなた宛に届いた「問い」を確認\n• 問いに対して自分の考えを回答して送信\n\n【使い方】\n未回答の問いは赤いバッジで表示されます。\n問いをタップして回答を入力 → 「回答する」を押す。",
+    visual: "question",
   },
 ];
 
 const MENTOR_TUTORIAL_STEPS = [
-  ...TUTORIAL_COMMON,
   {
-    title: "メンターの使い方",
-    content: "① 「学生/評価」タブで担当学生のレーダーチャート・履歴を確認し他者評価を入力\n② 「採点」タブで学生の振り返りを読み、9軸でスコアを付ける\n   （軸名をタップすると採点基準ルーブリックを確認できます）\n③ 「問い」タブで学生に問いを送り、回答状況を一覧で確認",
+    title: "Be-Readyへようこそ",
+    icon: "⭐",
+    tab: null,
+    content: "このアプリは、PBL学生の成長を「Be-Ready人材」の観点で評価・支援するメンター向けツールです。\n\n学生の自己評価への他者評価付与・振り返り採点・問いの送信を一元管理できます。",
+    visual: "radar",
+  },
+  {
+    title: "学生/評価タブ",
+    icon: "👥",
+    tab: "学生/評価",
+    content: "【できること】\n• 担当学生の一覧を確認（同じチームIDの学生のみ表示）\n• 学生を選択してレーダーチャート・評価履歴を確認\n• 「評価を入力」フォームで他者評価スコアを記録\n\n【使い方】\n学生名をタップして選択 → チャート下のフォームで各軸を採点 → 「評価を保存」を押す。\n軸名の横の ⓘ をタップすると採点基準（ルーブリック）を確認できます。",
     visual: "mentor",
+  },
+  {
+    title: "採点タブ",
+    icon: "✅",
+    tab: "採点",
+    content: "【できること】\n• 学生が提出した振り返りを一覧で確認\n• 振り返り内容を読んで9軸でスコアを付ける\n• AIによる採点提案を参考にして効率化\n\n【使い方】\n「採点する」ボタンを押す → 振り返り内容を確認 → 各軸のスコアを選択 → 「他者評価を確定・承認する」を押す。\n軸名をタップするとルーブリック（採点基準）が表示されます。",
+    visual: "scoring",
+  },
+  {
+    title: "問いタブ",
+    icon: "❓",
+    tab: "問い",
+    content: "【できること】\n• 担当学生に「問い」を送信して思考を促す\n• 全学生への問いと回答状況を一覧で確認\n• 「回答済」「未回答」のステータスをひと目で把握\n\n【使い方】\n学生をドロップダウンで選択 → 問いを入力 → 「送信」を押す。\n送信済みの問いは画面下部に一覧表示されます。",
+    visual: "question",
   },
 ];
 
@@ -1051,8 +1084,8 @@ export default function App() {
 
         {/* ─── ルーブリックポップアップ */}
         {rubricAxis && (
-          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={()=>setRubricAxis(null)}>
-            <div style={{ background:C.surface, borderRadius:"20px 20px 0 0", padding:"1.5rem", width:"100%", maxWidth:640, maxHeight:"85vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }} onClick={()=>setRubricAxis(null)}>
+            <div style={{ background:C.surface, borderRadius:20, padding:"1.5rem", width:"100%", maxWidth:560, maxHeight:"85vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }} onClick={e=>e.stopPropagation()}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                 <p style={{ margin:0, fontWeight:700, fontSize:16, color:C.text }}>{rubricAxis.name}</p>
                 <button onClick={()=>setRubricAxis(null)} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={20}/></button>
@@ -1103,36 +1136,17 @@ export default function App() {
 
           {/* ビジュアル */}
           <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-            {MENTOR_TUTORIAL_STEPS[tutorialStep].visual === "levels" && (
-              <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
-                {LEVELS.map(lv => (
-                  <div key={lv.lv} style={{ flex:1, background:lv.color+"22", border:`1px solid ${lv.color}44`, borderRadius:10, padding:"8px 4px", textAlign:"center" }}>
-                    <p style={{ margin:0, fontWeight:700, fontSize:12, color:lv.color }}>Lv.{lv.lv}</p>
-                    <p style={{ margin:"2px 0 0", fontSize:10, color:C.textSub }}>{lv.name}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            {MENTOR_TUTORIAL_STEPS[tutorialStep].visual === "axes" && (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:5, justifyContent:"center" }}>
-                {AXES.map(a => (
-                  <span key={a.id} style={{ ...S.tag(a.ref?C.textMuted:C.primary), fontSize:11 }}>
-                    {a.name}{a.ref?" ※":""}
-                  </span>
-                ))}
-              </div>
-            )}
-            {MENTOR_TUTORIAL_STEPS[tutorialStep].visual === "radar" && (
-              <div style={{ fontSize:40 }}>⭐</div>
-            )}
-            {MENTOR_TUTORIAL_STEPS[tutorialStep].visual === "mentor" && (
-              <div style={{ fontSize:40 }}>🎯</div>
+            <div style={{ fontSize:44, lineHeight:1, marginBottom:8 }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].icon}</div>
+            {MENTOR_TUTORIAL_STEPS[tutorialStep].tab && (
+              <span style={{ ...S.tag(C.primary), fontSize:12, padding:"4px 14px" }}>
+                画面：{MENTOR_TUTORIAL_STEPS[tutorialStep].tab}
+              </span>
             )}
           </div>
 
           {/* テキスト */}
-          <p style={{ fontWeight:700, fontSize:17, color:C.text, margin:"0 0 10px" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].title}</p>
-          <p style={{ fontSize:13, color:C.textSub, lineHeight:1.8, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].content}</p>
+          <p style={{ fontWeight:700, fontSize:16, color:C.text, margin:"0 0 10px" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].title}</p>
+          <p style={{ fontSize:13, color:C.textSub, lineHeight:1.9, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{MENTOR_TUTORIAL_STEPS[tutorialStep].content}</p>
 
           {/* ナビゲーション */}
           <div style={{ display:"flex", gap:8 }}>
@@ -1433,8 +1447,8 @@ export default function App() {
 
         {/* ─── ルーブリックポップアップ（メンター画面共通） */}
         {rubricAxis && (
-          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={()=>setRubricAxis(null)}>
-            <div style={{ background:C.surface, borderRadius:"20px 20px 0 0", padding:"1.5rem", width:"100%", maxWidth:640, maxHeight:"85vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }} onClick={()=>setRubricAxis(null)}>
+            <div style={{ background:C.surface, borderRadius:20, padding:"1.5rem", width:"100%", maxWidth:560, maxHeight:"85vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }} onClick={e=>e.stopPropagation()}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                 <p style={{ margin:0, fontWeight:700, fontSize:16, color:C.text }}>{rubricAxis.name}</p>
                 <button onClick={()=>setRubricAxis(null)} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={20}/></button>
@@ -1480,30 +1494,15 @@ export default function App() {
           <button onClick={()=>{ storage.set("tutorial_seen",true); setShowTutorial(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted }}><X size={18}/></button>
         </div>
         <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-          {STUDENT_TUTORIAL_STEPS[tutorialStep].visual === "levels" && (
-            <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
-              {LEVELS.map(lv => (
-                <div key={lv.lv} style={{ flex:1, background:lv.color+"22", border:`1px solid ${lv.color}44`, borderRadius:10, padding:"8px 4px", textAlign:"center" }}>
-                  <p style={{ margin:0, fontWeight:700, fontSize:12, color:lv.color }}>Lv.{lv.lv}</p>
-                  <p style={{ margin:"2px 0 0", fontSize:10, color:C.textSub }}>{lv.name}</p>
-                </div>
-              ))}
-            </div>
+          <div style={{ fontSize:44, lineHeight:1, marginBottom:8 }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].icon}</div>
+          {STUDENT_TUTORIAL_STEPS[tutorialStep].tab && (
+            <span style={{ ...S.tag(C.primary), fontSize:12, padding:"4px 14px" }}>
+              画面：{STUDENT_TUTORIAL_STEPS[tutorialStep].tab}
+            </span>
           )}
-          {STUDENT_TUTORIAL_STEPS[tutorialStep].visual === "axes" && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:5, justifyContent:"center" }}>
-              {AXES.map(a => (
-                <span key={a.id} style={{ ...S.tag(a.ref?C.textMuted:C.primary), fontSize:11 }}>
-                  {a.name}{a.ref?" ※":""}
-                </span>
-              ))}
-            </div>
-          )}
-          {STUDENT_TUTORIAL_STEPS[tutorialStep].visual === "radar" && <div style={{ fontSize:40 }}>⭐</div>}
-          {STUDENT_TUTORIAL_STEPS[tutorialStep].visual === "student" && <div style={{ fontSize:40 }}>📝</div>}
         </div>
-        <p style={{ fontWeight:700, fontSize:17, color:C.text, margin:"0 0 10px" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].title}</p>
-        <p style={{ fontSize:13, color:C.textSub, lineHeight:1.8, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].content}</p>
+        <p style={{ fontWeight:700, fontSize:16, color:C.text, margin:"0 0 10px" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].title}</p>
+        <p style={{ fontSize:13, color:C.textSub, lineHeight:1.9, margin:"0 0 1.5rem", whiteSpace:"pre-line" }}>{STUDENT_TUTORIAL_STEPS[tutorialStep].content}</p>
         <div style={{ display:"flex", gap:8 }}>
           {tutorialStep > 0 && (
             <button style={{ ...S.btn, flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }} onClick={()=>setTutorialStep(s=>s-1)}>
