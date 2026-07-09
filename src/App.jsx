@@ -34,13 +34,13 @@ const C = {
 // ─── 評価定数 ──────────────────────────────────────────────────────────────
 const AXES = [
   { id:1, key:"axis1", name:"課題設定力",      short:"課題",  category:"A", ref:false, evalText:"仕事について自分の視点からその価値・意味を理解しているか" },
-  { id:2, key:"axis2", name:"情報活用力",      short:"情報",  category:"A", ref:true,  evalText:"情報を活用できるか（※基準未確定・参考値）" },
+  { id:2, key:"axis2", name:"情報活用力",      short:"情報",  category:"A", ref:false, evalText:"必要な情報を収集・整理し、意思決定や行動に活かせるか" },
   { id:3, key:"axis3", name:"不確実性への耐性", short:"不確実",category:"A", ref:false, evalText:"不確実性の高い仕事でも粘り強くかつ柔軟に取り組めるか" },
   { id:4, key:"axis4", name:"提案・発信力",    short:"提案",  category:"B", ref:false, evalText:"やるべき・やりたいと考えることを他者に伝えられるか" },
   { id:5, key:"axis5", name:"実行・改善力",    short:"実行",  category:"B", ref:false, evalText:"他でもない自分のこととして粘り強く関われるか" },
   { id:6, key:"axis6", name:"オーナーシップ",  short:"責任",  category:"B", ref:false, evalText:"やりたいと思っているか・意味を自分なりに理解できているか" },
   { id:7, key:"axis7", name:"協働・調整力",    short:"協働",  category:"C", ref:false, evalText:"他者の意見を取り入れつつ柔軟に対応できるか" },
-  { id:8, key:"axis8", name:"自律・内発的動機", short:"動機",  category:"C", ref:true,  evalText:"なぜやるかを自分で語れるか（※基準未確定・参考値）" },
+  { id:8, key:"axis8", name:"自律・内発的動機", short:"動機",  category:"C", ref:false, evalText:"自分なりの理由・動機を持ってやりたいと語れるか" },
   { id:9, key:"axis9", name:"行動変容力",      short:"変容",  category:"C", ref:false, evalText:"フィードバックを行動の変化につなげられるか" },
 ];
 
@@ -348,6 +348,14 @@ function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAx
 
   return (
     <div>
+      {/* 使用文脈バナー */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.primary}15`, borderRadius:12, border:`1px solid ${C.primary}33` }}>
+        <ClipboardList size={16} color={C.primary}/>
+        <div>
+          <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.primary }}>🎯 アンケート — 節目にやること</p>
+          <p style={{ margin:0, fontSize:11, color:C.textSub }}>中間報告・節目のタイミングで9軸を自己評価しましょう。</p>
+        </div>
+      </div>
       {/* 今期の目標 */}
       <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
         <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>今期の目標</p>
@@ -1634,8 +1642,8 @@ export default function App() {
             {/* 統計カード */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
               {[
+                { l:"日次ログ",   v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
                 { l:"アンケート", v:mySurveys.length,  c:C.primary, icon:ClipboardList, s:"survey" },
-                { l:"ログ",      v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
                 { l:"採点待ち",  v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
@@ -1659,12 +1667,32 @@ export default function App() {
             )}
 
             {/* クイックアクション */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:"0.5rem" }}>
+            <div style={{ marginTop:"0.5rem" }}>
+              {/* 毎日やること */}
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:C.accent1 }}>📅 毎日やること</span>
+                <div style={{ flex:1, height:1, background:C.border }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom:16 }}>
+                <button onClick={()=>setScreen("log")} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12, border:`2px solid ${C.accent1}33`, marginBottom:0, padding:"12px 16px" }}>
+                  <BookOpen size={20} color={C.accent1}/>
+                  <div>
+                    <p style={{ margin:0, fontSize:14, fontWeight:700, color:C.text }}>日次ログを記録</p>
+                    <p style={{ margin:0, fontSize:12, color:C.textSub }}>YWT振り返り・気分・学び（1〜2分）</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* 節目にやること */}
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:C.primary }}>🎯 節目にやること（中間報告など）</span>
+                <div style={{ flex:1, height:1, background:C.border }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {[
-                { l:"アンケートを記入", d:"今期の目標と9軸評価", icon:ClipboardList, s:"survey", c:C.primary },
-                { l:"ログを追加",       d:"YWT振り返りを記録",  icon:BookOpen,      s:"log",    c:C.accent1 },
-                { l:"振り返りを提出",   d:"メンターに振り返りを送る", icon:TrendingUp, s:"reflection", c:C.warn },
-                { l:"ポートフォリオ",   d:"成長の可視化を確認",  icon:Briefcase,    s:"portfolio", c:C.success },
+                { l:"アンケートを記入", d:"9軸セルフ評価を記録", icon:ClipboardList, s:"survey", c:C.primary },
+                { l:"振り返りを提出",   d:"メンターに送る",       icon:TrendingUp,    s:"reflection", c:C.warn },
+                { l:"ポートフォリオ",   d:"成長の可視化を確認",   icon:Briefcase,     s:"portfolio", c:C.success },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}22`, minWidth:0, overflow:"hidden", marginBottom:0 }}>
                   <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1677,6 +1705,7 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </div>
           </div>
         )}
 
@@ -1694,6 +1723,13 @@ export default function App() {
         {/* ─── ログ（YWT） ─────────────────────────────────────────── */}
         {screen==="log" && (
           <div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
+              <BookOpen size={16} color={C.accent1}/>
+              <div>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>📅 日次ログ — 毎日やること</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub }}>毎日1〜2分。今日の気づきや学びを記録しよう。</p>
+              </div>
+            </div>
             <div style={S.cardGlow}>
               {[
                 { l:"Y やったこと", v:yatta, set:setYatta, ph:"今日・今期に取り組んだこと" },
@@ -1928,6 +1964,14 @@ export default function App() {
         {/* ─── 振り返り（問いへの回答・フィードバック含む） ──────── */}
         {screen==="reflection" && (
           <div>
+            {/* 使用文脈バナー */}
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.warn}15`, borderRadius:12, border:`1px solid ${C.warn}33` }}>
+              <TrendingUp size={16} color={C.warn}/>
+              <div>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.warn }}>🎯 振り返り — 節目にやること</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub }}>中間報告などの節目で振り返りを提出し、メンターのフィードバックを受けましょう。</p>
+              </div>
+            </div>
             {/* サブタブ */}
             <div style={{ display:"flex", gap:4, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4 }}>
               {[
@@ -2094,7 +2138,7 @@ export default function App() {
         {[
           { v:"home",      l:"ホーム",   icon:Home },
           { v:"survey",    l:"評価",     icon:ClipboardList },
-          { v:"log",       l:"ログ",     icon:BookOpen },
+          { v:"log",       l:"日次",     icon:BookOpen },
           { v:"portfolio", l:"成果物",   icon:Briefcase },
           { v:"reflection",l:"振り返り", icon:TrendingUp },
         ].map(item => {
