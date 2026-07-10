@@ -698,6 +698,7 @@ export default function App() {
   // 学生用 state
   const [term, setTerm]               = useState("");
   const [axisScores, setAxisScores]   = useState({});
+  const [nextAction, setNextAction]   = useState("");
   const [yatta, setYatta]             = useState("");
   const [wakatta, setWakatta]         = useState("");
   const [tsugi, setTsugi]             = useState("");
@@ -822,10 +823,10 @@ export default function App() {
 
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
-    if (!yatta.trim() && !wakatta.trim() && !tsugi.trim()) return;
+    if (!nextAction.trim() && !yatta.trim() && !wakatta.trim() && !tsugi.trim()) return;
     const ts = Date.now();
-    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, yatta, wakatta, tsugi, emotion, photo: logPhoto || null });
-    setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); setLogPhoto(null); tick();
+    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, nextAction, yatta, wakatta, tsugi, emotion, photo: logPhoto || null });
+    setNextAction(""); setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); setLogPhoto(null); tick();
   };
 
   // ─── ポートフォリオ：AIモック分析 ────────────────────────────────────
@@ -1690,9 +1691,8 @@ export default function App() {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {[
-                { l:"アンケートを記入", d:"9軸セルフ評価を記録", icon:ClipboardList, s:"survey", c:C.primary },
+                { l:"アンケートを記入", d:"9軸セルフ評価を記録", icon:ClipboardList, s:"survey",     c:C.primary },
                 { l:"振り返りを提出",   d:"メンターに送る",       icon:TrendingUp,    s:"reflection", c:C.warn },
-                { l:"ポートフォリオ",   d:"成長の可視化を確認",   icon:Briefcase,     s:"portfolio", c:C.success },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}22`, minWidth:0, overflow:"hidden", marginBottom:0 }}>
                   <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1731,6 +1731,20 @@ export default function App() {
               </div>
             </div>
             <div style={S.cardGlow}>
+              {/* 今日のネクストアクション */}
+              <div style={{ marginBottom:18, padding:"10px 14px", background:`${C.success}12`, borderRadius:10, border:`1px solid ${C.success}33` }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.success, display:"block", marginBottom:8 }}>⚡ 今日のネクストアクション（小目標）</label>
+                <input
+                  value={nextAction}
+                  onChange={e=>setNextAction(e.target.value)}
+                  placeholder="今日やること・目標を一言で（例：議事録を読んで論点を整理する）"
+                  style={{ ...S.input, width:"100%", boxSizing:"border-box" }}
+                />
+              </div>
+
+              <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14, marginBottom:4 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:C.textMuted, letterSpacing:"0.06em", margin:"0 0 12px" }}>YWT 振り返り</p>
+              </div>
               {[
                 { l:"Y やったこと", v:yatta, set:setYatta, ph:"今日・今期に取り組んだこと" },
                 { l:"W わかったこと", v:wakatta, set:setWakatta, ph:"気づき・学んだこと" },
@@ -1779,6 +1793,12 @@ export default function App() {
                       </div>
                       <button onClick={()=>{ storage.del(`log:${currentUser.id}:${lg.timestamp}`); tick(); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted, padding:4 }}><Trash2 size={13}/></button>
                     </div>
+                    {lg.nextAction && (
+                      <div style={{ marginBottom:8, padding:"6px 10px", background:`${C.success}12`, borderRadius:7, border:`1px solid ${C.success}33` }}>
+                        <span style={{ fontSize:11, color:C.success, fontWeight:700 }}>⚡ ネクストアクション</span>
+                        <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{lg.nextAction}</p>
+                      </div>
+                    )}
                     {[{l:"Y やったこと",v:lg.yatta},{l:"W わかったこと",v:lg.wakatta},{l:"T 次にやること",v:lg.tsugi}].filter(f=>f.v).map(f => (
                       <div key={f.l} style={{ marginBottom:6 }}>
                         <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
