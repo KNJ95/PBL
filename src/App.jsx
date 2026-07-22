@@ -189,12 +189,34 @@ const DEMO_EXAMPLES = [
   { text:"課題の原因を自分なりに分析し、インタビューを設計して実施した。", scores:{1:3,2:3,3:3,4:2,5:2,6:3,7:3,8:3,9:2} },
 ];
 
-// ─── ストレージ ────────────────────────────────────────────────────────────
+// ─── ストレージ（localStorage + DynamoDB 二重書き） ───────────────────────
+const CLOUD_API = "https://lov5ejwmxbqzci5gagmcrzr3ia0qphjl.lambda-url.ap-northeast-1.on.aws";
+let _cloudUid = null;
+
 const storage = {
   get: (k) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
-  set: (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
-  del: (k) => { try { localStorage.removeItem(k); } catch {} },
+  set: (k,v) => {
+    try { localStorage.setItem(k,JSON.stringify(v)); } catch {}
+    if (_cloudUid) fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId:_cloudUid, dataKey:k, payload:JSON.stringify(v) }) }).catch(()=>{});
+  },
+  del: (k) => {
+    try { localStorage.removeItem(k); } catch {}
+    if (_cloudUid) fetch(`${CLOUD_API}?userId=${encodeURIComponent(_cloudUid)}&dataKey=${encodeURIComponent(k)}`,
+      { method:"DELETE" }).catch(()=>{});
+  },
   keys: (prefix) => { try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; } },
+  setUser: (uid) => { _cloudUid = uid; },
+  clearUser: () => { _cloudUid = null; },
+  syncFromCloud: async (uid) => {
+    try {
+      const r = await fetch(`${CLOUD_API}?userId=${encodeURIComponent(uid)}`);
+      const json = await r.json();
+      if (json.ok && Array.isArray(json.data)) {
+        json.data.forEach(item => { try { if (item.payload) localStorage.setItem(item.dataKey, item.payload); } catch {} });
+      }
+    } catch {}
+  },
 };
 
 const getStudents = () => storage.get("students_list") || [];
@@ -737,12 +759,14 @@ export default function App() {
   const [loginRole, setLoginRole]     = useState("student");
 
   const login = (u) => {
+    storage.setUser(u.id);
     storage.set("current_user", u);
     setCurrentUser(u);
     setScreen("home");
     if (!storage.get("tutorial_seen")) { setShowTutorial(true); setTutorialStep(0); }
+    storage.syncFromCloud(u.id).then(() => tick());
   };
-  const logout = () => { storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
+  const logout = () => { storage.clearUser(); storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
 
   const handleLogin = () => {
     if (!loginName.trim() || !loginId.trim() || !loginTeam.trim()) return;
@@ -758,6 +782,15 @@ export default function App() {
     }
     login(u);
   };
+
+  // ページリロード後の自動復元（localStorage に currentUser が残っている場合）
+  useEffect(() => {
+    if (currentUser?.id) {
+      storage.setUser(currentUser.id);
+      storage.syncFromCloud(currentUser.id).then(() => tick());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── データ取得 ──────────────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
