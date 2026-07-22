@@ -197,8 +197,15 @@ const storage = {
   get: (k) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
   set: (k,v) => {
     try { localStorage.setItem(k,JSON.stringify(v)); } catch {}
-    if (_cloudUid) fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ userId:_cloudUid, dataKey:k, payload:JSON.stringify(v) }) }).catch(()=>{});
+    if (_cloudUid) {
+      const body = JSON.stringify({ userId:_cloudUid, dataKey:k, payload:JSON.stringify(v) });
+      console.log("[cloud] POST", k, "uid=", _cloudUid, "size=", body.length);
+      fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"}, body })
+        .then(r => r.json()).then(j => { if (!j.ok) console.warn("[cloud] POST failed", k, j); })
+        .catch(e => console.warn("[cloud] POST error", k, e));
+    } else {
+      console.warn("[cloud] skipped (no uid)", k);
+    }
   },
   del: (k) => {
     try { localStorage.removeItem(k); } catch {}
