@@ -730,7 +730,6 @@ export default function App() {
   const [reflectionDone, setReflectionDone] = useState(false);
   const [nextActInputs, setNextActInputs] = useState({});
   const [logPhoto, setLogPhoto]             = useState(null);
-  const [portfolioAiLoading, setPortfolioAiLoading] = useState(false);
   const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
   const [surveyResult, setSurveyResult]             = useState(null);
   const photoInputRef = useRef(null);
@@ -862,21 +861,16 @@ export default function App() {
     setNextAction(""); setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); setLogPhoto(null); tick();
   };
 
-  // ─── ポートフォリオ：Gemini AI 分析 ──────────────────────────────────
-  const runMockAiAnalysis = async () => {
-    setPortfolioAiLoading(true);
-    setPortfolioAiResult(null);
+  // ─── ポートフォリオ：Gemini プロンプト生成 ───────────────────────────
+  const runMockAiAnalysis = () => {
     const axes = latestSurvey?.axes || {};
     const recentLogs = myLogs.slice(0, 5);
     const latestMentor = getMentorSurveys(currentUser.id)[0];
 
-    const axisLines  = AXES.map(a => `  ${a.id}. ${a.name}: Lv.${axes[a.id] ?? "未評価"}`).join("\n");
-    const logLines   = recentLogs.length
+    const axisLines   = AXES.map(a => `  ${a.id}. ${a.name}: Lv.${axes[a.id] ?? "未評価"}`).join("\n");
+    const logLines    = recentLogs.length
       ? recentLogs.map((l, i) =>
-          `  [${i+1}] ${fmt(l.timestamp)}\n` +
-          `    やったこと: ${l.yatta || "（未記入）"}\n` +
-          `    わかったこと: ${l.wakatta || "（未記入）"}\n` +
-          `    次にやること: ${l.tsugi || "（未記入）"}`
+          `  [${i+1}] ${fmt(l.timestamp)}\n    やったこと: ${l.yatta || "（未記入）"}\n    わかったこと: ${l.wakatta || "（未記入）"}\n    次にやること: ${l.tsugi || "（未記入）"}`
         ).join("\n")
       : "  （ログなし）";
     const mentorLines = latestMentor
@@ -891,18 +885,8 @@ export default function App() {
       `【メンター評価（最新）】\n${mentorLines}\n\n` +
       `以下の構成でレポートを作成してください：\n◆ 総合所見（3〜4文）\n💪 強みと判断される軸とその根拠\n🌱 成長が期待される軸とその根拠\n📋 今後へのアドバイス（具体的に2〜3点）`;
 
-    try {
-      const r = await fetch(`${CLOUD_API}/ai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const data = await r.json();
-      setPortfolioAiResult(data.ok ? data.text : "分析に失敗しました。しばらく後でお試しください。");
-    } catch (e) {
-      setPortfolioAiResult("分析に失敗しました: " + e.message);
-    }
-    setPortfolioAiLoading(false);
+    navigator.clipboard.writeText(prompt).catch(() => {});
+    setPortfolioAiResult(prompt);
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
@@ -1996,29 +1980,39 @@ export default function App() {
                 <div style={{ ...S.card, borderColor:C.accent1+"44", marginTop:12 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                     <Sparkles size={16} color={C.accent1}/>
-                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>Gemini 成長分析レポート</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>Gemini 成長分析</p>
                     <span style={{ fontSize:10, background:"#1a73e822", color:"#1a73e8", borderRadius:4, padding:"2px 6px" }}>Gemini</span>
                   </div>
                   <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
-                    ログ・自己評価・メンター評価をもとに Gemini AI が成長レポートを生成します。
+                    プロンプトを生成してコピー → Gemini に貼り付けると AI 分析レポートを取得できます。
                   </p>
                   {portfolioAiResult ? (
                     <div>
-                      <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:10, padding:"1rem", fontSize:13, color:C.text, lineHeight:1.75, whiteSpace:"pre-wrap", marginBottom:12 }}>
-                        {portfolioAiResult}
+                      <textarea
+                        readOnly
+                        value={portfolioAiResult}
+                        style={{ width:"100%", height:200, fontSize:11, color:C.text, background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, padding:"0.75rem", lineHeight:1.6, resize:"vertical", boxSizing:"border-box" }}
+                      />
+                      <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                        <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:6 }}
+                          onClick={() => navigator.clipboard.writeText(portfolioAiResult)}>
+                          <Sparkles size={13}/> コピーする
+                        </button>
+                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"
+                          style={{ ...S.btn, display:"flex", alignItems:"center", gap:6, textDecoration:"none" }}>
+                          Gemini を開く →
+                        </a>
+                        <button style={{ ...S.btn, display:"flex", alignItems:"center", gap:6 }} onClick={()=>setPortfolioAiResult(null)}>
+                          再生成
+                        </button>
                       </div>
-                      <button style={{ ...S.btn, display:"flex", alignItems:"center", gap:6 }} onClick={()=>setPortfolioAiResult(null)}>
-                        <Sparkles size={13}/> 再分析する
-                      </button>
                     </div>
                   ) : (
                     <button
                       style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8, background:`linear-gradient(135deg,${C.primary},${C.accent1})` }}
                       onClick={runMockAiAnalysis}
-                      disabled={portfolioAiLoading}
                     >
-                      <Sparkles size={14}/>
-                      {portfolioAiLoading ? "分析中..." : "AI で分析する"}
+                      <Sparkles size={14}/> プロンプトを生成・コピー
                     </button>
                   )}
                 </div>
