@@ -197,15 +197,8 @@ const storage = {
   get: (k) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch { return null; } },
   set: (k,v) => {
     try { localStorage.setItem(k,JSON.stringify(v)); } catch {}
-    if (_cloudUid) {
-      const body = JSON.stringify({ userId:_cloudUid, dataKey:k, payload:JSON.stringify(v) });
-      console.log("[cloud] POST", k, "uid=", _cloudUid, "size=", body.length);
-      fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"}, body })
-        .then(r => r.json()).then(j => { if (!j.ok) console.warn("[cloud] POST failed", k, j); })
-        .catch(e => console.warn("[cloud] POST error", k, e));
-    } else {
-      console.warn("[cloud] skipped (no uid)", k);
-    }
+    if (_cloudUid) fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId:_cloudUid, dataKey:k, payload:JSON.stringify(v) }) }).catch(()=>{});
   },
   del: (k) => {
     try { localStorage.removeItem(k); } catch {}
@@ -869,34 +862,47 @@ export default function App() {
     setNextAction(""); setYatta(""); setWakatta(""); setTsugi(""); setEmotion(3); setLogPhoto(null); tick();
   };
 
-  // ─── ポートフォリオ：AIモック分析 ────────────────────────────────────
-  const runMockAiAnalysis = () => {
+  // ─── ポートフォリオ：Gemini AI 分析 ──────────────────────────────────
+  const runMockAiAnalysis = async () => {
     setPortfolioAiLoading(true);
     setPortfolioAiResult(null);
     const axes = latestSurvey?.axes || {};
-    const logCount = myLogs.length;
-    const photoCount = myLogs.filter(l => l.photo).length;
-    const strong = AXES.filter(a => !a.ref && (axes[a.id]||0) >= 3);
-    const grow   = AXES.filter(a => !a.ref && (axes[a.id]||0) > 0 && (axes[a.id]||0) <= 2);
-    const strongText = strong.length ? strong.map(a=>`「${a.name}」Lv.${axes[a.id]}`).join("、") : "（データ不足）";
-    const growText  = grow.length   ? grow.map(a=>`「${a.name}」Lv.${axes[a.id]}`).join("、") : "（データ不足）";
-    setTimeout(() => {
-      setPortfolioAiResult(
-        `【第三者視点 AI 評価レポート（モック）】\n\n` +
-        `📊 分析データ：ログ ${logCount} 件（うち写真付き ${photoCount} 件）\n\n` +
-        `◆ 総合所見\n` +
-        `蓄積されたログと9軸自己評価から、この学生は自分の活動を丁寧に言語化する習慣が形成されつつあります。` +
-        `特に行動記録の継続性から、内発的な動機づけの萌芽が見受けられます。\n\n` +
-        `💪 強みと判断される軸\n${strongText}\n\n` +
-        `🌱 成長が期待される軸\n${growText}\n\n` +
-        `📸 写真ログからの観察\n` +
-        (photoCount > 0
-          ? `${photoCount}件の写真ログが蓄積されています。成果物・活動の記録から実践的な関与が確認できます。`
-          : `写真ログはまだありません。活動の様子や成果物を写真で記録すると、より精度の高い分析が可能になります。`) +
-        `\n\n※ これはモック評価です。実際のAI分析にはAPIキーの設定が必要です。`
-      );
-      setPortfolioAiLoading(false);
-    }, 1800);
+    const recentLogs = myLogs.slice(0, 5);
+    const latestMentor = getMentorSurveys(currentUser.id)[0];
+
+    const axisLines  = AXES.map(a => `  ${a.id}. ${a.name}: Lv.${axes[a.id] ?? "未評価"}`).join("\n");
+    const logLines   = recentLogs.length
+      ? recentLogs.map((l, i) =>
+          `  [${i+1}] ${fmt(l.timestamp)}\n` +
+          `    やったこと: ${l.yatta || "（未記入）"}\n` +
+          `    わかったこと: ${l.wakatta || "（未記入）"}\n` +
+          `    次にやること: ${l.tsugi || "（未記入）"}`
+        ).join("\n")
+      : "  （ログなし）";
+    const mentorLines = latestMentor
+      ? AXES.map(a => `  ${a.name}: Lv.${latestMentor.axes?.[a.id] ?? "-"}`).join("\n")
+      : "  （メンター評価なし）";
+
+    const prompt =
+      `あなたはPBL（Project-Based Learning）の学習支援AIです。以下の学生データをもとに、「Be-Ready人材」観点での成長評価レポートを日本語で作成してください。\n\n` +
+      `【学生情報】\n名前: ${currentUser.name}  ログ記録数: ${myLogs.length}件  最新アンケート: ${latestSurvey?.term || "未実施"}\n\n` +
+      `【9軸自己評価（最新）】\n${axisLines}\n\n` +
+      `【直近の日次ログ（最大5件）】\n${logLines}\n\n` +
+      `【メンター評価（最新）】\n${mentorLines}\n\n` +
+      `以下の構成でレポートを作成してください：\n◆ 総合所見（3〜4文）\n💪 強みと判断される軸とその根拠\n🌱 成長が期待される軸とその根拠\n📋 今後へのアドバイス（具体的に2〜3点）`;
+
+    try {
+      const r = await fetch(`${CLOUD_API}/ai`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await r.json();
+      setPortfolioAiResult(data.ok ? data.text : "分析に失敗しました。しばらく後でお試しください。");
+    } catch (e) {
+      setPortfolioAiResult("分析に失敗しました: " + e.message);
+    }
+    setPortfolioAiLoading(false);
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
@@ -1990,11 +1996,11 @@ export default function App() {
                 <div style={{ ...S.card, borderColor:C.accent1+"44", marginTop:12 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                     <Sparkles size={16} color={C.accent1}/>
-                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>AI 第三者評価（モック）</p>
-                    <span style={{ fontSize:10, background:C.accent1+"22", color:C.accent1, borderRadius:4, padding:"2px 6px" }}>DEMO</span>
+                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>Gemini 成長分析レポート</p>
+                    <span style={{ fontSize:10, background:"#1a73e822", color:"#1a73e8", borderRadius:4, padding:"2px 6px" }}>Gemini</span>
                   </div>
                   <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
-                    蓄積されたログ・写真・評価スコアをもとに第三者視点での評価を生成します。
+                    ログ・自己評価・メンター評価をもとに Gemini AI が成長レポートを生成します。
                   </p>
                   {portfolioAiResult ? (
                     <div>
