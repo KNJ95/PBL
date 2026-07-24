@@ -774,8 +774,9 @@ export default function App() {
   const [loginError, setLoginError]       = useState("");
   const [tempUser, setTempUser]           = useState(null);
   const [tempProfile, setTempProfile]     = useState(null);
-  const [newPassword, setNewPassword]     = useState("");
+  const [newPassword, setNewPassword]         = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [profileName, setProfileName]         = useState("");
 
   const login = (u) => {
     storage.setUser(u.id);
@@ -796,7 +797,7 @@ export default function App() {
     if (hash !== profile.passwordHash) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
     const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
     if (profile.isFirstLogin) {
-      setTempUser(u); setTempProfile(profile); setScreen("changePassword");
+      setTempUser(u); setTempProfile(profile); setProfileName(profile.name); setScreen("changePassword");
     } else {
       if (u.role === "student") {
         const list = getStudents();
@@ -810,20 +811,22 @@ export default function App() {
   };
 
   const handleChangePassword = async () => {
+    if (!profileName.trim()) { setLoginError("氏名を入力してください。"); return; }
     if (newPassword.length < 8) { setLoginError("パスワードは8文字以上にしてください。"); return; }
     if (newPassword !== confirmPassword) { setLoginError("パスワードが一致しません。"); return; }
     setLoginLoading(true);
     const hash = await hashPassword(newPassword);
+    const updatedProfile = { ...tempProfile, name: profileName.trim(), passwordHash: hash, isFirstLogin: false };
     await fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ userId: tempUser.id, dataKey:"user_profile",
-        payload: JSON.stringify({ ...tempProfile, passwordHash:hash, isFirstLogin:false }) }) });
-    if (tempUser.role === "student") {
+      body: JSON.stringify({ userId: tempUser.id, dataKey:"user_profile", payload: JSON.stringify(updatedProfile) }) });
+    const finalUser = { ...tempUser, name: profileName.trim() };
+    if (finalUser.role === "student") {
       const list = getStudents();
-      if (!list.find(s => s.id === tempUser.id)) {
-        storage.set("students_list", [...list, { id:tempUser.id, name:tempUser.name, projectId:tempUser.projectId, registeredAt:Date.now() }]);
+      if (!list.find(s => s.id === finalUser.id)) {
+        storage.set("students_list", [...list, { id:finalUser.id, name:finalUser.name, projectId:finalUser.projectId, registeredAt:Date.now() }]);
       }
     }
-    login(tempUser);
+    login(finalUser);
     setLoginLoading(false);
   };
 
@@ -1038,6 +1041,11 @@ export default function App() {
         </div>
         <div style={{ ...S.card, padding:"1.75rem" }}>
           <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>氏名</label>
+            <input value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="例：山田 太郎" style={S.input}/>
+            <p style={{ fontSize:11, color:C.textMuted, margin:"5px 0 0" }}>アプリ内で表示される名前です。正確に入力してください。</p>
+          </div>
+          <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>新しいパスワード（8文字以上）</label>
             <input type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} placeholder="新しいパスワード" style={S.input}/>
           </div>
@@ -1048,7 +1056,7 @@ export default function App() {
           {loginError && <p style={{ fontSize:12, color:"#dc2626", marginBottom:12 }}>{loginError}</p>}
           <button style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10, opacity:loginLoading?0.6:1 }}
             onClick={handleChangePassword} disabled={loginLoading}>
-            {loginLoading ? "設定中..." : "パスワードを設定してログイン"}
+            {loginLoading ? "設定中..." : "登録してログイン"}
           </button>
         </div>
       </div>
