@@ -18,4 +18,5 @@ yarn-error.log*
 
 be-ready-dev_accessKeys.csv
 
-be-ready-dev_accessKeys.csv
+# ユーザー登録CSV（すべてgit管理しない）
+tools/*.csv

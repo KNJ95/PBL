@@ -219,6 +219,22 @@ const storage = {
   },
 };
 
+// パスワードを SHA-256 でハッシュ化（Web Crypto API）
+const hashPassword = async (pw) => {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+};
+
+// DynamoDB からユーザープロファイルを取得
+const fetchUserProfile = async (userId) => {
+  try {
+    const r = await fetch(`${CLOUD_API}?userId=${encodeURIComponent(userId)}&dataKey=user_profile`);
+    const json = await r.json();
+    if (json.ok && json.data?.payload) return JSON.parse(json.data.payload);
+  } catch {}
+  return null;
+};
+
 const getStudents = () => storage.get("students_list") || [];
 const getSurveys  = (uid) => storage.keys(`survey:${uid}:`).map(k=>storage.get(k)).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
 const getLogs     = (uid) => storage.keys(`log:${uid}:`).map(k=>storage.get(k)).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
@@ -752,10 +768,14 @@ export default function App() {
   const [mentorHistView, setMentorHistView] = useState("survey");
 
   // ログイン
-  const [loginName, setLoginName]     = useState("");
-  const [loginId, setLoginId]         = useState("");
-  const [loginTeam, setLoginTeam]     = useState("");
-  const [loginRole, setLoginRole]     = useState("student");
+  const [loginId, setLoginId]           = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading]   = useState(false);
+  const [loginError, setLoginError]       = useState("");
+  const [tempUser, setTempUser]           = useState(null);
+  const [tempProfile, setTempProfile]     = useState(null);
+  const [newPassword, setNewPassword]     = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const login = (u) => {
     storage.setUser(u.id);
@@ -767,19 +787,44 @@ export default function App() {
   };
   const logout = () => { storage.clearUser(); storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
 
-  const handleLogin = () => {
-    if (!loginName.trim() || !loginId.trim() || !loginTeam.trim()) return;
-    const u = { id: loginId.trim(), name: loginName.trim(), role: loginRole, team: loginTeam.trim() };
-    if (loginRole === "student") {
+  const handleLogin = async () => {
+    if (!loginId.trim() || !loginPassword.trim()) return;
+    setLoginLoading(true); setLoginError("");
+    const profile = await fetchUserProfile(loginId.trim());
+    if (!profile) { setLoginError("IDが存在しません。管理者に確認してください。"); setLoginLoading(false); return; }
+    const hash = await hashPassword(loginPassword);
+    if (hash !== profile.passwordHash) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
+    const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
+    if (profile.isFirstLogin) {
+      setTempUser(u); setTempProfile(profile); setScreen("changePassword");
+    } else {
+      if (u.role === "student") {
+        const list = getStudents();
+        if (!list.find(s => s.id === u.id)) {
+          storage.set("students_list", [...list, { id:u.id, name:u.name, projectId:u.projectId, registeredAt:Date.now() }]);
+        }
+      }
+      login(u);
+    }
+    setLoginLoading(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) { setLoginError("パスワードは8文字以上にしてください。"); return; }
+    if (newPassword !== confirmPassword) { setLoginError("パスワードが一致しません。"); return; }
+    setLoginLoading(true);
+    const hash = await hashPassword(newPassword);
+    await fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId: tempUser.id, dataKey:"user_profile",
+        payload: JSON.stringify({ ...tempProfile, passwordHash:hash, isFirstLogin:false }) }) });
+    if (tempUser.role === "student") {
       const list = getStudents();
-      const existing = list.find(s => s.id === u.id);
-      if (!existing) {
-        storage.set("students_list", [...list, { id:u.id, name:u.name, team:u.team, registeredAt:Date.now() }]);
-      } else if (existing.team !== u.team) {
-        storage.set("students_list", list.map(s => s.id === u.id ? { ...s, team:u.team } : s));
+      if (!list.find(s => s.id === tempUser.id)) {
+        storage.set("students_list", [...list, { id:tempUser.id, name:tempUser.name, projectId:tempUser.projectId, registeredAt:Date.now() }]);
       }
     }
-    login(u);
+    login(tempUser);
+    setLoginLoading(false);
   };
 
   // ページリロード後の自動復元（localStorage に currentUser が残っている場合）
@@ -800,7 +845,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const students   = useMemo(() => {
     const all = getStudents();
-    if (currentUser?.team) return all.filter(s => s.team === currentUser.team);
+    if (currentUser?.projectId) return all.filter(s => s.projectId === currentUser.projectId);
     return all;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, refresh]);
@@ -980,6 +1025,37 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────
   // ログイン画面
   // ─────────────────────────────────────────────────────────────────────
+  // ─── 初回パスワード変更画面 ───────────────────────────────────────────
+  if (screen === "changePassword") return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", fontFamily:"system-ui,sans-serif" }}>
+      <div style={{ width:"100%", maxWidth:420 }}>
+        <div style={{ textAlign:"center", marginBottom:"2rem" }}>
+          <div style={{ width:56, height:56, borderRadius:14, background:"#f59e0b22", border:"1.5px solid #f59e0b66", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 1rem" }}>
+            <Star size={26} color="#f59e0b"/>
+          </div>
+          <h1 style={{ fontSize:22, fontWeight:700, color:C.text, margin:"0 0 6px" }}>パスワードを変更してください</h1>
+          <p style={{ color:C.textSub, fontSize:13, margin:0 }}>初回ログインのため、新しいパスワードを設定してください</p>
+        </div>
+        <div style={{ ...S.card, padding:"1.75rem" }}>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>新しいパスワード（8文字以上）</label>
+            <input type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} placeholder="新しいパスワード" style={S.input}/>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>パスワード（確認）</label>
+            <input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="もう一度入力" onKeyDown={e=>e.key==="Enter"&&handleChangePassword()} style={S.input}/>
+          </div>
+          {loginError && <p style={{ fontSize:12, color:"#dc2626", marginBottom:12 }}>{loginError}</p>}
+          <button style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10, opacity:loginLoading?0.6:1 }}
+            onClick={handleChangePassword} disabled={loginLoading}>
+            {loginLoading ? "設定中..." : "パスワードを設定してログイン"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── ログイン画面 ─────────────────────────────────────────────────────
   if (!currentUser) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", fontFamily:"system-ui,sans-serif" }}>
       <div style={{ width:"100%", maxWidth:420 }}>
@@ -990,35 +1066,24 @@ export default function App() {
           <h1 style={{ fontSize:24, fontWeight:700, color:C.text, margin:"0 0 6px", letterSpacing:-0.5 }}>Be-Ready ポートフォリオ</h1>
           <p style={{ color:C.textSub, fontSize:13, margin:0 }}>Project-Based Learning Portfolio</p>
         </div>
-
         <div style={{ ...S.card, padding:"1.75rem" }}>
-          {/* ロール切替 */}
-          <div style={{ display:"flex", gap:6, marginBottom:"1.5rem", background:C.surface2, borderRadius:10, padding:4 }}>
-            {[{v:"student",l:"学生"},{v:"mentor",l:"メンター / 教員"}].map(r => (
-              <button key={r.v} onClick={()=>setLoginRole(r.v)} style={{ flex:1, padding:"8px", borderRadius:7, border:"none", background:loginRole===r.v?C.primary:"transparent", color:loginRole===r.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:loginRole===r.v?700:400, transition:"all 0.2s" }}>{r.l}</button>
-            ))}
-          </div>
           <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>チームID</label>
-            <input value={loginTeam} onChange={e=>setLoginTeam(e.target.value)} placeholder="例：PBLチーム1" style={S.input}/>
-            <p style={{ fontSize:11, color:C.textMuted, margin:"5px 0 0" }}>学生・メンターで同じIDを入力してください</p>
-          </div>
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>氏名</label>
-            <input value={loginName} onChange={e=>setLoginName(e.target.value)} placeholder="例：山田 太郎" style={S.input}/>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>ユーザーID</label>
+            <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="配布されたIDを入力" style={S.input}/>
           </div>
           <div style={{ marginBottom:20 }}>
-            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>ユーザーID</label>
-            <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="例：yamada_taro" onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={S.input}/>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>パスワード</label>
+            <input type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="パスワードを入力" onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={S.input}/>
           </div>
+          {loginError && <p style={{ fontSize:12, color:"#dc2626", marginBottom:12 }}>{loginError}</p>}
           <button
-            style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10, opacity:(!loginTeam.trim()||!loginName.trim()||!loginId.trim())?0.5:1, cursor:(!loginTeam.trim()||!loginName.trim()||!loginId.trim())?"not-allowed":"pointer" }}
-            onClick={handleLogin}
+            style={{ ...S.btnPrimary, width:"100%", padding:"11px", fontSize:14, borderRadius:10, opacity:(loginLoading||!loginId.trim()||!loginPassword.trim())?0.5:1 }}
+            onClick={handleLogin} disabled={loginLoading||!loginId.trim()||!loginPassword.trim()}
           >
-            はじめる <ChevronRight size={16} style={{ verticalAlign:"middle" }}/>
+            {loginLoading ? "確認中..." : <>ログイン <ChevronRight size={16} style={{ verticalAlign:"middle" }}/></>}
           </button>
         </div>
-        <p style={{ fontSize:11, color:C.textMuted, textAlign:"center", marginTop:14 }}>チームIDで学生とメンターが自動的に紐づきます</p>
+        <p style={{ fontSize:11, color:C.textMuted, textAlign:"center", marginTop:14 }}>IDとパスワードは管理者から配布されます</p>
       </div>
     </div>
   );
