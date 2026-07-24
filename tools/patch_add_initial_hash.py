@@ -19,7 +19,7 @@ except ImportError:
     print("boto3 が必要です: pip install boto3")
     sys.exit(1)
 
-TABLE_NAME = "BeReadyData"
+TABLE_NAME = "BeReadyUsers"
 REGION     = "ap-northeast-1"
 
 

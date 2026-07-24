@@ -18,7 +18,7 @@ except ImportError:
     print("  pip install boto3")
     sys.exit(1)
 
-TABLE_NAME = "BeReadyData"
+TABLE_NAME = "BeReadyUsers"
 REGION     = "ap-northeast-1"
 
 REQUIRED_COLUMNS = {"userId", "name", "role", "projectId", "tempPassword"}

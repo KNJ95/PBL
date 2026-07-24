@@ -2,10 +2,12 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand } = require("@aws-sdk/lib-dynamodb");
 const client = new DynamoDBClient({ region: "ap-northeast-1" });
 const dynamo = DynamoDBDocumentClient.from(client);
-const TABLE      = process.env.TABLE_NAME;
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const DATA_TABLE  = process.env.TABLE_NAME;       // BeReadyData  - アプリデータ
+const USER_TABLE  = process.env.USER_TABLE_NAME;  // BeReadyUsers - ユーザー認証情報
+const GEMINI_KEY  = process.env.GEMINI_API_KEY;
 const HEADERS = { "Content-Type": "application/json" };
 const res = (code, body) => ({ statusCode: code, headers: HEADERS, body: JSON.stringify(body) });
+const tableFor = (dataKey) => dataKey === "user_profile" ? USER_TABLE : DATA_TABLE;
 
 exports.handler = async (event) => {
   const method = event.requestContext?.http?.method ?? "GET";
@@ -32,11 +34,12 @@ exports.handler = async (event) => {
       const { userId, dataKey } = params;
       if (!userId) return res(400, { ok: false, error: "userId required" });
       if (dataKey) {
-        const r = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { userId, dataKey } }));
+        const r = await dynamo.send(new GetCommand({ TableName: tableFor(dataKey), Key: { userId, dataKey } }));
         return res(200, { ok: true, data: r.Item ?? null });
       }
+      // dataKey 未指定時はアプリデータのみ返す（user_profile は含まない）
       const r = await dynamo.send(new QueryCommand({
-        TableName: TABLE,
+        TableName: DATA_TABLE,
         KeyConditionExpression: "userId = :uid",
         ExpressionAttributeValues: { ":uid": userId },
       }));
@@ -47,14 +50,14 @@ exports.handler = async (event) => {
       const body = event.body ? JSON.parse(event.body) : {};
       const { userId, dataKey, payload } = body;
       if (!userId || !dataKey) return res(400, { ok: false, error: "userId and dataKey required" });
-      await dynamo.send(new PutCommand({ TableName: TABLE, Item: { userId, dataKey, payload, updatedAt: Date.now() } }));
+      await dynamo.send(new PutCommand({ TableName: tableFor(dataKey), Item: { userId, dataKey, payload, updatedAt: Date.now() } }));
       return res(200, { ok: true });
     }
     // ── DynamoDB DELETE ──────────────────────────────────────────────
     if (method === "DELETE") {
       const { userId, dataKey } = params;
       if (!userId || !dataKey) return res(400, { ok: false, error: "userId and dataKey required" });
-      await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { userId, dataKey } }));
+      await dynamo.send(new DeleteCommand({ TableName: tableFor(dataKey), Key: { userId, dataKey } }));
       return res(200, { ok: true });
     }
     return res(405, { ok: false, error: "Method not allowed" });
