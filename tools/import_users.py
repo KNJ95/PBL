@@ -65,12 +65,14 @@ def import_users(csv_path: str):
                 errors.append(f"行{i}: tempPassword は8文字以上にしてください ({user_id})")
                 continue
 
+            pw_hash = hash_password(temp_password)
             profile = {
-                "name":         name,
-                "role":         role,
-                "projectId":    project_id,
-                "passwordHash": hash_password(temp_password),
-                "isFirstLogin": True,
+                "name":                name,
+                "role":                role,
+                "projectId":           project_id,
+                "passwordHash":        pw_hash,
+                "initialPasswordHash": pw_hash,
+                "isFirstLogin":        True,
             }
 
             try:

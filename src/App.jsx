@@ -794,9 +794,11 @@ export default function App() {
     const profile = await fetchUserProfile(loginId.trim());
     if (!profile) { setLoginError("IDが存在しません。管理者に確認してください。"); setLoginLoading(false); return; }
     const hash = await hashPassword(loginPassword);
-    if (hash !== profile.passwordHash) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
+    const matchesCurrent = hash === profile.passwordHash;
+    const matchesInitial  = profile.initialPasswordHash && hash === profile.initialPasswordHash;
+    if (!matchesCurrent && !matchesInitial) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
     const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
-    if (profile.isFirstLogin) {
+    if (profile.isFirstLogin || matchesInitial) {
       setTempUser(u); setTempProfile(profile); setProfileName(profile.name); setScreen("changePassword");
     } else {
       if (u.role === "student") {
