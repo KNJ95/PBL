@@ -22,9 +22,9 @@
 ## 1. プロダクト概要
 
 **作成日**: 2026年5月26日  
-**最終更新**: 2026年7月9日（チュートリアル・ルーブリックポップアップ・日次/マイルストーン区分・②⑧本採点復帰）  
-**バージョン**: v1.5（POC）  
-**対象ユーザー**: 学生 / メンター
+**最終更新**: 2026年7月24日（ID+パスワード認証・DB分離・CSVユーザー管理・AI分析準備）  
+**バージョン**: v1.6（POC）  
+**対象ユーザー**: 学生 / メンター / 管理者
 
 ### 1.1 背景
 
@@ -85,8 +85,11 @@
 | スタイリング | インラインスタイル（ダークテーマ） | CSS変数不使用・カラー定数 `C` オブジェクトで管理 |
 | グラフ | recharts | RadarChart（9軸レーダー） |
 | アイコン | lucide-react | 軽量な SVG アイコンセット |
-| データ永続化 | `localStorage`（ブラウザ標準） | 同期 API・個人スコープで保持 |
-| ホスティング | Vercel + GitHub（予定） | `react-scripts` ベース |
+| データ永続化 | `localStorage` + DynamoDB 二重書き込み | localStorage をキャッシュとしつつ、バックグラウンドでクラウド同期 |
+| バックエンド | AWS Lambda (Node.js 22) + Function URL | API Gateway 不要・サーバーレス |
+| DB | Amazon DynamoDB | BeReadyUsers（認証）/ BeReadyData（アプリデータ）の2テーブル構成 |
+| 認証 | SHA-256 パスワードハッシュ（Web Crypto API） | サーバーサイドでのキー管理なし・POC 向け実装 |
+| ホスティング | Vercel + GitHub | `react-scripts` ベース |
 
 ### 2.2 ファイル構成
 
@@ -98,11 +101,19 @@ code/
 ├── public/
 │   ├── index.html
 │   └── survey_questions.json    ← アンケート設問定義（9軸 × 設問 × 選択肢）
+├── lambda/
+│   └── index.js                 ← Lambda 関数（DynamoDB GET/POST/DELETE + Gemini AI）
+├── tools/
+│   ├── import_users.py          ← CSV → BeReadyUsers 一括インポート
+│   ├── patch_add_initial_hash.py← 既存レコードに initialPasswordHash を追加
+│   └── cleanup_user_profiles.py ← BeReadyData から user_profile を削除（移行用）
+├── AWS構築.md                   ← AWSバックエンド構築手順書
 ├── be_ready_poc_app.jsx         ← 元バージョン（参照用・Tailwind + window.storage 構成）
-├── be_ready_project_handover.md ← プロジェクト引き継ぎ資料
 ├── package.json
 └── README.md
 ```
+
+> `tools/*.csv` および `*.zip` は `.gitignore` で除外（機密情報のため）。
 
 > **注意**: Node.js 14 以上が必要（`react-scripts 5` の要件）。v11 以下では `npm run build` が失敗する。
 
@@ -118,36 +129,59 @@ code/
 
 ## 3. データモデル
 
-### 3.1 ストレージキー設計
+### 3.1 DynamoDB テーブル構成（v1.6〜）
+
+| テーブル | 用途 | PK | SK |
+|---|---|---|---|
+| `BeReadyUsers` | ユーザー認証情報 | `userId` | `dataKey`（="user_profile"） |
+| `BeReadyData` | アプリデータ（日次・評価・振り返りなど） | `userId` | `dataKey` |
+
+Lambda が `dataKey === "user_profile"` かどうかで自動的にテーブルを振り分ける。BeReadyData を AI 分析の対象として分離。
+
+### 3.2 BeReadyUsers — ユーザープロファイル（user_profile）
+
+```js
+{
+  name:                string,    // 初回ログイン時にユーザーが自己入力（CSV初期値は"氏名"）
+  role:                'student' | 'mentor' | 'admin',
+  projectId:           string,    // 例: "PBL-2026-001"（ALL = 管理者）
+  passwordHash:        string,    // SHA-256 ハッシュ（現在のパスワード）
+  initialPasswordHash: string,    // SHA-256 ハッシュ（初期パスワード・自己リセット用）
+  isFirstLogin:        boolean,   // true のうちはログイン時にパスワード変更画面へ遷移
+}
+```
+
+### 3.3 BeReadyData — ストレージキー設計
 
 ```
-current_user                          // ログイン中ユーザー情報
-students_list                         // 登録済み学生一覧（メンター向け）
+students_list                         // 登録済み学生一覧（メンター向け・projectIdでフィルタ）
 survey:{userID}:{timestamp}           // 学生の自己評価アンケート
-log:{userID}:{timestamp}              // YWT ログ
+log:{userID}:{timestamp}              // YWT 日次ログ
 mentor_survey:{studentID}:{timestamp} // メンターによる学生評価
-mjob:{corpId}                         // 求人分析結果キャッシュ（job-analyzer 連携時）
+questions:{studentId}:{timestamp}     // 問い
+reflections:{userId}:{timestamp}      // 振り返り
 ```
 
 ポートフォリオはアンケートデータから動的に生成するため、専用ストレージキーなし。
 
-### 3.2 ユーザー（current_user）
+### 3.4 セッション中のユーザー情報（current_user・localStorage のみ）
 
 ```js
 {
-  name: string,
-  id:   string,
-  role: 'student' | 'mentor',
+  id:        string,
+  name:      string,
+  role:      'student' | 'mentor' | 'admin',
+  projectId: string,
 }
 ```
 
-### 3.3 学生リスト（students_list）
+### 3.5 学生リスト（students_list）
 
 ```js
-[{ id: string, name: string, registeredAt: number }]
+[{ id: string, name: string, projectId: string, registeredAt: number }]
 ```
 
-学生ロールでログインした際に自動登録。メンター画面の学生一覧に使用。
+学生ロールでログイン後に自動追加。メンターは同一 `projectId` の学生のみ参照可能。
 
 ### 3.4 アンケート（survey）
 
@@ -358,9 +392,17 @@ npm run build
 
 v1.4では `AXES` 定数の `ref: true` フラグで参考値表示していたが、v1.5で `ref: false` に戻し全軸本採点として扱う。ただし `RUBRIC_DATA` の ②⑧ は `levels: null` のままのため、ルーブリックポップアップでは「詳細基準は未確定」と表示される。0626ルーブリックに基準が記載された時点で `levels` 配列を追加するだけで対応可能。
 
-### 6.6 認証を省略
+### 6.6 認証方式（v1.6 実装）
 
-POC 段階では氏名・ID の入力のみで「ログイン」。セキュリティ実装はスコープ外。本番化時は Firebase Authentication 等を推奨。
+ID + パスワード認証。パスワードは Web Crypto API の SHA-256 でハッシュ化してから DynamoDB に保存（平文保存なし）。初期パスワード（`initialPasswordHash`）を別フィールドで保持することで、学生がパスワードを忘れた場合でも管理者不要で自己リセット可能。本番化時は JWT + HTTPS 前提の認証基盤（Cognito 等）を推奨。
+
+### 6.7 DB テーブル分離（v1.6 実装）
+
+認証情報（`BeReadyUsers`）とアプリデータ（`BeReadyData`）を DynamoDB の別テーブルに分離。BeReadyData のみを AI に渡すことで、パスワードハッシュ等の機密情報をモデルに送らずに済む設計。Lambda が `dataKey` の値でテーブルを自動振り分けするため、フロントエンドの変更は不要。
+
+### 6.8 ユーザー管理（CSV インポート方式）
+
+本番環境への学生・メンターの一括登録は `tools/import_users.py` で CSV から DynamoDB へ直接インポート。CSV は git 管理外（`.gitignore` 設定済み）。初期パスワードは管理者が配布し、初回ログイン時に必ず変更させるフローで運用。
 
 ---
 
@@ -372,17 +414,16 @@ POC 段階では氏名・ID の入力のみで「ログイン」。セキュリ�
 |---|---|
 | v1.0–1.3 | 基本画面（ホーム/アンケート/ログ/ポートフォリオ/振り返り）、メンター評価・採点 |
 | v1.4 | 0626ルーブリック実装、②⑧参考値表示、`AXES.evalText` / `LEVELS.def` 追加 |
-| **v1.5** | チュートリアル（ロール別）、ルーブリックポップアップ（採点基準のその場確認）、ホーム画面を📅日次/🎯節目の2区分に再設計、FBタブ削除・問いタブ全学生一覧化、ボトムナビ「ログ」→「日次」、②⑧を本採点に復帰 |
+| v1.5 | チュートリアル（ロール別）、ルーブリックポップアップ（採点基準のその場確認）、ホーム画面を📅日次/🎯節目の2区分に再設計、FBタブ削除・問いタブ全学生一覧化、ボトムナビ「ログ」→「日次」、②⑧を本採点に復帰 |
+| **v1.6** | ID+パスワード認証（SHA-256）、初回ログイン時パスワード変更・氏名入力画面、初期パスワードによる自己リセット、projectIdによるプロジェクト別アクセス制御、DynamoDBバックエンド（BeReadyUsers/BeReadyData二テーブル構成）、Lambda Function URL、CSVユーザー一括インポート、AI分析プロンプトコピー機能 |
 
 ### 7.2 未対応機能（優先度順）
 
 | 項目 | 優先度 | 備考 |
 |---|---|---|
-| `localStorage` → クラウド DB 移行（AWS Amplify + DynamoDB） | 高 | `BE_READY_PLAN.md` に詳細計画・費用概算あり |
-| Node.js v20 アップデート | 高 | ローカルは v11（ビルド失敗）。`winget install OpenJS.NodeJS.LTS` で解決 |
+| BeReadyData の AI 分析実装（Gemini API） | 高 | DB分離済み。現在はプロンプトコピー方式で暫定対応 |
+| 管理者画面（ユーザー管理・プロジェクト管理） | 高 | 現状は CSV+Python スクリプトで対応 |
 | `survey_questions.json` を 0626ルーブリックに完全対応 | 中 | 各軸のLv1〜4定義文を選択肢テキストに反映 |
-| Gemini API 連携（AI採点補助・学生自己分析） | 中 | Lambda 経由でキー管理。`BE_READY_PLAN.md` STAGE 2参照 |
-| 認証（パスワード / OAuth） | 中 | Firebase Auth 等の導入 |
 | ②⑧のルーブリック基準確定 | 中 | `RUBRIC_DATA[2].levels` / `[8].levels` に配列追加するだけで対応可 |
 | 自己評価 × メンター評価のギャップ強調表示 | 中 | 差分ハイライト・コメント表示 |
 | データエクスポート（CSV / JSON） | 低 | 研究用データ収集に向けて |
@@ -441,6 +482,6 @@ POC 段階では氏名・ID の入力のみで「ログイン」。セキュリ�
 
 ---
 
-**最終更新日**: 2026年7月9日（v1.5）  
+**最終更新日**: 2026年7月24日（v1.6）  
 **開発体制**: 谷川 賢嗣（Accenture）  
 **対応プロジェクト**: Be-Ready人材育成プログラム 評価軸 POC（北海学園大学 佐藤教授 共同検討）

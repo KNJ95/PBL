@@ -799,7 +799,7 @@ export default function App() {
     if (!matchesCurrent && !matchesInitial) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
     const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
     if (profile.isFirstLogin || matchesInitial) {
-      setTempUser(u); setTempProfile(profile); setProfileName(profile.name); setScreen("changePassword");
+      setTempUser(u); setTempProfile(profile); setProfileName(profile.name === "氏名" ? "" : profile.name); setScreen("changePassword");
     } else {
       if (u.role === "student") {
         const list = getStudents();

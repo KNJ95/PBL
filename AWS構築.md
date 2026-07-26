@@ -31,8 +31,10 @@
 9. [Phase I：フロントエンド書き換え](#9-phase-iフロントエンド書き換え)
 10. [Phase J：動作確認](#10-phase-j動作確認)
 11. [Phase K：コスト管理（予算アラート）](#11-phase-kコスト管理)
-12. [将来の拡張：Gemini AI連携](#12-将来の拡張gemini-ai連携)
-13. [トラブルシューティング](#13-トラブルシューティング)
+12. [Phase L：BeReadyUsers テーブル作成・DB分離](#12-phase-lbereadyusers-テーブル作成db分離-完了) ✅
+13. [Phase M：ユーザー認証システム実装](#13-phase-mユーザー認証システム実装-完了) ✅
+14. [将来の拡張：Gemini AI連携](#14-将来の拡張gemini-ai連携)
+15. [トラブルシューティング](#15-トラブルシューティング)
 
 ---
 
@@ -41,32 +43,41 @@
 ### 1.1 アーキテクチャ図
 
 ```
-[ブラウザ / スマホ]
+[ブラウザ / スマホ（Vercel）]
        │
        │ HTTPS（fetch API）
        ▼
-[Lambda Function URL]          ← 直接HTTPSエンドポイント（API Gateway不要）
+[Lambda Function URL]               ← 直接HTTPSエンドポイント（API Gateway不要）
        │
        ▼
-[AWS Lambda: beReadyFunction]  ← サーバーレス処理（Node.js 20）
-       │
-       ▼
-[Amazon DynamoDB: BeReadyData] ← データベース（NoSQL）
-       PK: userId  /  SK: dataKey
+[AWS Lambda: beReadyFunction]       ← サーバーレス処理（Node.js 22）
+       │  dataKey で自動振り分け
+       ├──────────────────────────────────┐
+       ▼                                  ▼
+[DynamoDB: BeReadyUsers]           [DynamoDB: BeReadyData]
+  ユーザー認証情報                    アプリデータ（AI分析対象）
+  PK: userId / SK: dataKey           PK: userId / SK: dataKey
+  dataKey = "user_profile"           dataKey = 日次・評価・振り返りなど
 ```
 
 ### 1.2 DynamoDB テーブル設計
 
-既存の `localStorage` のキー構造をそのまま DynamoDB に移行します。
+#### BeReadyUsers（認証情報・v1.6〜）
 
-| DynamoDB PK | DynamoDB SK | 対応する localStorage キー | 内容 |
-|---|---|---|---|
-| `{userId}` | `survey:{timestamp}` | `survey:{userId}:{timestamp}` | アンケート回答 |
-| `{userId}` | `log:{timestamp}` | `log:{userId}:{timestamp}` | YWT日次ログ |
-| `{userId}` | `mentor_survey:{timestamp}` | `mentor_survey:{studentId}:{timestamp}` | メンター評価 |
-| `{userId}` | `questions:{timestamp}` | `questions:{studentId}:{timestamp}` | 問い |
-| `{userId}` | `reflections:{timestamp}` | `reflections:{userId}:{timestamp}` | 振り返り |
-| `__system__` | `students_list` | `students_list` | 学生一覧（共有） |
+| PK（userId） | SK（dataKey） | payload 内容 |
+|---|---|---|
+| `S001` | `user_profile` | name / role / projectId / passwordHash / initialPasswordHash / isFirstLogin |
+
+#### BeReadyData（アプリデータ・AI分析対象）
+
+| DynamoDB PK | DynamoDB SK | 内容 |
+|---|---|---|
+| `{userId}` | `survey:{timestamp}` | アンケート回答 |
+| `{userId}` | `log:{timestamp}` | YWT日次ログ |
+| `{userId}` | `mentor_survey:{timestamp}` | メンター評価 |
+| `{userId}` | `questions:{timestamp}` | 問い |
+| `{userId}` | `reflections:{timestamp}` | 振り返り |
+| `{userId}` | `students_list` | 学生一覧 |
 
 ### 1.3 費用概算（POC期間）
 
@@ -602,7 +613,88 @@ updatedAt: 1720000000123
 
 ---
 
-## 12. 将来の拡張：Gemini AI連携
+## 12. Phase L：BeReadyUsers テーブル作成・DB分離 ✅ 完了
+
+認証情報とアプリデータを分離し、BeReadyData を AI 分析に使える状態にするフェーズ。
+
+### 12.1 BeReadyUsers テーブルの作成
+
+AWS Console → DynamoDB → 「テーブルの作成」
+
+| 項目 | 値 |
+|---|---|
+| テーブル名 | `BeReadyUsers` |
+| パーティションキー | `userId`（文字列） |
+| ソートキー | `dataKey`（文字列） |
+| 容量モード | オンデマンド |
+
+### 12.2 Lambda 環境変数を追加
+
+Lambda → `beReadyFunction` → 設定 → 環境変数 → 編集
+
+| キー | 値 |
+|---|---|
+| `USER_TABLE_NAME` | `BeReadyUsers` |
+
+> `AmazonDynamoDBFullAccess` が既にアタッチ済みのため IAM 変更は不要。
+
+### 12.3 Lambda コードを更新（テーブル振り分けロジック）
+
+`lambda/index.js` の変更点：
+
+```javascript
+const DATA_TABLE  = process.env.TABLE_NAME;       // BeReadyData
+const USER_TABLE  = process.env.USER_TABLE_NAME;  // BeReadyUsers
+const tableFor = (dataKey) => dataKey === "user_profile" ? USER_TABLE : DATA_TABLE;
+```
+
+GET / POST / DELETE 各操作で `tableFor(dataKey)` を使いテーブルを自動振り分け。`App.jsx` の変更は不要。
+
+### 12.4 BeReadyData から user_profile を削除
+
+```powershell
+python tools/cleanup_user_profiles.py
+```
+
+「yes」を入力すると BeReadyData の `user_profile` レコードが削除され、アプリデータのみの状態になる。
+
+---
+
+## 13. Phase M：ユーザー認証システム実装 ✅ 完了
+
+### 13.1 概要
+
+| 項目 | 内容 |
+|---|---|
+| 認証方式 | ID + パスワード（SHA-256ハッシュ） |
+| 初回ログイン | パスワード変更画面 + 氏名入力を強制 |
+| パスワードリセット | 初期パスワード（`initialPasswordHash`）で再ログイン可能 |
+| アクセス制御 | `projectId` 一致でメンターが閲覧できる学生を制限 |
+| ロール | `student` / `mentor` / `admin`（`ALL` プロジェクト） |
+
+### 13.2 ユーザー一括インポート手順
+
+1. `tools/users.csv` を作成（ヘッダー: `userId,name,role,projectId,tempPassword`）
+2. 実行：
+
+```powershell
+python tools/import_users.py tools/users.csv
+```
+
+- `passwordHash` と `initialPasswordHash` に同一ハッシュを設定
+- `isFirstLogin: true` で登録 → 初回ログイン時に変更画面を表示
+
+### 13.3 既存レコードへの initialPasswordHash 追加（移行用）
+
+```powershell
+python tools/patch_add_initial_hash.py tools/users.csv
+```
+
+既に `initialPasswordHash` があるレコードはスキップ。
+
+---
+
+## 14. 将来の拡張：Gemini AI連携
 
 ### 12.1 アーキテクチャ（追加後）
 
@@ -634,7 +726,7 @@ updatedAt: 1720000000123
 
 ---
 
-## 13. トラブルシューティング
+## 15. トラブルシューティング
 
 ### 13.1 Lambda テストで `TABLE_NAME is not set` エラー
 
@@ -733,6 +825,21 @@ Phase J：動作確認
 
 Phase K：コスト管理
   ✅ $5 予算アラート設定完了
+
+Phase L：BeReadyUsers テーブル作成・DB分離
+  ✅ BeReadyUsers テーブル作成完了（PK: userId / SK: dataKey / オンデマンド）
+  ✅ Lambda 環境変数 USER_TABLE_NAME = BeReadyUsers 追加済み
+  ✅ lambda/index.js に tableFor() 振り分けロジック実装・デプロイ済み
+  ✅ tools/cleanup_user_profiles.py 作成済み
+
+Phase M：ユーザー認証システム実装
+  ✅ ID + パスワード認証（SHA-256）実装済み（App.jsx）
+  ✅ 初回ログイン時パスワード変更・氏名入力画面実装済み
+  ✅ initialPasswordHash による自己リセット対応済み
+  ✅ projectId によるアクセス制御実装済み
+  ✅ tools/import_users.py 作成・BeReadyUsers へインポート済み（100名）
+  ✅ tools/patch_add_initial_hash.py 作成済み
+  ✅ tools/*.csv を .gitignore で除外済み
 ```
 
 ---
