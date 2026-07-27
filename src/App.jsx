@@ -776,7 +776,8 @@ export default function App() {
   const [tempProfile, setTempProfile]     = useState(null);
   const [newPassword, setNewPassword]         = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profileName, setProfileName]         = useState("");
+  const [profileName, setProfileName]           = useState("");
+  const [profileProjectId, setProfileProjectId] = useState("");
 
   const login = (u) => {
     storage.setUser(u.id);
@@ -799,7 +800,7 @@ export default function App() {
     if (!matchesCurrent && !matchesInitial) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
     const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
     if (profile.isFirstLogin || matchesInitial) {
-      setTempUser(u); setTempProfile(profile); setProfileName(profile.name === "氏名" ? "" : profile.name); setScreen("changePassword");
+      setTempUser(u); setTempProfile(profile); setProfileName(profile.name === "氏名" ? "" : profile.name); setProfileProjectId(profile.projectId ?? ""); setScreen("changePassword");
     } else {
       if (u.role === "student") {
         const list = getStudents();
@@ -814,14 +815,15 @@ export default function App() {
 
   const handleChangePassword = async () => {
     if (!profileName.trim()) { setLoginError("氏名を入力してください。"); return; }
+    if (!profileProjectId.trim()) { setLoginError("プロジェクトIDを入力してください。"); return; }
     if (newPassword.length < 8) { setLoginError("パスワードは8文字以上にしてください。"); return; }
     if (newPassword !== confirmPassword) { setLoginError("パスワードが一致しません。"); return; }
     setLoginLoading(true);
     const hash = await hashPassword(newPassword);
-    const updatedProfile = { ...tempProfile, name: profileName.trim(), passwordHash: hash, isFirstLogin: false };
+    const updatedProfile = { ...tempProfile, name: profileName.trim(), projectId: profileProjectId.trim(), passwordHash: hash, isFirstLogin: false };
     await fetch(CLOUD_API, { method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ userId: tempUser.id, dataKey:"user_profile", payload: JSON.stringify(updatedProfile) }) });
-    const finalUser = { ...tempUser, name: profileName.trim() };
+    const finalUser = { ...tempUser, name: profileName.trim(), projectId: profileProjectId.trim() };
     if (finalUser.role === "student") {
       const list = getStudents();
       if (!list.find(s => s.id === finalUser.id)) {
@@ -1046,6 +1048,11 @@ export default function App() {
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>氏名</label>
             <input value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="例：山田 太郎" style={S.input}/>
             <p style={{ fontSize:11, color:C.textMuted, margin:"5px 0 0" }}>アプリ内で表示される名前です。正確に入力してください。</p>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>プロジェクトID</label>
+            <input value={profileProjectId} onChange={e=>setProfileProjectId(e.target.value)} placeholder="例：PBL-2026-001" style={S.input}/>
+            <p style={{ fontSize:11, color:C.textMuted, margin:"5px 0 0" }}>担当教員またはメンターから配布されたIDを入力してください。</p>
           </div>
           <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>新しいパスワード（8文字以上）</label>
