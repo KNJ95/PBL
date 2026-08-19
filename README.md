@@ -370,6 +370,80 @@ npm run build
 
 ---
 
+## 5.5 ユーザー管理手順
+
+### 前提
+
+- Python 3.x インストール済み
+- boto3 インストール済み（`pip install boto3`）
+- AWS CLI 設定済み（`aws configure`）
+
+### Step 1: users.csv を用意する
+
+`tools/users.csv` を編集し、ユーザー情報を記載する。
+
+```csv
+userId,name,role,projectId,tempPassword
+S001,氏名,student,PBL-2026-001,（自動生成）
+M001,氏名,mentor,PBL-2026-001,（自動生成）
+A001,氏名,admin,ALL,（自動生成）
+```
+
+| 列 | 内容 |
+|---|---|
+| `userId` | ログインID（例: S001, M001, A001） |
+| `name` | 初期値は `氏名`（ユーザーが初回ログイン時に自己入力） |
+| `role` | `student` / `mentor` / `admin` |
+| `projectId` | 所属プロジェクト（例: PBL-2026-001。adminは `ALL`） |
+| `tempPassword` | 初期パスワード（次のStep 2で自動生成） |
+
+> `tools/*.csv` は `.gitignore` で除外済み。git には含めない。
+
+### Step 2: パスワードをランダム生成する
+
+```powershell
+python tools/generate_passwords.py
+```
+
+- 各ユーザーに10文字のランダムパスワードを生成
+- `users.csv` の `tempPassword` 列を上書き保存
+- 紛らわしい文字（`0/O`, `1/l/I`）を除外した文字セットを使用
+
+### Step 3: DynamoDB（BeReadyUsers）へインポートする
+
+```powershell
+python tools/import_users.py tools/users.csv
+```
+
+- `passwordHash` と `initialPasswordHash` に同一ハッシュ（SHA-256）を設定
+- `isFirstLogin: true` で登録 → 初回ログイン時にパスワード変更画面へ遷移
+
+### Step 4: 初期パスワードを配布する
+
+生成した `users.csv` を開き、各ユーザーに `userId` と `tempPassword` を個別に通知する。
+
+### Step 5（任意）: 既存レコードに initialPasswordHash を追加する
+
+すでにDynamoDBにデータが存在し、`initialPasswordHash` が未設定の場合：
+
+```powershell
+python tools/patch_add_initial_hash.py tools/users.csv
+```
+
+既に設定済みのレコードはスキップされる。
+
+### Step 6（任意）: BeReadyData から user_profile を削除する
+
+BeReadyData に古い `user_profile` レコードが残っている場合：
+
+```powershell
+python tools/cleanup_user_profiles.py
+```
+
+「yes」と入力すると削除される。
+
+---
+
 ## 6. 設計上の判断
 
 ### 6.1 単一ファイル構成（POC）

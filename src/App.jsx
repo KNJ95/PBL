@@ -778,6 +778,12 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profileName, setProfileName]           = useState("");
   const [profileProjectId, setProfileProjectId] = useState("");
+  // フィードバック
+  const [fbOpen, setFbOpen]         = useState(false);
+  const [fbRating, setFbRating]     = useState(0);
+  const [fbText, setFbText]         = useState("");
+  const [fbSent, setFbSent]         = useState(false);
+  const [fbScreen, setFbScreen]     = useState("");
 
   const login = (u) => {
     storage.setUser(u.id);
@@ -811,6 +817,17 @@ export default function App() {
       login(u);
     }
     setLoginLoading(false);
+  };
+
+  const openFeedback = () => { setFbScreen(screen); setFbRating(0); setFbText(""); setFbSent(false); setFbOpen(true); };
+  const submitFeedback = () => {
+    if (!fbRating) return;
+    const key = `feedback:${currentUser.id}:${Date.now()}`;
+    storage.set(key, { userId: currentUser.id, userName: currentUser.name, role: currentUser.role,
+      projectId: currentUser.projectId, screen: fbScreen, rating: fbRating, text: fbText.trim(),
+      submittedAt: Date.now() });
+    setFbSent(true);
+    setTimeout(() => setFbOpen(false), 1500);
   };
 
   const handleChangePassword = async () => {
