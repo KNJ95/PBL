@@ -1248,6 +1248,67 @@ export default function App() {
     );
   }
 
+  // ─── フィードバックボタン＋モーダル（学生・メンター共通）──────────────
+  const FeedbackWidget = (
+    <>
+      <button onClick={openFeedback}
+        style={{ position:"fixed", bottom:"calc(72px + env(safe-area-inset-bottom))", right:18, zIndex:100,
+          width:48, height:48, borderRadius:"50%", background:"#7c3aed", border:"none", cursor:"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(124,58,237,0.5)" }}>
+        <MessageSquare size={20} color="#fff"/>
+      </button>
+      {fbOpen && (
+        <div onClick={()=>setFbOpen(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:C.surface, borderRadius:18, padding:"1.5rem", width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+            {fbSent ? (
+              <div style={{ textAlign:"center", padding:"1rem 0" }}>
+                <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
+                <p style={{ color:C.text, fontWeight:700, margin:0 }}>送信しました！ありがとうございます</p>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ margin:"0 0 4px", fontSize:16, fontWeight:700, color:C.text }}>アプリへのフィードバック</h3>
+                <p style={{ margin:"0 0 16px", fontSize:12, color:C.textSub }}>使いやすさについて教えてください</p>
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:8 }}>使いやすさ（必須）</label>
+                  <div style={{ display:"flex", gap:8 }}>
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} onClick={()=>setFbRating(n)}
+                        style={{ fontSize:28, background:"none", border:"none", cursor:"pointer", opacity:fbRating>=n?1:0.3, padding:0 }}>
+                        ⭐
+                      </button>
+                    ))}
+                  </div>
+                  {fbRating>0 && <p style={{ fontSize:11, color:C.textMuted, margin:"4px 0 0" }}>
+                    {["","😢 とても使いにくい","😕 使いにくい","😐 普通","😊 使いやすい","😄 とても使いやすい"][fbRating]}
+                  </p>}
+                </div>
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>気になった点・改善してほしいこと（任意）</label>
+                  <textarea value={fbText} onChange={e=>setFbText(e.target.value)}
+                    placeholder="例：ボタンがわかりにくい、〇〇の機能が使いづらい…"
+                    rows={3} style={{ ...S.input, resize:"vertical", fontSize:13 }}/>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={()=>setFbOpen(false)}
+                    style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${C.border}`, background:"none", color:C.textSub, cursor:"pointer", fontSize:13 }}>
+                    キャンセル
+                  </button>
+                  <button onClick={submitFeedback} disabled={!fbRating}
+                    style={{ flex:2, padding:"10px", borderRadius:10, border:"none", background:fbRating?"#7c3aed":"#555", color:"#fff", cursor:fbRating?"pointer":"default", fontSize:13, fontWeight:700 }}>
+                    送信する
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   // ─────────────────────────────────────────────────────────────────────
   // メンター画面
   // ─────────────────────────────────────────────────────────────────────
@@ -1311,6 +1372,7 @@ export default function App() {
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
         <Header/>
         {TutorialModal}
+        {FeedbackWidget}
         <div style={{ maxWidth:820, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
           {/* 学生一覧 + 評価（マージ） */}
@@ -1661,10 +1723,12 @@ export default function App() {
     </div>
   ) : null;
 
+
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       <Header/>
       {StudentTutorialModal}
+      {FeedbackWidget}
       <div style={{ maxWidth:860, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
         {/* ─── ホーム ─────────────────────────────────────────────── */}
