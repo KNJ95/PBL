@@ -600,24 +600,6 @@ function MentimeterReflection({ onSubmit }) {
   );
 }
 
-// ─── 振り返り：アンケート形式 ─────────────────────────────────────────────
-function SurveyReflection({ onSubmit }) {
-  const [answers, setAnswers] = useState({});
-  const done = REFLECTION_QUESTIONS.every(q => answers[q.id]?.trim());
-  return (
-    <div>
-      <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>各質問に自由に回答してください。</p>
-      {REFLECTION_QUESTIONS.map(q => (
-        <div key={q.id} style={{ marginBottom:"1.25rem" }}>
-          <p style={{ fontSize:13, marginBottom:6, color:C.text, fontWeight:500 }}>{q.id}. {q.text}</p>
-          <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))} placeholder="自由に記入してください..." style={{ ...S.textarea, minHeight:60 }}/>
-        </div>
-      ))}
-      <button style={{ ...S.btnPrimary, opacity:done?1:0.4, cursor:done?"pointer":"default", marginTop:4 }} onClick={()=>done&&onSubmit(answers,"survey")} disabled={!done}>提出する</button>
-    </div>
-  );
-}
-
 // ─── アンケート保存後フィードバックモーダル ────────────────────────────────
 function SurveyResultModal({ result, onClose, onPortfolio }) {
   const { axes, term } = result;
@@ -2194,25 +2176,13 @@ export default function App() {
             {/* サブタブ */}
             <div style={{ display:"flex", gap:4, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4 }}>
               {[
-                { v:"survey",     l:"9軸評価" },
                 { v:"reflection", l:"振り返り" },
                 { v:"questions",  l:`問いへの回答${unreadQ>0?` (${unreadQ})`:""}` },
-                { v:"feedback",   l:`FB${myFeedbacks.length>0?` (${myFeedbacks.length})`:""}` },
+                { v:"feedback",   l:`フィードバック${myFeedbacks.length>0?` (${myFeedbacks.length})`:""}` },
               ].map(t => (
-                <button key={t.v} onClick={()=>setReflectionTab(t.v)} style={{ flex:1, padding:"8px 4px", borderRadius:7, border:"none", background:reflectionTab===t.v?C.primary:"transparent", color:reflectionTab===t.v?"#fff":C.textSub, fontSize:11, cursor:"pointer", fontWeight:reflectionTab===t.v?700:400, transition:"all 0.2s" }}>{t.l}</button>
+                <button key={t.v} onClick={()=>setReflectionTab(t.v)} style={{ flex:1, padding:"8px 6px", borderRadius:7, border:"none", background:reflectionTab===t.v?C.primary:"transparent", color:reflectionTab===t.v?"#fff":C.textSub, fontSize:12, cursor:"pointer", fontWeight:reflectionTab===t.v?700:400, transition:"all 0.2s" }}>{t.l}</button>
               ))}
             </div>
-
-            {/* ── 9軸評価 */}
-            {reflectionTab==="survey" && (
-              <SurveyScreen
-                currentUser={currentUser}
-                mySurveys={mySurveys}
-                term={term} setTerm={setTerm}
-                axisScores={axisScores} setAxisScores={setAxisScores}
-                saveSurvey={saveSurvey}
-              />
-            )}
 
             {/* ── 振り返り入力 */}
             {reflectionTab==="reflection" && (
@@ -2252,23 +2222,26 @@ export default function App() {
                     </div>
 
                     <div style={{ display:"flex", gap:6, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4, width:"fit-content" }}>
-                      {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式"}].map(m => (
+                      {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式（9軸評価）"}].map(m => (
                         <button key={m.v} onClick={()=>setReflectMode(m.v)} style={{ padding:"8px 16px", borderRadius:7, border:"none", background:reflectMode===m.v?C.primary:"transparent", color:reflectMode===m.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectMode===m.v?700:400, transition:"all 0.2s" }}>{m.l}</button>
                       ))}
                     </div>
 
-                    <div style={S.card}>
-                      <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>
-                        {reflectMode==="mentimeter"?"1問ずつ回答する":"全問まとめて回答する"}
-                      </p>
-                      <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>
-                        {reflectMode==="mentimeter"?"質問が1問ずつ表示されます。直感で回答してください。":"全ての質問が表示されます。自分のペースで回答してください。"}
-                      </p>
-                      {reflectMode==="mentimeter"
-                        ? <MentimeterReflection onSubmit={submitReflection}/>
-                        : <SurveyReflection onSubmit={submitReflection}/>
-                      }
-                    </div>
+                    {reflectMode==="mentimeter" ? (
+                      <div style={S.card}>
+                        <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>1問ずつ回答する</p>
+                        <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>質問が1問ずつ表示されます。直感で回答してください。</p>
+                        <MentimeterReflection onSubmit={submitReflection}/>
+                      </div>
+                    ) : (
+                      <SurveyScreen
+                        currentUser={currentUser}
+                        mySurveys={mySurveys}
+                        term={term} setTerm={setTerm}
+                        axisScores={axisScores} setAxisScores={setAxisScores}
+                        saveSurvey={saveSurvey}
+                      />
+                    )}
                   </>
                 )}
               </div>
@@ -2368,9 +2341,7 @@ export default function App() {
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, overflowX:"hidden", paddingBottom:"env(safe-area-inset-bottom)" }}>
         {[
           { v:"home",      l:"ホーム",   icon:Home },
-          { v:"survey",    l:"評価",     icon:ClipboardList },
-          { v:"log",       l:"日次",     icon:BookOpen },
-          { v:"portfolio", l:"成果物",   icon:Briefcase },
+          { v:"log",       l:"ログ",     icon:BookOpen },
           { v:"reflection",l:"振り返り", icon:TrendingUp },
         ].map(item => {
           const active = screen===item.v;
