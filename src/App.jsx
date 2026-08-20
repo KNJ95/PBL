@@ -1874,10 +1874,9 @@ export default function App() {
             <div style={{ marginTop:"0.5rem" }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {[
-                { l:"活動ログを記録",    d:"今日の気づきを3問で",  icon:BookOpen,      s:"log",        c:C.accent1 },
-                { l:"アンケートを記入",  d:"9軸セルフ評価を記録",  icon:ClipboardList, s:"survey",     c:C.primary },
-                { l:"振り返りを提出",    d:"メンターに送る",        icon:TrendingUp,    s:"reflection", c:C.warn    },
-                { l:"ポートフォリオ",    d:"成長を確認・出力",      icon:Star,          s:"portfolio",  c:"#f59e0b" },
+                { l:"日次ログを記録",    d:"今日の気づきを3問で",      icon:BookOpen,   s:"log",        c:C.accent1 },
+                { l:"評価・振り返り",    d:"9軸評価＋提出＋FB確認",    icon:TrendingUp, s:"reflection", c:C.warn    },
+                { l:"ポートフォリオ",    d:"成長を確認・出力",          icon:Star,       s:"portfolio",  c:"#f59e0b" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}33`, minWidth:0, overflow:"hidden", marginBottom:0, padding:"12px 14px" }}>
                   <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1894,24 +1893,13 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── アンケート（間接評価・JSON連携） ──────────────────── */}
-        {screen==="survey" && (
-          <SurveyScreen
-            currentUser={currentUser}
-            mySurveys={mySurveys}
-            term={term} setTerm={setTerm}
-            axisScores={axisScores} setAxisScores={setAxisScores}
-            saveSurvey={saveSurvey}
-          />
-        )}
-
-        {/* ─── 活動ログ ─────────────────────────────────────────────── */}
+        {/* ─── 日次ログ ─────────────────────────────────────────────── */}
         {screen==="log" && (
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
               <BookOpen size={16} color={C.accent1}/>
               <div>
-                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>活動ログ</p>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>日次ログ</p>
                 <p style={{ margin:0, fontSize:11, color:C.textSub }}>3問に答えるだけ。気づきや学びを手軽に記録しよう。</p>
               </div>
             </div>
@@ -2199,20 +2187,32 @@ export default function App() {
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.warn}15`, borderRadius:12, border:`1px solid ${C.warn}33` }}>
               <TrendingUp size={16} color={C.warn}/>
               <div>
-                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.warn }}>振り返り</p>
-                <p style={{ margin:0, fontSize:11, color:C.textSub }}>振り返りを提出してメンターのフィードバックを受けましょう。いつでも記録できます。</p>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.warn }}>評価・振り返り</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub }}>9軸評価・振り返り提出・FBをここで確認できます。</p>
               </div>
             </div>
             {/* サブタブ */}
             <div style={{ display:"flex", gap:4, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4 }}>
               {[
+                { v:"survey",     l:"9軸評価" },
                 { v:"reflection", l:"振り返り" },
                 { v:"questions",  l:`問いへの回答${unreadQ>0?` (${unreadQ})`:""}` },
-                { v:"feedback",   l:`フィードバック${myFeedbacks.length>0?` (${myFeedbacks.length})`:""}` },
+                { v:"feedback",   l:`FB${myFeedbacks.length>0?` (${myFeedbacks.length})`:""}` },
               ].map(t => (
-                <button key={t.v} onClick={()=>setReflectionTab(t.v)} style={{ flex:1, padding:"8px 6px", borderRadius:7, border:"none", background:reflectionTab===t.v?C.primary:"transparent", color:reflectionTab===t.v?"#fff":C.textSub, fontSize:12, cursor:"pointer", fontWeight:reflectionTab===t.v?700:400, transition:"all 0.2s" }}>{t.l}</button>
+                <button key={t.v} onClick={()=>setReflectionTab(t.v)} style={{ flex:1, padding:"8px 4px", borderRadius:7, border:"none", background:reflectionTab===t.v?C.primary:"transparent", color:reflectionTab===t.v?"#fff":C.textSub, fontSize:11, cursor:"pointer", fontWeight:reflectionTab===t.v?700:400, transition:"all 0.2s" }}>{t.l}</button>
               ))}
             </div>
+
+            {/* ── 9軸評価 */}
+            {reflectionTab==="survey" && (
+              <SurveyScreen
+                currentUser={currentUser}
+                mySurveys={mySurveys}
+                term={term} setTerm={setTerm}
+                axisScores={axisScores} setAxisScores={setAxisScores}
+                saveSurvey={saveSurvey}
+              />
+            )}
 
             {/* ── 振り返り入力 */}
             {reflectionTab==="reflection" && (
