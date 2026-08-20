@@ -722,6 +722,7 @@ export default function App() {
   const [logQ2, setLogQ2] = useState(0); // 気づき・学びがあったか 1-4
   const [logQ3, setLogQ3] = useState(0); // チームと連携できたか 1-4
   const [logMemo, setLogMemo] = useState(""); // 任意メモ
+  const [nextAction, setNextAction] = useState(""); // ネクストアクション
   const [emotion, setEmotion]         = useState(3);
   const [reflectMode, setReflectMode]       = useState("mentimeter");
   const [reflectionTab, setReflectionTab]   = useState("reflection");
@@ -908,8 +909,8 @@ export default function App() {
   const saveLog = () => {
     if (!logQ1 && !logQ2 && !logQ3) return; // 最低1問回答必須
     const ts = Date.now();
-    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, logQ1, logQ2, logQ3, logMemo, emotion, photo: logPhoto || null });
-    setLogQ1(0); setLogQ2(0); setLogQ3(0); setLogMemo(""); setEmotion(3); setLogPhoto(null); tick();
+    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, logQ1, logQ2, logQ3, logMemo, nextAction, emotion, photo: logPhoto || null });
+    setLogQ1(0); setLogQ2(0); setLogQ3(0); setLogMemo(""); setNextAction(""); setEmotion(3); setLogPhoto(null); tick();
   };
 
   // ─── ポートフォリオ：Gemini プロンプト生成 ───────────────────────────
@@ -1479,6 +1480,12 @@ export default function App() {
                             <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
                           </div>
                         ))}
+                        {lg.nextAction && (
+                          <div style={{ margin:"4px 0", padding:"4px 8px", background:`${C.success}12`, borderRadius:6, border:`1px solid ${C.success}33` }}>
+                            <span style={{ fontSize:11, color:C.success, fontWeight:700 }}>⚡ </span>
+                            <span style={{ fontSize:12, color:C.text }}>{lg.nextAction}</span>
+                          </div>
+                        )}
                         {lg.logMemo && <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5 }}>{lg.logMemo}</p>}
                       </div>
                     ))
@@ -1911,11 +1918,22 @@ export default function App() {
                 </div>
               ))}
 
+              {/* ネクストアクション */}
+              <div style={{ marginBottom:14, padding:"10px 14px", background:`${C.success}12`, borderRadius:10, border:`1px solid ${C.success}33` }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.success, display:"block", marginBottom:8 }}>⚡ ネクストアクション（任意）</label>
+                <input
+                  value={nextAction}
+                  onChange={e=>setNextAction(e.target.value)}
+                  placeholder="次にやること・目標を一言で（例：議事録を読んで論点を整理する）"
+                  style={{ ...S.input, width:"100%", boxSizing:"border-box" }}
+                />
+              </div>
+
               {/* 任意メモ */}
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>一言メモ（任意）</label>
                 <textarea value={logMemo} onChange={e=>setLogMemo(e.target.value)}
-                  placeholder="気になったこと、印象に残ったこと、次にやることなど"
+                  placeholder="気になったこと、印象に残ったこと..."
                   rows={2} style={{ ...S.textarea, minHeight:50 }}/>
               </div>
               <div style={{ marginBottom:14 }}>
@@ -1973,6 +1991,12 @@ export default function App() {
                         <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
                       </div>
                     ))}
+                    {lg.nextAction && (
+                      <div style={{ marginTop:6, padding:"5px 10px", background:`${C.success}12`, borderRadius:7, border:`1px solid ${C.success}33` }}>
+                        <span style={{ fontSize:11, color:C.success, fontWeight:700 }}>⚡ ネクストアクション</span>
+                        <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{lg.nextAction}</p>
+                      </div>
+                    )}
                     {lg.logMemo && (
                       <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5, borderTop:`1px solid ${C.border}`, paddingTop:6 }}>{lg.logMemo}</p>
                     )}
