@@ -1469,7 +1469,7 @@ export default function App() {
                           <div style={{ display:"flex", gap:6, marginBottom:6, flexWrap:"wrap" }}>
                             {[{l:"取り組み",v:lg.logQ1},{l:"気づき",v:lg.logQ2},{l:"連携",v:lg.logQ3}].filter(f=>f.v).map(f=>(
                               <span key={f.l} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>
-                                {f.l} {"😢😕😊😄"[f.v-1]}
+                                {f.l} {["😢","😕","😊","😄"][f.v-1]}
                               </span>
                             ))}
                           </div>
@@ -1738,9 +1738,16 @@ export default function App() {
               <p style={{ fontSize:20, fontWeight:700, color:C.text, margin:0 }}>
                 こんにちは、{currentUser.name}さん
               </p>
-              <p style={{ fontSize:12, color:C.textSub, margin:"4px 0 0" }}>
-                {new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"long", day:"numeric", weekday:"short" })}
-              </p>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:6, flexWrap:"wrap" }}>
+                <p style={{ fontSize:12, color:C.textSub, margin:0 }}>
+                  {new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"long", day:"numeric", weekday:"short" })}
+                </p>
+                {currentUser.projectId && (
+                  <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"18", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px" }}>
+                    📁 {currentUser.projectId}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* レーダーチャート（最優先表示） */}
@@ -1863,7 +1870,7 @@ export default function App() {
             <div style={{ marginTop:"0.5rem" }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {[
-                { l:"日次ログを記録",    d:"今日の気づきを3問で",      icon:BookOpen,   s:"log",        c:C.accent1 },
+                { l:"ログを記録",        d:"今日の気づきを3問で",      icon:BookOpen,   s:"log",        c:C.accent1 },
                 { l:"評価・振り返り",    d:"9軸評価＋提出＋FB確認",    icon:TrendingUp, s:"reflection", c:C.warn    },
                 { l:"ポートフォリオ",    d:"成長を確認・出力",          icon:Star,       s:"portfolio",  c:"#f59e0b" },
               ].map(item => (
@@ -1888,7 +1895,7 @@ export default function App() {
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
               <BookOpen size={16} color={C.accent1}/>
               <div>
-                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>日次ログ</p>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>ログ</p>
                 <p style={{ margin:0, fontSize:11, color:C.textSub }}>3問に答えるだけ。気づきや学びを手軽に記録しよう。</p>
               </div>
             </div>
@@ -1910,7 +1917,7 @@ export default function App() {
                           background:item.v===i+1?C.primary+"22":"transparent", cursor:"pointer",
                           fontSize:11, color:item.v===i+1?C.primary:C.textSub, fontWeight:item.v===i+1?700:400,
                           lineHeight:1.3, textAlign:"center", transition:"all 0.15s" }}>
-                        <div style={{ fontSize:16, marginBottom:3 }}>{"😢😕😊😄"[i]}</div>
+                        <div style={{ fontSize:16, marginBottom:3 }}>{["😢","😕","😊","😄"][i]}</div>
                         {label}
                       </button>
                     ))}
@@ -1979,7 +1986,7 @@ export default function App() {
                       <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
                         {[{l:"取り組み",v:lg.logQ1},{l:"気づき",v:lg.logQ2},{l:"連携",v:lg.logQ3}].filter(f=>f.v).map(f=>(
                           <span key={f.l} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>
-                            {f.l} {"😢😕😊😄"[f.v-1]}
+                            {f.l} {["😢","😕","😊","😄"][f.v-1]}
                           </span>
                         ))}
                       </div>
