@@ -411,6 +411,8 @@ export default function App() {
   const [reflectionStep, setReflectionStep]         = useState(0);     // 現在の問い番号（0..N-1）
   const [drillAnswers, setDrillAnswers]             = useState({});    // 問ごと深堀り { [qId]: {d1,d2choice,d2text} }
   const [logPopup, setLogPopup]                     = useState(null);  // 過去ログポップアップ
+  const [projEditState, setProjEditState]           = useState({ name:"", summary:"" }); // プロジェクト情報編集用
+  const [projSaved, setProjSaved]                   = useState(false); // 保存完了フラッシュ
 
   // チュートリアル・ポップアップ state
   const [showTutorial, setShowTutorial] = useState(false);
@@ -524,6 +526,16 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // プロジェクト情報をストレージから読み込んで編集ステートに反映
+  useEffect(() => {
+    if (currentUser?.projectId) {
+      const projKey = `project_info:${currentUser.projectId}`;
+      const info = storage.get(projKey) || {};
+      setProjEditState({ name: info.name || "", summary: info.summary || "" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.projectId]);
 
   // survey_questions.json の読み込み（振り返りアンケート用）
   useEffect(() => {
@@ -1469,10 +1481,11 @@ export default function App() {
             {/* プロジェクト情報（最上部） */}
             {(() => {
               const projKey = `project_info:${currentUser.projectId || "default"}`;
-              const projInfo = storage.get(projKey) || {};
-              const saveProjField = (field, value) => {
-                storage.set(projKey, { ...storage.get(projKey)||{}, [field]: value });
+              const saveProjInfo = () => {
+                storage.set(projKey, { ...storage.get(projKey)||{}, name: projEditState.name, summary: projEditState.summary });
                 tick();
+                setProjSaved(true);
+                setTimeout(() => setProjSaved(false), 2000);
               };
               return (
                 <div style={{ ...S.card, marginBottom:"1rem", border:`1px solid ${C.primary}33`, background:`${C.primary}06` }}>
@@ -1488,24 +1501,37 @@ export default function App() {
                   <div style={{ marginBottom:8 }}>
                     <label style={{ fontSize:11, fontWeight:700, color:C.textSub, display:"block", marginBottom:4 }}>プロジェクト名</label>
                     <input
-                      defaultValue={projInfo.name || ""}
+                      value={projEditState.name}
                       placeholder="例：北海道農業スタートアップ支援PBL"
-                      onBlur={e => saveProjField("name", e.target.value)}
+                      onChange={e => setProjEditState(s => ({ ...s, name: e.target.value }))}
+                      onBlur={saveProjInfo}
                       style={{ ...S.input, width:"100%", boxSizing:"border-box", fontSize:13 }}
                     />
                   </div>
                   {/* 概要入力 */}
-                  <div>
+                  <div style={{ marginBottom:8 }}>
                     <label style={{ fontSize:11, fontWeight:700, color:C.textSub, display:"block", marginBottom:4 }}>概要</label>
                     <textarea
-                      defaultValue={projInfo.summary || ""}
+                      value={projEditState.summary}
                       placeholder="このプロジェクトについて簡単に説明してください"
                       rows={2}
-                      onBlur={e => saveProjField("summary", e.target.value)}
+                      onChange={e => setProjEditState(s => ({ ...s, summary: e.target.value }))}
+                      onBlur={saveProjInfo}
                       style={{ ...S.textarea, minHeight:48, fontSize:12 }}
                     />
                   </div>
-                  <p style={{ fontSize:10, color:C.textMuted, margin:"6px 0 0" }}>※ 入力後フォーカスを外すと自動保存されます</p>
+                  {/* 保存ボタン */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <button
+                      onClick={saveProjInfo}
+                      style={{ ...S.btn, background:C.primary, color:"#fff", fontSize:13, padding:"6px 18px" }}
+                    >
+                      💾 保存する
+                    </button>
+                    {projSaved && (
+                      <span style={{ fontSize:12, color:C.primary, fontWeight:600 }}>✅ 保存しました</span>
+                    )}
+                  </div>
                 </div>
               );
             })()}
