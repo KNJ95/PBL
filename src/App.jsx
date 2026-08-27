@@ -182,20 +182,23 @@ const REFLECTION_QUESTIONS = [
   { id:7, text:"今日の活動への満足度はどのくらいですか？" },
 ];
 
-// ─── 深堀り選択肢 ─────────────────────────────────────────────────
-const DRILL1_OPTIONS = [
-  "グループでの意見交換・議論",
-  "課題や問題を整理・分析した場面",
-  "新しい気づきや発見を得た瞬間",
-  "うまくいかなかった・壁にぶつかった場面",
-  "チームや周囲との関わりの場面",
-];
-const DRILL2_OPTIONS = [
-  "もっと積極的に発言・提案する",
-  "情報をしっかり整理してから動く",
-  "チームメンバーに相談・協力を求める",
-  "自分なりの問いや目標を持って取り組む",
-];
+// ─── 深堀り設定（スコアに応じて変化） ───────────────────────────
+function getDrillConfig(mainValue) {
+  if (!mainValue || mainValue <= 2) {
+    return {
+      d1q: "うまくできなかった理由はどれに近いですか？",
+      d1opts: ["時間や余裕がなかった", "どうすればいいか分からなかった", "意識できていなかった", "他のことで頭がいっぱいだった"],
+      d2q: "次回どう取り組みますか？",
+      d2opts: ["意識的に取り組んでみる", "具体的な方法を調べる", "チームや周囲に相談する", "まず小さく試してみる"],
+    };
+  }
+  return {
+    d1q: "どんな場面・きっかけでそうできましたか？",
+    d1opts: ["グループでの議論・会話の中で", "課題を一人で考えていたとき", "メンターや先生とのやり取りで", "活動を振り返っていたとき"],
+    d2q: "この強みをさらに活かすために？",
+    d2opts: ["引き続き意識して続ける", "チームにも広めてみる", "より深く掘り下げてみる", "別の場面でも試してみる"],
+  };
+}
 
 const EMOTIONS = ["😢","😕","😐","🙂","😄"];
 
@@ -386,12 +389,10 @@ export default function App() {
   const [reflectionAnswers, setReflectionAnswers]   = useState({});    // 振り返りアンケート回答（survey_json用）
   const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
   const [surveyLoadErr, setSurveyLoadErr]           = useState(null);  // JSONロードエラー
-  const [reflectionTarget, setReflectionTarget]     = useState("");    // 振り返り対象（何に対する振り返りか）
-  const [reflectionPhase, setReflectionPhase]       = useState("target"); // "target"|"survey"|"drill1"|"drill2"
+  const [reflectionTarget, setReflectionTarget]     = useState("");    // 振り返り対象
+  const [reflectionPhase, setReflectionPhase]       = useState("target"); // "target"|"survey"
   const [reflectionStep, setReflectionStep]         = useState(0);     // 現在の問い番号（0..N-1）
-  const [drill1Answer, setDrill1Answer]             = useState(null);  // 深堀り1選択
-  const [drill2Choice, setDrill2Choice]             = useState(null);  // 深堀り2選択
-  const [drill2FreeText, setDrill2FreeText]         = useState("");    // 深堀り2自由記述
+  const [drillAnswers, setDrillAnswers]             = useState({});    // 問ごと深堀り { [qId]: {d1,d2choice,d2text} }
   const [logPopup, setLogPopup]                     = useState(null);  // 過去ログポップアップ
 
   // チュートリアル・ポップアップ state
@@ -598,15 +599,19 @@ export default function App() {
     } else if (mode === "survey_json") {
       const answered = Object.keys(answers).length;
       const targetLine = reflectionTarget ? `対象：${reflectionTarget}\n` : "";
-      const d1 = extra.drill1 ? `\n深堀り1（印象的な場面）：${extra.drill1}` : "";
-      const d2 = extra.drill2Choice ? `\n深堀り2（次の行動）：${extra.drill2Choice}${extra.drill2Text ? `（${extra.drill2Text}）` : ""}` : "";
-      summary = `${targetLine}アンケート振り返り（${answered}問回答）${d1}${d2}${comment?`\n\nコメント：${comment}`:""}`;
+      const drills = extra.drillAnswers || {};
+      const d1lines = Object.values(drills).filter(d=>d.d1).map(d=>`・${d.d1}`).join("\n");
+      const d2lines = Object.values(drills).filter(d=>d.d2choice).map(d=>`・${d.d2choice}${d.d2text?`（${d.d2text}）`:""}`).join("\n");
+      summary = `${targetLine}アンケート振り返り（${answered}問回答）` +
+        (d1lines ? `\n\n[深堀り]\n${d1lines}` : "") +
+        (d2lines ? `\n\n[ネクストアクション]\n${d2lines}` : "") +
+        (comment ? `\n\nコメント：${comment}` : "");
     } else {
       summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
     }
     const pending = getPending();
     const axes = (mode === "survey_json" && allQs.length > 0) ? calcAxesFromAnswers(answers, allQs) : {};
-    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drill1:extra.drill1||null, drill2Choice:extra.drill2Choice||null, drill2Text:extra.drill2Text||"", status:"pending" }]);
+    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending" }]);
     tick();
     setReflectionDone(true);
   };
@@ -1949,7 +1954,7 @@ export default function App() {
                 <p style={{ fontSize:13, color:C.textSub, marginBottom:20 }}>メンターが確認・採点します。<br/>結果はFBページで確認できます。</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
                   <button style={S.btnPrimary} onClick={()=>setScreen("home")}>ホームへ戻る</button>
-                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionTarget(""); setReflectionPhase("target"); setReflectionStep(0); setDrill1Answer(null); setDrill2Choice(null); setDrill2FreeText(""); }}>続けて提出する</button>
+                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionTarget(""); setReflectionPhase("target"); setReflectionStep(0); setDrillAnswers({}); }}>続けて提出する</button>
                 </div>
               </div>
             ) : surveyLoadErr ? (
@@ -1996,22 +2001,37 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ─── フェーズ：アンケート1問ずつ ─── */}
+                {/* ─── フェーズ：アンケート 1問ずつ ＋ 深堀りインライン ─── */}
                 {reflectionPhase === "survey" && (() => {
                   const allQs = surveyDef.sections.flatMap(s => s.questions);
                   const q = allQs[reflectionStep];
                   const secTitle = surveyDef.sections.find(s => s.questions.some(sq => sq.id === q.id))?.title || "";
-                  const progress = (reflectionStep / allQs.length) * 100;
-                  const selected = reflectionAnswers[q.id];
-                  const goNext = (val) => {
-                    const updated = { ...reflectionAnswers, [q.id]: val };
-                    setReflectionAnswers(updated);
-                    if (reflectionStep < allQs.length - 1) {
-                      setTimeout(() => setReflectionStep(s => s + 1), 180);
-                    } else {
-                      setTimeout(() => setReflectionPhase("drill1"), 180);
-                    }
+                  const progress = ((reflectionStep) / allQs.length) * 100;
+                  const mainSel = reflectionAnswers[q.id];
+                  const dData   = drillAnswers[q.id] || {};
+                  const { d1q, d1opts, d2q, d2opts } = getDrillConfig(mainSel);
+                  const isLast  = reflectionStep === allQs.length - 1;
+                  const canNext = mainSel && dData.d1 && dData.d2choice;
+
+                  const setDrill = (field, val) => setDrillAnswers(prev => ({
+                    ...prev, [q.id]: { ...(prev[q.id]||{}), [field]: val }
+                  }));
+
+                  const drillBtn = (label, field, val, current) => {
+                    const isSel = current === val;
+                    return (
+                      <button key={val} onClick={()=>setDrill(field, val)}
+                        style={{ textAlign:"left", padding:"10px 14px", borderRadius:9, fontSize:12,
+                          fontWeight: isSel ? 700 : 400,
+                          background: isSel ? `${C.primary}18` : C.surface2,
+                          border: `1.5px solid ${isSel ? C.primary : C.border}`,
+                          color: isSel ? C.primary : C.text, cursor:"pointer", transition:"all 0.15s",
+                          boxShadow: isSel ? `0 0 0 2px ${C.primary}22` : "none" }}>
+                        {label}
+                      </button>
+                    );
                   };
+
                   return (
                     <div>
                       {/* プログレスバー */}
@@ -2022,26 +2042,28 @@ export default function App() {
                         </button>
                         <span style={{ fontSize:12, color:C.textMuted }}>Q{reflectionStep+1} / {allQs.length}</span>
                       </div>
-                      <div style={{ height:6, background:C.surface2, borderRadius:99, marginBottom:20, overflow:"hidden" }}>
-                        <div style={{ height:"100%", width:`${progress}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, transition:"width 0.3s" }}/>
+                      <div style={{ height:5, background:C.surface2, borderRadius:99, marginBottom:18, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${progress}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, transition:"width 0.4s" }}/>
                       </div>
 
                       <div style={S.cardGlow}>
                         {secTitle && (
-                          <p style={{ fontSize:11, fontWeight:700, color:C.textSub, margin:"0 0 10px",
-                            padding:"3px 10px", background:C.surface2, borderRadius:8, display:"inline-block", borderLeft:`3px solid ${C.primary}` }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:C.textSub, margin:"0 0 10px",
+                            padding:"2px 8px", background:C.surface2, borderRadius:6, display:"inline-block", borderLeft:`3px solid ${C.primary}` }}>
                             {secTitle}
                           </p>
                         )}
-                        <p style={{ fontSize:15, fontWeight:700, color:C.text, lineHeight:1.6, marginBottom:20 }}>
+                        <p style={{ fontSize:15, fontWeight:700, color:C.text, lineHeight:1.6, marginBottom:16 }}>
                           {q.text}
                         </p>
-                        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+
+                        {/* ─ メイン選択肢 ─ */}
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                           {q.options.map((opt) => {
-                            const isSel = selected === opt.value;
+                            const isSel = mainSel === opt.value;
                             return (
                               <button key={opt.value}
-                                onClick={()=>goNext(opt.value)}
+                                onClick={()=>setReflectionAnswers(prev=>({...prev,[q.id]:opt.value}))}
                                 style={{ textAlign:"left", padding:"12px 16px", borderRadius:10, fontSize:13,
                                   fontWeight: isSel ? 700 : 400,
                                   background: isSel ? `${C.primary}18` : C.surface2,
@@ -2054,118 +2076,64 @@ export default function App() {
                             );
                           })}
                         </div>
-                      </div>
-                    </div>
-                  );
-                })()}
 
-                {/* ─── フェーズ：深堀り1 ─── */}
-                {reflectionPhase === "drill1" && (
-                  <div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                      <button style={{ background:"none", border:"none", cursor:"pointer", color:C.textSub, fontSize:12, padding:0, display:"flex", alignItems:"center", gap:4 }}
-                        onClick={()=>{ const allQs = surveyDef.sections.flatMap(s=>s.questions); setReflectionStep(allQs.length-1); setReflectionPhase("survey"); }}>
-                        <ChevronLeft size={14}/> 戻る
-                      </button>
-                      <span style={{ fontSize:12, color:C.textMuted }}>深堀り 1 / 2</span>
-                    </div>
-                    <div style={{ height:6, background:C.surface2, borderRadius:99, marginBottom:20 }}>
-                      <div style={{ height:"100%", width:"100%", background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99 }}/>
-                    </div>
+                        {/* ─ 深堀り（メイン選択後に表示） ─ */}
+                        {mainSel && (
+                          <>
+                            <div style={{ borderTop:`1px dashed ${C.border}`, margin:"18px 0 14px" }}/>
+                            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10 }}>
+                              <span style={{ fontSize:16 }}>🔍</span>
+                              <p style={{ fontSize:13, fontWeight:700, color:C.textSub, margin:0, lineHeight:1.4 }}>{d1q}</p>
+                            </div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:16 }}>
+                              {d1opts.map(opt => drillBtn(opt, "d1", opt, dData.d1))}
+                            </div>
 
-                    <div style={S.cardGlow}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-                        <span style={{ fontSize:22 }}>🔍</span>
-                        <p style={{ fontSize:15, fontWeight:700, color:C.text, lineHeight:1.5, margin:0 }}>
-                          今日の活動で一番印象に残った場面はどれですか？
-                        </p>
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
-                        {DRILL1_OPTIONS.map(opt => {
-                          const isSel = drill1Answer === opt;
-                          return (
-                            <button key={opt} onClick={()=>setDrill1Answer(opt)}
-                              style={{ textAlign:"left", padding:"12px 16px", borderRadius:10, fontSize:13,
-                                fontWeight: isSel ? 700 : 400,
-                                background: isSel ? `${C.primary}18` : C.surface2,
-                                border: `2px solid ${isSel ? C.primary : C.border}`,
-                                color: isSel ? C.primary : C.text, cursor:"pointer", transition:"all 0.15s",
-                                boxShadow: isSel ? `0 0 0 3px ${C.primary}22` : "none" }}>
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <button style={{ ...S.btnPrimary, width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                        opacity: drill1Answer ? 1 : 0.4 }}
-                        onClick={()=>{ if (!drill1Answer) return; setReflectionPhase("drill2"); }}>
-                        次へ <ChevronRight size={15}/>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ─── フェーズ：深堀り2 ─── */}
-                {reflectionPhase === "drill2" && (() => {
-                  const allQs = surveyDef.sections.flatMap(s => s.questions);
-                  return (
-                    <div>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                        <button style={{ background:"none", border:"none", cursor:"pointer", color:C.textSub, fontSize:12, padding:0, display:"flex", alignItems:"center", gap:4 }}
-                          onClick={()=>setReflectionPhase("drill1")}>
-                          <ChevronLeft size={14}/> 戻る
-                        </button>
-                        <span style={{ fontSize:12, color:C.textMuted }}>深堀り 2 / 2</span>
-                      </div>
-                      <div style={{ height:6, background:C.surface2, borderRadius:99, marginBottom:20 }}>
-                        <div style={{ height:"100%", width:"100%", background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99 }}/>
-                      </div>
-
-                      <div style={S.cardGlow}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-                          <span style={{ fontSize:22 }}>⚡</span>
-                          <p style={{ fontSize:15, fontWeight:700, color:C.text, lineHeight:1.5, margin:0 }}>
-                            この振り返りをふまえて、次回どう取り組みますか？
-                          </p>
-                        </div>
-                        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-                          {DRILL2_OPTIONS.map(opt => {
-                            const isSel = drill2Choice === opt;
-                            return (
-                              <button key={opt} onClick={()=>setDrill2Choice(opt)}
-                                style={{ textAlign:"left", padding:"12px 16px", borderRadius:10, fontSize:13,
-                                  fontWeight: isSel ? 700 : 400,
-                                  background: isSel ? `${C.primary}18` : C.surface2,
-                                  border: `2px solid ${isSel ? C.primary : C.border}`,
-                                  color: isSel ? C.primary : C.text, cursor:"pointer", transition:"all 0.15s",
-                                  boxShadow: isSel ? `0 0 0 3px ${C.primary}22` : "none" }}>
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div style={{ marginBottom:20 }}>
-                          <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>具体的には...（任意）</label>
-                          <textarea value={drill2FreeText} onChange={e=>setDrill2FreeText(e.target.value)}
-                            placeholder="例：ミーティングの最初に自分から発言するようにする"
-                            rows={3} style={{ ...S.textarea, minHeight:60 }}/>
-                        </div>
-                        <button
-                          style={{ ...S.btnPrimary, width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                            opacity: drill2Choice ? 1 : 0.4 }}
-                          onClick={()=>{
-                            if (!drill2Choice) return;
-                            submitReflection(reflectionAnswers, "survey_json", "", "", allQs,
-                              { drill1: drill1Answer, drill2Choice, drill2Text: drill2FreeText });
-                          }}>
-                          <Save size={14}/> 振り返りを提出する
-                        </button>
-                        {!drill2Choice && (
-                          <p style={{ fontSize:11, color:C.textMuted, marginTop:6, textAlign:"center" }}>
-                            次の行動を選択してから提出できます
-                          </p>
+                            {/* ─ ネクストアクション（深堀り1選択後に表示） ─ */}
+                            {dData.d1 && (
+                              <>
+                                <div style={{ borderTop:`1px dashed ${C.border}`, margin:"4px 0 14px" }}/>
+                                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10 }}>
+                                  <span style={{ fontSize:16 }}>⚡</span>
+                                  <p style={{ fontSize:13, fontWeight:700, color:C.textSub, margin:0, lineHeight:1.4 }}>{d2q}</p>
+                                </div>
+                                <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:14 }}>
+                                  {d2opts.map(opt => drillBtn(opt, "d2choice", opt, dData.d2choice))}
+                                </div>
+                                {dData.d2choice && (
+                                  <textarea
+                                    value={dData.d2text||""}
+                                    onChange={e=>setDrill("d2text", e.target.value)}
+                                    placeholder="具体的には...（任意）"
+                                    rows={2}
+                                    style={{ ...S.textarea, minHeight:44, fontSize:12, marginBottom:4 }}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </>
                         )}
                       </div>
+
+                      {/* ─ 次へ / 提出ボタン（全回答後に表示） ─ */}
+                      {canNext && (
+                        <button
+                          style={{ ...S.btnPrimary, width:"100%", marginTop:14, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
+                          onClick={()=>{
+                            if (isLast) {
+                              submitReflection(reflectionAnswers, "survey_json", "", "", allQs, { drillAnswers });
+                            } else {
+                              setReflectionStep(s => s + 1);
+                            }
+                          }}>
+                          {isLast ? <><Save size={14}/> 振り返りを提出する</> : <>次の質問へ <ChevronRight size={15}/></>}
+                        </button>
+                      )}
+                      {mainSel && !canNext && (
+                        <p style={{ fontSize:11, color:C.textMuted, marginTop:10, textAlign:"center" }}>
+                          🔍 と ⚡ にも答えると次へ進めます
+                        </p>
+                      )}
                     </div>
                   );
                 })()}
