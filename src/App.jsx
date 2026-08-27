@@ -393,8 +393,9 @@ export default function App() {
   const [mentorHistView, setMentorHistView] = useState("survey");
 
   // ログイン
-  const [loginId, setLoginId]           = useState("");
+  const [loginId, setLoginId]             = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginProjectId, setLoginProjectId] = useState("");   // セッション用プロジェクトID（複数PJ対応）
   const [loginLoading, setLoginLoading]   = useState(false);
   const [loginError, setLoginError]       = useState("");
   const [tempUser, setTempUser]           = useState(null);
@@ -429,7 +430,9 @@ export default function App() {
     const matchesCurrent = hash === profile.passwordHash;
     const matchesInitial  = profile.initialPasswordHash && hash === profile.initialPasswordHash;
     if (!matchesCurrent && !matchesInitial) { setLoginError("パスワードが違います。"); setLoginLoading(false); return; }
-    const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: profile.projectId };
+    // loginProjectId が入力されていればそのプロジェクトでセッション開始、なければプロフィールのデフォルトを使用
+    const sessionProjectId = loginProjectId.trim() || profile.projectId;
+    const u = { id: loginId.trim(), name: profile.name, role: profile.role, projectId: sessionProjectId };
     if (profile.isFirstLogin || matchesInitial) {
       setTempUser(u); setTempProfile(profile); setProfileName(profile.name === "氏名" ? "" : profile.name); setProfileProjectId(""); setScreen("changePassword");
     } else {
@@ -725,9 +728,26 @@ export default function App() {
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>ユーザーID</label>
             <input value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder="配布されたIDを入力" style={S.input}/>
           </div>
-          <div style={{ marginBottom:20 }}>
+          <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>パスワード</label>
-            <input type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="パスワードを入力" onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={S.input}/>
+            <input type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="パスワードを入力" style={S.input}/>
+          </div>
+          {/* プロジェクトID（複数PJ参加学生向け） */}
+          <div style={{ marginBottom:20, padding:"12px 14px", background:C.surface2, borderRadius:10, border:`1px solid ${C.border}` }}>
+            <label style={{ fontSize:12, color:C.textSub, display:"block", marginBottom:6 }}>
+              プロジェクトID
+              <span style={{ marginLeft:6, fontSize:10, color:C.textMuted, fontWeight:400 }}>（複数プロジェクトに参加している場合）</span>
+            </label>
+            <input
+              value={loginProjectId}
+              onChange={e=>setLoginProjectId(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              placeholder="例：PBL-2026-001"
+              style={S.input}
+            />
+            <p style={{ fontSize:10, color:C.textMuted, margin:"5px 0 0", lineHeight:1.5 }}>
+              空欄の場合はデフォルトのプロジェクトでログインします
+            </p>
           </div>
           {loginError && <p style={{ fontSize:12, color:"#dc2626", marginBottom:12 }}>{loginError}</p>}
           <button
@@ -747,7 +767,14 @@ export default function App() {
     <div style={{ borderBottom:`1px solid ${C.border}`, padding:"0.875rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", background:C.surface, position:"sticky", top:0, zIndex:20, backdropFilter:"blur(12px)" }}>
       <button style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:10, padding:0 }} onClick={() => setScreen("home")}>
         <Star size={16} color={C.primary}/>
-        <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
+        <div>
+          <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
+          {currentUser?.projectId && (
+            <span style={{ display:"block", fontSize:10, color:C.textMuted, lineHeight:1, marginTop:1 }}>
+              📁 {currentUser.projectId}
+            </span>
+          )}
+        </div>
       </button>
       <div style={{ display:"flex", gap:8, alignItems:"center" }}>
         <button style={{ ...S.btn, padding:"5px 10px", fontSize:11, display:"flex", alignItems:"center", gap:4 }} onClick={()=>{ setTutorialStep(0); setShowTutorial(true); }}>
