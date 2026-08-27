@@ -290,420 +290,175 @@ function LvBar({ lv, maxLv=4, label="" }) {
   );
 }
 
-// ─── 振り返り：メンチメーター形式 ─────────────────────────────────────────
+// ─── チャットボット型振り返り設問 ────────────────────────────────────────────
+const CHATBOT_QUESTIONS = [
+  {
+    id: "q1",
+    text: "今日の活動で、自分なりに考えることができましたか？",
+    options: [
+      { v:4, l:"十分できた",          e:"😄" },
+      { v:3, l:"だいたいできた",       e:"😊" },
+      { v:2, l:"あまりできなかった",    e:"😕" },
+      { v:1, l:"全くできなかった",      e:"😢" },
+    ],
+    getFollowUp: (v) => v===4 ? "どんな点で特に深く考えられましたか？"
+                      : v<=2  ? "何が妨げになりましたか？"
+                      : null,
+  },
+  {
+    id: "q2",
+    text: "気づきや学びはありましたか？",
+    options: [
+      { v:4, l:"多くあった",           e:"😄" },
+      { v:3, l:"まあまああった",        e:"😊" },
+      { v:2, l:"あまりなかった",        e:"😕" },
+      { v:1, l:"全くなかった",          e:"😢" },
+    ],
+    getFollowUp: (v) => v===4 ? "どんな気づきでしたか？"
+                      : v<=2  ? "振り返ってみて、気づいたことはありますか？"
+                      : null,
+  },
+  {
+    id: "q3",
+    text: "自分の考えや意見をチーム・関係者に伝えられましたか？",
+    options: [
+      { v:4, l:"十分伝えられた",        e:"😄" },
+      { v:3, l:"だいたい伝えられた",     e:"😊" },
+      { v:2, l:"あまり伝えられなかった",  e:"😕" },
+      { v:1, l:"全く伝えられなかった",    e:"😢" },
+    ],
+    getFollowUp: (v) => v<=2 ? "なぜ伝えにくかったと思いますか？" : null,
+  },
+];
 
-// ─── スコア算出ロジック（JSON連携） ────────────────────────────────────────
-function calcAxesFromAnswers(answers, questions) {
-  // axisId → { raw, max }
-  const accum = {};
-  questions.forEach(q => {
-    const val = answers[q.id];
-    if (!val) return;
-    Object.entries(q.axisWeights).forEach(([axisId, weight]) => {
-      const id = parseInt(axisId);
-      if (!accum[id]) accum[id] = { raw: 0, max: 0 };
-      accum[id].raw += val * weight;
-      accum[id].max += 4 * weight; // 最大値は4
-    });
-  });
-  const axes = {};
-  Object.entries(accum).forEach(([id, { raw, max }]) => {
-    if (max === 0) return;
-    const ratio = raw / max;
-    axes[parseInt(id)] = Math.max(1, Math.min(4, Math.round(ratio * 4)));
-  });
-  return axes;
-}
+// ─── チャットボット型振り返りコンポーネント ───────────────────────────────────
+function ChatbotReflection({ onSubmit }) {
+  const [step, setStep]                 = useState(0);
+  const [answers, setAnswers]           = useState({});
+  const [followUpText, setFollowUpText] = useState("");
+  const [waitFollowUp, setWaitFollowUp] = useState(false);
+  const [nextAction, setNextAction]     = useState("");
 
-// ─── SurveyScreen：JSON連携アンケート画面 ──────────────────────────────────
-function SurveyScreen({ currentUser, mySurveys, term, setTerm, axisScores, setAxisScores, saveSurvey }) {
-  const draftKey = `draft_survey:${currentUser.id}`;
+  const currentQ   = CHATBOT_QUESTIONS[step];
+  const currentAns = currentQ ? answers[currentQ.id] : null;
+  const allDone    = step >= CHATBOT_QUESTIONS.length;
 
-  // ドラフトをlocalStorageから復元
-  const [answers, setAnswers] = useState(() => {
-    try { const s = localStorage.getItem(`draft_survey:${currentUser.id}`); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
-  const [draftRestored] = useState(() => {
-    try { return !!localStorage.getItem(`draft_survey:${currentUser.id}`); } catch { return false; }
-  });
-
-  const [surveyDef, setSurveyDef] = useState(null);
-  const [loadErr, setLoadErr]     = useState(null);
-
-  useEffect(() => {
-    fetch("/survey_questions.json")
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(d => setSurveyDef(d))
-      .catch(e => setLoadErr(e.message));
-  }, []);
-
-  // 回答変更のたびにドラフト保存
-  useEffect(() => {
-    try { localStorage.setItem(draftKey, JSON.stringify(answers)); } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answers]);
-
-  // 全質問をフラットに取得
-  const allQuestions = surveyDef
-    ? surveyDef.sections.flatMap(s => s.questions)
-    : [];
-
-  const answeredCount = Object.keys(answers).length;
-  const totalCount    = allQuestions.length;
-  const allAnswered   = answeredCount === totalCount;
-
-  const handleAnswer = (qid, val) => {
-    setAnswers(prev => ({ ...prev, [qid]: val }));
+  const selectOption = (opt) => {
+    const fuText = currentQ.getFollowUp(opt.v);
+    setAnswers(prev => ({ ...prev, [currentQ.id]: { v: opt.v, l: opt.l, e: opt.e, followUp: "" } }));
+    setFollowUpText("");
+    if (fuText) {
+      setWaitFollowUp(true);
+    } else {
+      setWaitFollowUp(false);
+      setTimeout(() => setStep(s => s + 1), 280);
+    }
   };
 
-  // 保存
-  const handleSave = () => {
-    if (!term.trim() || !allAnswered) return;
-    const axes = calcAxesFromAnswers(answers, allQuestions);
-    saveSurvey(axes);
-    setAnswers({});
-    try { localStorage.removeItem(draftKey); } catch {}
+  const advanceFollowUp = () => {
+    setAnswers(prev => ({ ...prev, [currentQ.id]: { ...prev[currentQ.id], followUp: followUpText.trim() } }));
+    setFollowUpText("");
+    setWaitFollowUp(false);
+    setTimeout(() => setStep(s => s + 1), 200);
   };
 
-  if (loadErr) return (
-    <div style={{ ...S.card, borderColor: C.accent2 + "66", textAlign:"center", padding:"2rem" }}>
-      <p style={{ color:C.accent2, fontWeight:700, marginBottom:8 }}>⚠ アンケートデータの読み込みに失敗しました</p>
-      <p style={{ fontSize:12, color:C.textSub, marginBottom:16 }}>
-        <code>public/survey_questions.json</code> を配置してください。<br/>エラー: {loadErr}
-      </p>
-      <p style={{ fontSize:12, color:C.textMuted }}>※ 開発時は <code>npm start</code> で自動検出されます。</p>
-    </div>
-  );
-
-  if (!surveyDef) return (
-    <div style={{ textAlign:"center", padding:"3rem", color:C.textSub }}>
-      <div style={{ fontSize:24, marginBottom:8 }}>⏳</div>
-      <p style={{ fontSize:13 }}>アンケートを読み込み中...</p>
-    </div>
-  );
-
-  const sections = surveyDef.sections;
+  const handleSubmit = () => onSubmit(answers, "chatbot", "", nextAction);
+  const reset = () => { setStep(0); setAnswers({}); setFollowUpText(""); setWaitFollowUp(false); setNextAction(""); };
 
   return (
     <div>
-      {/* 使用文脈バナー */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.primary}15`, borderRadius:12, border:`1px solid ${C.primary}33` }}>
-        <ClipboardList size={16} color={C.primary}/>
-        <div>
-          <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.primary }}>アンケート — 9軸セルフ評価</p>
-          <p style={{ margin:0, fontSize:11, color:C.textSub }}>9つの評価軸で自己評価しましょう。いつでも記録できます。</p>
-        </div>
-      </div>
-      {/* 今期の目標 */}
-      <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
-        <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>今期の目標</p>
-        <p style={{ fontSize:12, color:C.textSub, marginBottom:10 }}>自分で立てた目標を記述してください。</p>
-        <textarea value={term} onChange={e=>setTerm(e.target.value)} placeholder="今期取り組みたいテーマ・目標..." style={{ ...S.textarea, marginBottom:0 }}/>
-      </div>
-
-      {/* 全体プログレス */}
-      <div style={{ marginBottom:"1.25rem" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.textSub, marginBottom:6 }}>
-          <span>{answeredCount} / {totalCount} 問回答済み</span>
-          <span style={{ color: answeredCount===totalCount ? C.success : C.textSub }}>{answeredCount===totalCount?"完了":"未完了"}</span>
-        </div>
-        <div style={{ height:4, background:C.surface3, borderRadius:99 }}>
-          <div style={{ height:4, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, width:`${totalCount>0?(answeredCount/totalCount)*100:0}%`, borderRadius:99, transition:"width 0.3s" }}/>
-        </div>
-      </div>
-
-      {/* 質問カード（全セクション一括表示） */}
-      {(() => {
-        let qNum = 0;
-        return sections.map(sec => (
-          <div key={sec.id}>
-            <div style={{ ...S.scard, borderLeft:`3px solid ${C.primary}`, marginBottom:"1rem" }}>
-              <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:"0 0 3px" }}>{sec.label}</p>
-              <p style={{ fontSize:12, color:C.textSub, margin:0 }}>{sec.description}</p>
+      {/* 回答済み履歴（チャット形式） */}
+      {CHATBOT_QUESTIONS.slice(0, step).map(q => {
+        const a = answers[q.id];
+        const fu = q.getFollowUp(a?.v);
+        return (
+          <div key={q.id} style={{ marginBottom:14 }}>
+            <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+              <div style={{ width:22, height:22, borderRadius:"50%", background:C.primary+"22", border:`1px solid ${C.primary}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:11 }}>💬</div>
+              <div style={{ background:C.surface2, borderRadius:"2px 12px 12px 12px", padding:"8px 12px", fontSize:12, color:C.textSub, lineHeight:1.5, maxWidth:"85%" }}>{q.text}</div>
             </div>
-            {sec.questions.map(q => {
-              qNum++;
-              const qIndex = qNum;
-              const selected = answers[q.id];
-              const isAnswered = q.id in answers;
-              return (
-                <div key={q.id} style={{
-                  ...S.card,
-                  padding:"1.25rem",
-                  borderColor: isAnswered ? C.primary+"55" : C.border,
-                  background: isAnswered ? C.primary+"08" : C.surface,
-                  transition:"all 0.2s",
-                  marginBottom:"0.75rem",
-                }}>
-                  <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:14 }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"22", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px", flexShrink:0, marginTop:1 }}>
-                      Q{qIndex}
-                    </span>
-                    <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7, fontWeight:500 }}>{q.text}</p>
-                  </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                    {q.options.map(opt => (
-                      <button key={opt.value} onClick={()=>handleAnswer(q.id, opt.value)} style={{
-                        display:"flex", alignItems:"center", gap:12,
-                        padding:"10px 14px", borderRadius:10, cursor:"pointer",
-                        border:`1.5px solid ${selected===opt.value ? C.primary : C.border}`,
-                        background: selected===opt.value ? C.primary+"18" : C.surface2,
-                        color: selected===opt.value ? C.text : C.textSub,
-                        fontSize:13, fontFamily:"inherit", textAlign:"left",
-                        transition:"all 0.15s",
-                      }}>
-                        <span style={{
-                          width:20, height:20, borderRadius:"50%", flexShrink:0,
-                          border:`2px solid ${selected===opt.value ? C.primary : C.borderLight}`,
-                          background: selected===opt.value ? C.primary : "transparent",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                        }}>
-                          {selected===opt.value && <span style={{ width:8, height:8, borderRadius:"50%", background:"#fff", display:"block" }}/>}
-                        </span>
-                        <span style={{ lineHeight:1.5 }}>{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
+            <div style={{ display:"flex", justifyContent:"flex-end", marginBottom: fu&&a?.followUp ? 6 : 0 }}>
+              <div style={{ background:C.primary, borderRadius:"12px 2px 12px 12px", padding:"6px 12px", fontSize:13, color:"#fff", fontWeight:600 }}>{a?.e} {a?.l}</div>
+            </div>
+            {fu && a?.followUp && (
+              <>
+                <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+                  <div style={{ width:22, height:22, borderRadius:"50%", background:C.primary+"22", border:`1px solid ${C.primary}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:11 }}>💬</div>
+                  <div style={{ background:C.surface2, borderRadius:"2px 12px 12px 12px", padding:"8px 12px", fontSize:12, color:C.textSub, lineHeight:1.5, maxWidth:"85%" }}>{fu}</div>
                 </div>
-              );
-            })}
+                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                  <div style={{ background:C.primary+"18", border:`1px solid ${C.primary}33`, borderRadius:"12px 2px 12px 12px", padding:"6px 12px", fontSize:12, color:C.primary, maxWidth:"80%", lineHeight:1.5 }}>{a.followUp}</div>
+                </div>
+              </>
+            )}
           </div>
-        ));
-      })()}
+        );
+      })}
 
-
-      {/* 保存ボタン */}
-      {draftRestored && answeredCount > 0 && (
-        <div style={{ ...S.scard, borderLeft:`3px solid ${C.success}`, marginBottom:"1rem" }}>
-          <p style={{ fontSize:12, color:C.success, margin:0 }}>✓ 前回の入力内容を復元しました（{answeredCount}問回答済み）</p>
-        </div>
-      )}
-      <div style={{ marginBottom:"1.5rem" }}>
-        {!term.trim() && (
-          <p style={{ fontSize:12, color:C.accent2, textAlign:"center", marginBottom:8 }}>⚠ 今期の目標を入力してください</p>
-        )}
-        {term.trim() && !allAnswered && (
-          <p style={{ fontSize:12, color:C.textMuted, textAlign:"center", marginBottom:8 }}>
-            残り {totalCount - answeredCount} 問に回答すると保存できます
-          </p>
-        )}
-        <button
-          onClick={handleSave}
-          style={{
-            ...S.btnPrimary,
-            width:"100%", padding:"13px", fontSize:14,
-            display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            opacity: (!term.trim() || !allAnswered) ? 0.45 : 1,
-            cursor:  (!term.trim() || !allAnswered) ? "not-allowed" : "pointer",
-          }}
-        >
-          <Save size={16}/> 回答を保存する
-        </button>
-      </div>
-
-      {/* 過去の回答履歴 */}
-      {mySurveys.length > 0 && (
-        <div style={{ marginTop:"0.5rem" }}>
-          <h3 style={{ fontSize:13, fontWeight:700, color:C.textSub, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>過去の回答</h3>
-          {mySurveys.map(sv => (
-            <div key={sv.timestamp} style={S.scard}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <span style={{ fontSize:12, color:C.textSub }}>{fmt(sv.timestamp)}</span>
-                <span style={S.tag(C.primary)}>平均 Lv {axisAvg(sv.axes).toFixed(1)}</span>
-              </div>
-              <p style={{ fontSize:13, color:C.text, marginBottom:8 }}>{sv.term}</p>
-              <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
-                {AXES.map(a => sv.axes?.[a.id] ? (
-                  <span key={a.id} style={{ ...S.tag(a.ref ? C.textMuted : (LEVEL_COLOR[sv.axes[a.id]]||C.textMuted)), fontSize:10, opacity: a.ref ? 0.65 : 1 }}>
-                    {a.short} {sv.axes[a.id]}{a.ref ? " ※" : ""}
-                  </span>
-                ) : null)}
-              </div>
-              {AXES.some(a => a.ref && sv.axes?.[a.id]) && (
-                <p style={{ fontSize:10, color:C.textMuted, margin:"4px 0 0" }}>※ 参考値（基準未確定）</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MentimeterReflection({ onSubmit }) {
-  const [step, setStep]       = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [comment, setComment] = useState("");
-  const total = REFLECTION_QUESTIONS.length;
-  const done  = Object.keys(answers).length === total;
-  const q     = REFLECTION_QUESTIONS[step];
-
-  const select = (n) => {
-    const next = { ...answers, [q.id]: n };
-    setAnswers(next);
-    if (step < total - 1) setTimeout(() => setStep(s => s + 1), 280);
-  };
-
-  return (
-    <div style={{ maxWidth:520, margin:"0 auto" }}>
-      {/* プログレス */}
-      <div style={{ marginBottom:"1.5rem" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.textSub, marginBottom:6 }}>
-          <span>質問 {step+1} / {total}</span>
-          <span>{Math.round((step/total)*100)}%</span>
-        </div>
-        <div style={{ height:3, background:C.surface3, borderRadius:99 }}>
-          <div style={{ height:3, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, width:`${(step/total)*100}%`, borderRadius:99, transition:"width 0.3s" }}/>
-        </div>
-      </div>
-
-      {!done ? (
+      {!allDone ? (
         <div>
-          <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:14, padding:"2rem 1.5rem", marginBottom:"1.25rem", textAlign:"center" }}>
-            <p style={{ fontSize:15, lineHeight:1.8, margin:0, color:C.text }}>{q.text}</p>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <div style={{ width:22, height:22, borderRadius:"50%", background:C.primary, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, userSelect:"none" }}>💬</div>
+            <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:"2px 12px 12px 12px", padding:"10px 14px", fontSize:13, color:C.text, lineHeight:1.7, maxWidth:"85%" }}>
+              {!waitFollowUp ? currentQ.text : currentQ.getFollowUp(currentAns?.v)}
+            </div>
           </div>
-          <div style={{ display:"flex", gap:4, marginBottom:6 }}>
-            {[1,2,3,4,5,6,7,8,9,10].map(n => (
-              <button key={n} onClick={()=>select(n)} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${answers[q.id]===n?C.primary:C.border}`, background:answers[q.id]===n?C.primary:"transparent", color:answers[q.id]===n?"#fff":C.textSub, fontSize:13, fontWeight:600, cursor:"pointer", transition:"all 0.15s" }}>{n}</button>
-            ))}
-          </div>
-          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.textMuted, marginBottom:"1.5rem" }}>
-            <span>全くそう思わない</span><span>非常にそう思う</span>
-          </div>
-          <div style={{ display:"flex", gap:8 }}>
-            {step>0 && <button style={S.btn} onClick={()=>setStep(s=>s-1)}>← 前へ</button>}
-            {answers[q.id] && step<total-1 && <button style={S.btn} onClick={()=>setStep(s=>s+1)}>次へ →</button>}
+
+          {!waitFollowUp ? (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginLeft:30 }}>
+              {currentQ.options.map(opt => (
+                <button key={opt.v} onClick={() => selectOption(opt)}
+                  style={{ padding:"10px 8px", borderRadius:12, border:`2px solid ${currentAns?.v===opt.v?C.primary:C.border}`,
+                    background: currentAns?.v===opt.v ? C.primary+"22" : "transparent",
+                    cursor:"pointer", fontSize:12, color: currentAns?.v===opt.v ? C.primary : C.textSub,
+                    fontWeight: currentAns?.v===opt.v ? 700 : 400, textAlign:"center", transition:"all 0.15s" }}>
+                  <div style={{ fontSize:20, marginBottom:4 }}>{opt.e}</div>
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ marginLeft:30 }}>
+              <textarea value={followUpText} onChange={e=>setFollowUpText(e.target.value)}
+                placeholder="自由に書いてください（スキップも可）" rows={2}
+                style={{ ...S.textarea, minHeight:56, marginBottom:6 }} autoFocus/>
+              <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                <button style={S.btn} onClick={advanceFollowUp}>スキップ</button>
+                <button style={S.btnPrimary} onClick={advanceFollowUp}>次へ →</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop:14, marginLeft:30 }}>
+            <div style={{ display:"flex", gap:4 }}>
+              {CHATBOT_QUESTIONS.map((_, i) => (
+                <div key={i} style={{ flex:1, height:3, borderRadius:99, background: i<step?C.primary:i===step?C.primary+"55":C.surface3, transition:"background 0.3s" }}/>
+              ))}
+            </div>
+            <p style={{ fontSize:11, color:C.textMuted, textAlign:"right", marginTop:4 }}>{step+1} / {CHATBOT_QUESTIONS.length}</p>
           </div>
         </div>
       ) : (
         <div>
-          <p style={{ fontSize:14, fontWeight:700, marginBottom:"1rem", color:C.text }}>回答まとめ</p>
-          {REFLECTION_QUESTIONS.map(q => (
-            <div key={q.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-              <span style={{ fontSize:12, flex:1, color:C.textSub, lineHeight:1.5 }}>{q.text}</span>
-              <div style={{ height:5, width:`${(answers[q.id]||0)*9}px`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, minWidth:2, transition:"width 0.3s" }}/>
-              <span style={{ fontSize:13, fontWeight:700, minWidth:20, color:C.text }}>{answers[q.id]}</span>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <div style={{ width:22, height:22, borderRadius:"50%", background:C.success, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, userSelect:"none" }}>⚡</div>
+            <div style={{ background:`${C.success}12`, border:`1px solid ${C.success}33`, borderRadius:"2px 12px 12px 12px", padding:"10px 14px", fontSize:13, color:C.text, lineHeight:1.7, maxWidth:"85%" }}>
+              次の活動でやってみることを教えてください（任意）
             </div>
-          ))}
-          <div style={{ marginTop:"1.25rem" }}>
-            <p style={{ fontSize:13, fontWeight:600, marginBottom:4, color:C.text }}>振り返りコメント（任意）</p>
-            <p style={{ fontSize:12, color:C.textSub, marginBottom:8 }}>数値では表しきれなかったことを自由に書いてください。</p>
-            <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="例：チームの雰囲気が良く自分から発言しやすかった。次回はもっと提案を具体化したい。" style={{ ...S.textarea, marginBottom:12 }}/>
           </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <button style={S.btnPrimary} onClick={()=>onSubmit(answers,"mentimeter",comment)}>提出する</button>
-            <button style={S.btn} onClick={()=>{setStep(0);setAnswers({});setComment("");}}>やり直す</button>
+          <div style={{ marginLeft:30, marginBottom:14 }}>
+            <textarea value={nextAction} onChange={e=>setNextAction(e.target.value)}
+              placeholder="例：チームミーティングで自分から提案を1つ出してみる"
+              rows={2} style={{ ...S.textarea, minHeight:56 }}/>
+          </div>
+          <div style={{ display:"flex", gap:8, marginLeft:30 }}>
+            <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:6 }} onClick={handleSubmit}>
+              <Send size={14}/> 振り返りを提出する
+            </button>
+            <button style={S.btn} onClick={reset}>やり直す</button>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── アンケート保存後フィードバックモーダル ────────────────────────────────
-function SurveyResultModal({ result, onClose, onPortfolio }) {
-  const { axes, term } = result;
-  const strong   = AXES.filter(a => !a.ref && (axes[a.id] || 0) >= 3);
-  const grow     = AXES.filter(a => !a.ref && (axes[a.id] || 0) > 0 && (axes[a.id] || 0) <= 2);
-  const refAxes  = AXES.filter(a => a.ref  && (axes[a.id] || 0) > 0);
-  const allVals  = AXES.map(a => axes[a.id]).filter(Boolean);
-  const avgLv    = allVals.length ? (allVals.reduce((a,b) => a+b,0) / allVals.length).toFixed(1) : "—";
-
-  const radarD = AXES.map(a => ({
-    subject: a.ref ? `${a.short}※` : a.short,
-    自己: axes[a.id] || 0,
-    fullMark: 4,
-  }));
-
-  const lvComment = (lv) => [
-    "まだ外からの視点で見ている段階です。少しずつ自分事として考えてみましょう。",
-    "他者の立場から理解できています。次は自分の視点で深めましょう。",
-    "自分の視点から確かに理解できています。この強みを広げていきましょう！",
-    "自ら新たな価値を生み出せています。ぜひその視点を周囲と共有してください！",
-  ][lv - 1] || "";
-
-  return (
-    <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(90,0,160,0.12)", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"1rem" }}>
-      <div style={{ width:"100%", maxWidth:520, background:C.surface, borderRadius:20, border:`1.5px solid ${C.primary}55`, boxShadow:`0 8px 40px ${C.primary}20`, padding:"1.5rem", margin:"auto" }}>
-
-        {/* ヘッダー */}
-        <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-          <div style={{ fontSize:40, marginBottom:8 }}>🎉</div>
-          <h2 style={{ fontSize:20, fontWeight:700, color:C.text, margin:"0 0 6px" }}>アンケートを保存しました！</h2>
-          <p style={{ fontSize:12, color:C.textSub, margin:0 }}>今期の目標：{term}</p>
-        </div>
-
-        {/* 平均レベル */}
-        <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
-          <div style={{ display:"inline-flex", alignItems:"center", gap:10, background:C.primary+"15", border:`1px solid ${C.primary}44`, borderRadius:12, padding:"8px 24px" }}>
-            <span style={{ fontSize:13, color:C.textSub }}>平均レベル</span>
-            <span style={{ fontSize:26, fontWeight:700, color:C.primary }}>{avgLv}</span>
-          </div>
-        </div>
-
-        {/* レーダーチャート */}
-        <div style={{ height:200, marginBottom:"1.25rem" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarD}>
-              <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:"#460073", fontWeight:600 }}/>
-              <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.4}/>
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 強みのエリア */}
-        {strong.length > 0 && (
-          <div style={{ marginBottom:"1rem" }}>
-            <p style={{ fontSize:13, fontWeight:700, color:C.success, margin:"0 0 8px" }}>💪 強みのエリア（Lv.3以上）</p>
-            {strong.map(a => (
-              <div key={a.id} style={{ ...S.scard, borderLeft:`3px solid ${C.success}`, marginBottom:6 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                  <span style={S.badge(axes[a.id])}>{LEVELS.find(l=>l.lv===axes[a.id])?.name} Lv.{axes[a.id]}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{a.name}</span>
-                </div>
-                <p style={{ fontSize:12, color:C.textSub, margin:0, lineHeight:1.6 }}>{lvComment(axes[a.id])}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 成長のエリア */}
-        {grow.length > 0 && (
-          <div style={{ marginBottom:"1rem" }}>
-            <p style={{ fontSize:13, fontWeight:700, color:C.accent1, margin:"0 0 8px" }}>🌱 成長のエリア（Lv.1〜2）</p>
-            {grow.map(a => (
-              <div key={a.id} style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:6 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                  <span style={S.badge(axes[a.id])}>{LEVELS.find(l=>l.lv===axes[a.id])?.name} Lv.{axes[a.id]}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{a.name}</span>
-                </div>
-                <p style={{ fontSize:12, color:C.textSub, margin:0, lineHeight:1.6 }}>{lvComment(axes[a.id])}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 参考値 */}
-        {refAxes.length > 0 && (
-          <div style={{ marginBottom:"1rem" }}>
-            <p style={{ fontSize:11, color:C.textMuted, margin:"0 0 6px" }}>※ 参考値（基準未確定）</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {refAxes.map(a => (
-                <span key={a.id} style={{ ...S.tag(C.textMuted), opacity:0.7 }}>{a.name} Lv.{axes[a.id]}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ボタン */}
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <button style={{ ...S.btn, flex:1, justifyContent:"center" }} onClick={onClose}>閉じる</button>
-          <button style={{ ...S.btnPrimary, flex:2, justifyContent:"center", display:"flex", alignItems:"center", gap:6 }} onClick={onPortfolio}>
-            <Briefcase size={14}/> ポートフォリオを確認
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -716,21 +471,18 @@ export default function App() {
   const tick = () => setRefresh(r => r + 1);
 
   // 学生用 state
-  const [term, setTerm]               = useState("");
-  const [axisScores, setAxisScores]   = useState({});
+  const [activityTitle, setActivityTitle] = useState("");           // ログ：活動タイトル
+  const [activityType, setActivityType]   = useState("self");       // ログ："official" | "self"
   const [logQ1, setLogQ1] = useState(0); // 自分なりに取り組めたか 1-4
   const [logQ2, setLogQ2] = useState(0); // 気づき・学びがあったか 1-4
   const [logQ3, setLogQ3] = useState(0); // チームと連携できたか 1-4
-  const [logMemo, setLogMemo] = useState(""); // 任意メモ
-  const [nextAction, setNextAction] = useState(""); // ネクストアクション
+  const [logMemo, setLogMemo] = useState(""); // 活動概要メモ
   const [emotion, setEmotion]         = useState(3);
-  const [reflectMode, setReflectMode]       = useState("mentimeter");
   const [reflectionTab, setReflectionTab]   = useState("reflection");
   const [reflectionDone, setReflectionDone] = useState(false);
   const [nextActInputs, setNextActInputs] = useState({});
   const [logPhoto, setLogPhoto]             = useState(null);
   const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
-  const [surveyResult, setSurveyResult]             = useState(null);
   const photoInputRef = useRef(null);
 
   // チュートリアル・ポップアップ state
@@ -866,18 +618,6 @@ export default function App() {
       fullMark: 4,
     }));
 
-  // ─── 学生：アンケート保存 ─────────────────────────────────────────────
-  // JSON由来のcomputedAxesを受け取る形に変更
-  const saveSurvey = (computedAxes) => {
-    const axes = computedAxes || axisScores;
-    const hasAny = AXES.some(a => axes[a.id]);
-    if (!term.trim() || !hasAny) { alert("今期の目標とすべての質問への回答が必要です。"); return; }
-    const ts = Date.now();
-    const savedTerm = term;
-    storage.set(`survey:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, term, axes });
-    setSurveyResult({ axes, term: savedTerm });
-    setTerm(""); setAxisScores({}); tick();
-  };
 
   // ─── 画像圧縮 ────────────────────────────────────────────────────────
   const compressImage = (file, maxPx=640, quality=0.65) => new Promise(resolve => {
@@ -907,10 +647,17 @@ export default function App() {
 
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
-    if (!logQ1 && !logQ2 && !logQ3) return; // 最低1問回答必須
+    if (!activityTitle.trim() && !logQ1 && !logQ2 && !logQ3) return;
     const ts = Date.now();
-    storage.set(`log:${currentUser.id}:${ts}`, { userID:currentUser.id, timestamp:ts, logQ1, logQ2, logQ3, logMemo, nextAction, emotion, photo: logPhoto || null });
-    setLogQ1(0); setLogQ2(0); setLogQ3(0); setLogMemo(""); setNextAction(""); setEmotion(3); setLogPhoto(null); tick();
+    storage.set(`log:${currentUser.id}:${ts}`, {
+      userID: currentUser.id, timestamp: ts,
+      activityTitle: activityTitle.trim() || "活動記録",
+      activityType,
+      logQ1, logQ2, logQ3, logMemo,
+      emotion, photo: logPhoto || null,
+    });
+    setActivityTitle(""); setActivityType("self");
+    setLogQ1(0); setLogQ2(0); setLogQ3(0); setLogMemo(""); setEmotion(3); setLogPhoto(null); tick();
   };
 
   // ─── ポートフォリオ：Gemini プロンプト生成 ───────────────────────────
@@ -942,10 +689,22 @@ export default function App() {
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
-  const submitReflection = (answers, mode, comment="") => {
-    const summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
+  const submitReflection = (answers, mode, comment="", nextAction="") => {
+    let summary;
+    if (mode === "chatbot") {
+      summary = CHATBOT_QUESTIONS.map(q => {
+        const a = answers[q.id];
+        if (!a) return "";
+        const fu = q.getFollowUp(a.v);
+        const line = `${q.text} → ${a.e} ${a.l}`;
+        return (fu && a.followUp) ? `${line}\n  └ ${a.followUp}` : line;
+      }).filter(Boolean).join("\n");
+      if (nextAction) summary += `\n\n⚡ 次回の行動：${nextAction}`;
+    } else {
+      summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
+    }
     const pending = getPending();
-    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, status:"pending" }]);
+    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, status:"pending" }]);
     tick();
     setReflectionDone(true);
   };
@@ -1136,7 +895,7 @@ export default function App() {
               <Avatar name={p.studentId} size={34}/>
               <div>
                 <p style={{ margin:0, fontWeight:700, fontSize:14 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
-                <p style={{ margin:0, fontSize:12, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター形式":"アンケート形式"}</p>
+                <p style={{ margin:0, fontSize:12, color:C.textSub }}>{p.date} · {p.mode==="chatbot"?"チャットボット形式":p.mode==="mentimeter"?"メンチメーター形式":"アンケート形式"}</p>
               </div>
             </div>
 
@@ -1144,7 +903,32 @@ export default function App() {
             <div style={{ marginBottom:"1.25rem" }}>
               <p style={{ fontSize:12, fontWeight:700, color:C.textSub, marginBottom:8, letterSpacing:"0.06em", textTransform:"uppercase" }}>振り返り回答内容</p>
               <div style={{ background:C.surface2, borderRadius:10, padding:"0.875rem" }}>
-                {p.answers ? REFLECTION_QUESTIONS.map((q, i) => {
+                {p.mode==="chatbot" && p.answers ? (
+                  <div>
+                    {CHATBOT_QUESTIONS.map((q, i) => {
+                      const a = p.answers[q.id];
+                      if (!a) return null;
+                      const fu = q.getFollowUp(a.v);
+                      return (
+                        <div key={q.id} style={{ marginBottom: i<CHATBOT_QUESTIONS.length-1?14:0, paddingBottom: i<CHATBOT_QUESTIONS.length-1?14:0, borderBottom: i<CHATBOT_QUESTIONS.length-1?`1px solid ${C.border}`:"none" }}>
+                          <p style={{ fontSize:12, color:C.textSub, margin:"0 0 6px", lineHeight:1.5 }}>{q.text}</p>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <span style={{ fontSize:18 }}>{a.e}</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{a.l}</span>
+                            <span style={{ fontSize:11, padding:"2px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>{a.v}/4</span>
+                          </div>
+                          {fu && a.followUp && <p style={{ fontSize:12, color:C.textSub, margin:"6px 0 0", paddingLeft:10, borderLeft:`2px solid ${C.border}`, lineHeight:1.5 }}>{a.followUp}</p>}
+                        </div>
+                      );
+                    })}
+                    {p.nextAction && (
+                      <div style={{ marginTop:12, padding:"8px 12px", background:`${C.success}12`, borderRadius:8, borderLeft:`3px solid ${C.success}` }}>
+                        <p style={{ fontSize:11, fontWeight:700, color:C.success, margin:"0 0 2px" }}>⚡ 次回の行動</p>
+                        <p style={{ fontSize:13, color:C.text, margin:0, lineHeight:1.5 }}>{p.nextAction}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : p.answers ? REFLECTION_QUESTIONS.map((q, i) => {
                   const val = p.answers[q.id] || 0;
                   return (
                     <div key={q.id} style={{ marginBottom: i < REFLECTION_QUESTIONS.length-1 ? 14 : 0, paddingBottom: i < REFLECTION_QUESTIONS.length-1 ? 14 : 0, borderBottom: i < REFLECTION_QUESTIONS.length-1 ? `1px solid ${C.border}` : "none" }}>
@@ -1461,9 +1245,15 @@ export default function App() {
                     ? <p style={{ color:C.textSub, fontSize:13 }}>ログデータがありません。</p>
                     : selLogs.map(lg => (
                       <div key={lg.timestamp} style={{ ...S.scard, marginBottom:10 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                          <span style={{ fontSize:20 }}>{EMOTIONS[lg.emotion-1]}</span>
-                          <span style={{ fontSize:12, color:C.textSub }}>{fmt(lg.timestamp)}</span>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ fontSize:18 }}>{EMOTIONS[lg.emotion-1]}</span>
+                            {lg.activityTitle && <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{lg.activityTitle}</span>}
+                          </div>
+                          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
+                            <span style={{ fontSize:11, color:C.textSub }}>{fmt(lg.timestamp)}</span>
+                            {lg.activityType && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:10, background: lg.activityType==="official"?C.warn+"22":C.accent1+"22", color: lg.activityType==="official"?C.warn:C.accent1, fontWeight:600 }}>{lg.activityType==="official"?"📋 公式":"🙋 自主"}</span>}
+                          </div>
                         </div>
                         {(lg.logQ1||lg.logQ2||lg.logQ3) && (
                           <div style={{ display:"flex", gap:6, marginBottom:6, flexWrap:"wrap" }}>
@@ -1480,12 +1270,6 @@ export default function App() {
                             <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
                           </div>
                         ))}
-                        {lg.nextAction && (
-                          <div style={{ margin:"4px 0", padding:"4px 8px", background:`${C.success}12`, borderRadius:6, border:`1px solid ${C.success}33` }}>
-                            <span style={{ fontSize:11, color:C.success, fontWeight:700 }}>⚡ </span>
-                            <span style={{ fontSize:12, color:C.text }}>{lg.nextAction}</span>
-                          </div>
-                        )}
                         {lg.logMemo && <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5 }}>{lg.logMemo}</p>}
                       </div>
                     ))
@@ -1842,8 +1626,8 @@ export default function App() {
             {/* 統計カード */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
               {[
-                { l:"日次ログ",   v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
-                { l:"アンケート", v:mySurveys.length,  c:C.primary, icon:ClipboardList, s:"survey" },
+                { l:"ログ記録",   v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
+                { l:"振り返り",  v:mySurveys.length,   c:C.primary, icon:ClipboardList, s:"reflection" },
                 { l:"採点待ち",  v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
@@ -1870,9 +1654,10 @@ export default function App() {
             <div style={{ marginTop:"0.5rem" }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
               {[
-                { l:"ログを記録",        d:"今日の気づきを3問で",      icon:BookOpen,   s:"log",        c:C.accent1 },
-                { l:"評価・振り返り",    d:"9軸評価＋提出＋FB確認",    icon:TrendingUp, s:"reflection", c:C.warn    },
+                { l:"活動を記録",        d:"ログ＋クイック振り返り",    icon:BookOpen,   s:"log",        c:C.accent1 },
+                { l:"振り返り提出",      d:"3問チャット形式＋FB確認",   icon:TrendingUp, s:"reflection", c:C.warn    },
                 { l:"ポートフォリオ",    d:"成長を確認・出力",          icon:Star,       s:"portfolio",  c:"#f59e0b" },
+                { l:"プロジェクト情報",  d:"概要・ゴールを確認",        icon:Info,       s:"project",    c:C.textSub },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}33`, minWidth:0, overflow:"hidden", marginBottom:0, padding:"12px 14px" }}>
                   <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1889,18 +1674,46 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── 日次ログ ─────────────────────────────────────────────── */}
+        {/* ─── ログ ──────────────────────────────────────────────────── */}
         {screen==="log" && (
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
               <BookOpen size={16} color={C.accent1}/>
               <div>
-                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>ログ</p>
-                <p style={{ margin:0, fontSize:11, color:C.textSub }}>3問に答えるだけ。気づきや学びを手軽に記録しよう。</p>
+                <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>活動ログ</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub }}>活動内容と振り返りを記録しよう。</p>
               </div>
             </div>
             <div style={S.cardGlow}>
-              {/* 3問アンケート */}
+              {/* 活動タイトル */}
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.text, display:"block", marginBottom:6 }}>活動タイトル <span style={{ color:C.accent2 }}>*</span></label>
+                <input value={activityTitle} onChange={e=>setActivityTitle(e.target.value)}
+                  placeholder="例：チームミーティング、現場視察、企業インタビュー"
+                  style={{ ...S.input, width:"100%", boxSizing:"border-box" }}/>
+              </div>
+
+              {/* 公式/自主 区分 */}
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:12, fontWeight:700, color:C.text, display:"block", marginBottom:8 }}>活動の種類</label>
+                <div style={{ display:"flex", gap:8 }}>
+                  {[{ v:"official", l:"📋 公式活動", d:"メンター参加あり" }, { v:"self", l:"🙋 自主活動", d:"チーム・個人" }].map(t => (
+                    <button key={t.v} onClick={()=>setActivityType(t.v)}
+                      style={{ flex:1, padding:"8px 10px", borderRadius:10, border:`2px solid ${activityType===t.v?C.primary:C.border}`,
+                        background: activityType===t.v ? C.primary+"18" : "transparent", cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>
+                      <p style={{ margin:0, fontSize:12, fontWeight:700, color: activityType===t.v?C.primary:C.text }}>{t.l}</p>
+                      <p style={{ margin:0, fontSize:10, color:C.textMuted }}>{t.d}</p>
+                    </button>
+                  ))}
+                </div>
+                {activityType==="official" && (
+                  <p style={{ fontSize:11, color:C.warn, marginTop:8, display:"flex", alignItems:"center", gap:4 }}>
+                    <span>💡</span> 公式活動の詳細な振り返りは「振り返り」画面から提出できます
+                  </p>
+                )}
+              </div>
+
+              {/* 3問クイック振り返り */}
               {[
                 { q:"自分なりに活動に取り組めましたか？", v:logQ1, set:setLogQ1 },
                 { q:"気づきや学びがありましたか？",       v:logQ2, set:setLogQ2 },
@@ -1925,23 +1738,12 @@ export default function App() {
                 </div>
               ))}
 
-              {/* ネクストアクション */}
-              <div style={{ marginBottom:14, padding:"10px 14px", background:`${C.success}12`, borderRadius:10, border:`1px solid ${C.success}33` }}>
-                <label style={{ fontSize:12, fontWeight:700, color:C.success, display:"block", marginBottom:8 }}>⚡ ネクストアクション（任意）</label>
-                <input
-                  value={nextAction}
-                  onChange={e=>setNextAction(e.target.value)}
-                  placeholder="次にやること・目標を一言で（例：議事録を読んで論点を整理する）"
-                  style={{ ...S.input, width:"100%", boxSizing:"border-box" }}
-                />
-              </div>
-
-              {/* 任意メモ */}
+              {/* 活動概要メモ */}
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>一言メモ（任意）</label>
+                <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>活動概要・気づきメモ（任意）</label>
                 <textarea value={logMemo} onChange={e=>setLogMemo(e.target.value)}
-                  placeholder="気になったこと、印象に残ったこと..."
-                  rows={2} style={{ ...S.textarea, minHeight:50 }}/>
+                  placeholder="活動の内容、気になったこと、印象に残ったことなど..."
+                  rows={3} style={{ ...S.textarea, minHeight:60 }}/>
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:8 }}>感情記録</label>
@@ -1974,14 +1776,17 @@ export default function App() {
                 <h3 style={{ fontSize:14, fontWeight:700, color:C.textSub, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>過去のログ</h3>
                 {myLogs.map(lg => (
                   <div key={lg.timestamp} style={S.scard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:20 }}>{EMOTIONS[lg.emotion-1]}</span>
-                        <span style={{ fontSize:12, color:C.textSub }}>{fmt(lg.timestamp)}</span>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:0 }}>
+                        <span style={{ fontSize:18, flexShrink:0 }}>{EMOTIONS[lg.emotion-1]}</span>
+                        <div style={{ minWidth:0 }}>
+                          {lg.activityTitle && <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{lg.activityTitle}</p>}
+                          <p style={{ margin:0, fontSize:11, color:C.textSub }}>{fmt(lg.timestamp)}{lg.activityType && <span style={{ marginLeft:6, padding:"1px 5px", borderRadius:8, background: lg.activityType==="official"?C.warn+"22":C.accent1+"22", color: lg.activityType==="official"?C.warn:C.accent1, fontSize:10, fontWeight:600 }}>{lg.activityType==="official"?"📋 公式":"🙋 自主"}</span>}</p>
+                        </div>
                       </div>
-                      <button onClick={()=>{ storage.del(`log:${currentUser.id}:${lg.timestamp}`); tick(); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted, padding:4 }}><Trash2 size={13}/></button>
+                      <button onClick={()=>{ storage.del(`log:${currentUser.id}:${lg.timestamp}`); tick(); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted, padding:4, flexShrink:0 }}><Trash2 size={13}/></button>
                     </div>
-                    {/* 新フォーマット：3問回答 */}
+                    {/* 3問回答（新・旧フォーマット両対応） */}
                     {(lg.logQ1||lg.logQ2||lg.logQ3) && (
                       <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
                         {[{l:"取り組み",v:lg.logQ1},{l:"気づき",v:lg.logQ2},{l:"連携",v:lg.logQ3}].filter(f=>f.v).map(f=>(
@@ -1998,12 +1803,6 @@ export default function App() {
                         <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
                       </div>
                     ))}
-                    {lg.nextAction && (
-                      <div style={{ marginTop:6, padding:"5px 10px", background:`${C.success}12`, borderRadius:7, border:`1px solid ${C.success}33` }}>
-                        <span style={{ fontSize:11, color:C.success, fontWeight:700 }}>⚡ ネクストアクション</span>
-                        <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{lg.nextAction}</p>
-                      </div>
-                    )}
                     {lg.logMemo && (
                       <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5, borderTop:`1px solid ${C.border}`, paddingTop:6 }}>{lg.logMemo}</p>
                     )}
@@ -2023,8 +1822,8 @@ export default function App() {
             {!latestSurvey ? (
               <div style={{ ...S.card, textAlign:"center", padding:"3rem" }}>
                 <BarChart2 size={40} color={C.primary+"44"} style={{ marginBottom:12 }}/>
-                <p style={{ color:C.textSub, marginBottom:16 }}>まだアンケートが記録されていません。</p>
-                <button style={S.btnPrimary} onClick={()=>setScreen("survey")}>アンケートを入力する</button>
+                <p style={{ color:C.textSub, marginBottom:16 }}>まだ評価データがありません。<br/>振り返りを提出するとメンターが採点します。</p>
+                <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
               </div>
             ) : (
               <>
@@ -2242,37 +2041,11 @@ export default function App() {
                       </div>
                     )}
 
-                    <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"1.25rem", overflowX:"auto", paddingBottom:2 }}>
-                      {["入力形式を選ぶ","質問に回答する","提出する"].map((s, i) => (
-                        <div key={i} style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-                          <div style={{ width:20, height:20, borderRadius:"50%", background:C.primary, color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{i+1}</div>
-                          <span style={{ fontSize:11, color:C.textSub, whiteSpace:"nowrap" }}>{s}</span>
-                          {i < 2 && <ChevronRight size={12} color={C.textMuted}/>}
-                        </div>
-                      ))}
+                    <div style={S.card}>
+                      <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>3つの問いに答えながら振り返ろう</p>
+                      <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>回答に応じて深掘り質問が表示されます。最後に次回の行動を入力して提出してください。</p>
+                      <ChatbotReflection onSubmit={submitReflection}/>
                     </div>
-
-                    <div style={{ display:"flex", gap:6, marginBottom:"1.25rem", background:C.surface2, borderRadius:10, padding:4, width:"fit-content" }}>
-                      {[{v:"mentimeter",l:"⚡ メンチメーター形式"},{v:"survey",l:"📋 アンケート形式（9軸評価）"}].map(m => (
-                        <button key={m.v} onClick={()=>setReflectMode(m.v)} style={{ padding:"8px 16px", borderRadius:7, border:"none", background:reflectMode===m.v?C.primary:"transparent", color:reflectMode===m.v?"#fff":C.textSub, fontSize:13, cursor:"pointer", fontWeight:reflectMode===m.v?700:400, transition:"all 0.2s" }}>{m.l}</button>
-                      ))}
-                    </div>
-
-                    {reflectMode==="mentimeter" ? (
-                      <div style={S.card}>
-                        <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>1問ずつ回答する</p>
-                        <p style={{ fontSize:12, color:C.textSub, marginBottom:"1.25rem" }}>質問が1問ずつ表示されます。直感で回答してください。</p>
-                        <MentimeterReflection onSubmit={submitReflection}/>
-                      </div>
-                    ) : (
-                      <SurveyScreen
-                        currentUser={currentUser}
-                        mySurveys={mySurveys}
-                        term={term} setTerm={setTerm}
-                        axisScores={axisScores} setAxisScores={setAxisScores}
-                        saveSurvey={saveSurvey}
-                      />
-                    )}
                   </>
                 )}
               </div>
@@ -2357,16 +2130,60 @@ export default function App() {
             )}
           </div>
         )}
-      </div>
 
-      {/* ─── アンケート保存後フィードバックモーダル ─────────────────── */}
-      {surveyResult && (
-        <SurveyResultModal
-          result={surveyResult}
-          onClose={() => setSurveyResult(null)}
-          onPortfolio={() => { setSurveyResult(null); setScreen("portfolio"); }}
-        />
-      )}
+        {/* ─── プロジェクト情報 ──────────────────────────────────────── */}
+        {screen==="project" && (() => {
+          const projKey = `project_info:${currentUser.projectId || "default"}`;
+          const projInfo = storage.get(projKey) || {};
+          const [editMode, setEditMode_] = [false, ()=>{}]; // eslint-disable-line no-unused-vars
+          const saveField = (field, value) => {
+            storage.set(projKey, { ...storage.get(projKey)||{}, [field]: value });
+            tick();
+          };
+          const fields = [
+            { key:"name",    label:"プロジェクト名",  placeholder:"例：北海道農業スタートアップ支援PBL" },
+            { key:"summary", label:"概要",           placeholder:"このプロジェクトについて説明してください" },
+            { key:"goal",    label:"ゴール・目標",    placeholder:"最終的に達成したいこと" },
+            { key:"period",  label:"期間",            placeholder:"例：2026年4月〜2027年3月" },
+            { key:"issue",   label:"課題・テーマ",    placeholder:"取り組む課題や問い" },
+            { key:"outcome", label:"期待される成果",  placeholder:"このプロジェクトを通じて期待される成果" },
+          ];
+          return (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.textSub}15`, borderRadius:12, border:`1px solid ${C.textSub}33` }}>
+                <Info size={16} color={C.textSub}/>
+                <div>
+                  <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.textSub }}>プロジェクト情報</p>
+                  <p style={{ margin:0, fontSize:11, color:C.textSub }}>プロジェクトの概要・目標をメンバー全員で共有しよう</p>
+                </div>
+              </div>
+
+              {currentUser.projectId && (
+                <div style={{ ...S.scard, marginBottom:"1rem", background:`${C.primary}08`, borderLeft:`3px solid ${C.primary}` }}>
+                  <p style={{ margin:0, fontSize:12, color:C.textSub }}>プロジェクトID</p>
+                  <p style={{ margin:0, fontSize:16, fontWeight:700, color:C.primary }}>📁 {currentUser.projectId}</p>
+                </div>
+              )}
+
+              <div style={S.cardGlow}>
+                {fields.map(f => (
+                  <div key={f.key} style={{ marginBottom:16 }}>
+                    <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>{f.label}</label>
+                    <textarea
+                      defaultValue={projInfo[f.key] || ""}
+                      placeholder={f.placeholder}
+                      rows={f.key==="summary"||f.key==="goal"||f.key==="outcome" ? 3 : 2}
+                      onBlur={e => saveField(f.key, e.target.value)}
+                      style={{ ...S.textarea, minHeight: f.key==="summary"||f.key==="goal"||f.key==="outcome" ? 72 : 48 }}
+                    />
+                  </div>
+                ))}
+                <p style={{ fontSize:11, color:C.textMuted, marginTop:4 }}>※ 入力欄をタップして入力後、フォーカスを外すと自動保存されます</p>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* ─── ボトムナビゲーション ──────────────────────────────────── */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, overflowX:"hidden", paddingBottom:"env(safe-area-inset-bottom)" }}>
