@@ -332,6 +332,27 @@ const CHATBOT_QUESTIONS = [
 ];
 
 
+// ─── 軸スコア計算（survey_questions.json の回答から） ─────────────────────
+function calcAxesFromAnswers(answers, allQuestions) {
+  const raw = {}, maxs = {};
+  allQuestions.forEach(q => {
+    const val = answers[q.id];
+    if (!val || val === 0) return;
+    Object.entries(q.axisWeights || {}).forEach(([axId, w]) => {
+      raw[axId]  = (raw[axId]  || 0) + val * w;
+      maxs[axId] = (maxs[axId] || 0) + 4  * w;
+    });
+  });
+  const axes = {};
+  Object.keys(raw).forEach(axId => {
+    if (maxs[axId] > 0) {
+      const ratio = raw[axId] / maxs[axId];
+      axes[String(axId)] = Math.max(1, Math.min(4, Math.round(ratio * 4)));
+    }
+  });
+  return axes;
+}
+
 // ─── メインアプリ ──────────────────────────────────────────────────────────
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => storage.get("current_user"));
@@ -342,16 +363,15 @@ export default function App() {
   // 学生用 state
   const [activityTitle, setActivityTitle] = useState("");           // ログ：活動タイトル
   const [activityType, setActivityType]   = useState("self");       // ログ："official" | "self"
-  const [logQ1, setLogQ1] = useState(0); // 自分なりに取り組めたか 1-4
-  const [logQ2, setLogQ2] = useState(0); // 気づき・学びがあったか 1-4
-  const [logQ3, setLogQ3] = useState(0); // チームと連携できたか 1-4
-  const [logMemo, setLogMemo] = useState(""); // 活動概要メモ
+  const [logAnswers, setLogAnswers] = useState({});                    // ログ：REFLECTION_QUESTIONS 1-10スライダー
+  const [logMemo, setLogMemo] = useState("");                          // 活動概要メモ
   const [reflectionDone, setReflectionDone] = useState(false);
   const [nextActInputs, setNextActInputs] = useState({});
-  const [logPhoto, setLogPhoto]             = useState(null);
   const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
-  const [reflectionAnswers, setReflectionAnswers]   = useState({});  // 振り返りアンケート回答
-  const [reflectionComment, setReflectionComment]   = useState("");  // 振り返りコメント
+  const [reflectionAnswers, setReflectionAnswers]   = useState({});    // 振り返りアンケート回答（survey_json用）
+  const [reflectionComment, setReflectionComment]   = useState("");    // 振り返りコメント
+  const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
+  const [surveyLoadErr, setSurveyLoadErr]           = useState(null);  // JSONロードエラー
 
   // チュートリアル・ポップアップ state
   const [showTutorial, setShowTutorial] = useState(false);
@@ -463,6 +483,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // survey_questions.json の読み込み（振り返りアンケート用）
+  useEffect(() => {
+    fetch("/survey_questions.json")
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => setSurveyDef(d))
+      .catch(e => setSurveyLoadErr(e.message));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── データ取得 ──────────────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const mySurveys  = useMemo(() => currentUser ? getSurveys(currentUser.id)  : [], [currentUser, refresh]);
@@ -490,17 +519,16 @@ export default function App() {
 
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
-    if (!activityTitle.trim() && !logQ1 && !logQ2 && !logQ3) return;
+    if (!activityTitle.trim() && Object.keys(logAnswers).length === 0) return;
     const ts = Date.now();
     storage.set(`log:${currentUser.id}:${ts}`, {
       userID: currentUser.id, timestamp: ts,
       activityTitle: activityTitle.trim() || "活動記録",
       activityType,
-      logQ1, logQ2, logQ3, logMemo,
-      photo: logPhoto || null,
+      logAnswers, logMemo,
     });
     setActivityTitle(""); setActivityType("self");
-    setLogQ1(0); setLogQ2(0); setLogQ3(0); setLogMemo(""); setLogPhoto(null); tick();
+    setLogAnswers({}); setLogMemo(""); tick();
   };
 
   // ─── ポートフォリオ：Gemini プロンプト生成 ───────────────────────────
@@ -532,7 +560,7 @@ export default function App() {
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
-  const submitReflection = (answers, mode, comment="", nextAction="") => {
+  const submitReflection = (answers, mode, comment="", nextAction="", allQs=[]) => {
     let summary;
     if (mode === "chatbot") {
       summary = CHATBOT_QUESTIONS.map(q => {
@@ -543,11 +571,15 @@ export default function App() {
         return (fu && a.followUp) ? `${line}\n  └ ${a.followUp}` : line;
       }).filter(Boolean).join("\n");
       if (nextAction) summary += `\n\n⚡ 次回の行動：${nextAction}`;
+    } else if (mode === "survey_json") {
+      const answered = Object.keys(answers).length;
+      summary = `アンケート振り返り（${answered}問回答）${comment?`\n\nコメント：${comment}`:""}`;
     } else {
       summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
     }
     const pending = getPending();
-    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, status:"pending" }]);
+    const axes = (mode === "survey_json" && allQs.length > 0) ? calcAxesFromAnswers(answers, allQs) : {};
+    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, status:"pending" }]);
     tick();
     setReflectionDone(true);
   };
@@ -1590,34 +1622,30 @@ export default function App() {
                 </div>
               </div>
 
-              {/* メンチメーター形式：1-10スライダー */}
-              {[
-                { q:"主体的に取り組めましたか？",         v:logQ1, set:setLogQ1, lo:"あまり取り組めなかった", hi:"とても主体的に取り組めた" },
-                { q:"気づきや学びはありましたか？",        v:logQ2, set:setLogQ2, lo:"ほとんどなかった",       hi:"多くの気づきがあった" },
-                { q:"チームや関係者と連携できましたか？",  v:logQ3, set:setLogQ3, lo:"あまりできなかった",     hi:"とてもうまく連携できた" },
-              ].map((item, idx) => (
-                <div key={idx} style={{ marginBottom:24, padding:"14px 16px", background:C.surface2, borderRadius:12, border:`1px solid ${C.border}` }}>
-                  <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:12 }}>
-                    Q{idx+1}. {item.q}
-                  </label>
-                  {/* 数値表示 */}
-                  <div style={{ textAlign:"center", marginBottom:8 }}>
-                    <span style={{ fontSize:36, fontWeight:700, color: item.v===0 ? C.textMuted : C.primary, lineHeight:1 }}>
-                      {item.v===0 ? "–" : item.v}
-                    </span>
-                    <span style={{ fontSize:14, color:C.textMuted }}> / 10</span>
+              {/* REFLECTION_QUESTIONS：1-10スライダー（メンチメーター形式） */}
+              {REFLECTION_QUESTIONS.map((q, idx) => {
+                const val = logAnswers[q.id] || 0;
+                return (
+                  <div key={q.id} style={{ marginBottom:24, padding:"14px 16px", background:C.surface2, borderRadius:12, border:`1px solid ${C.border}` }}>
+                    <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:12 }}>
+                      Q{idx+1}. {q.text}
+                    </label>
+                    <div style={{ textAlign:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:36, fontWeight:700, color: val===0 ? C.textMuted : C.primary, lineHeight:1 }}>
+                        {val===0 ? "–" : val}
+                      </span>
+                      <span style={{ fontSize:14, color:C.textMuted }}> / 10</span>
+                    </div>
+                    <input type="range" min={1} max={10} value={val||5}
+                      onChange={e=>setLogAnswers(prev=>({...prev,[q.id]:Number(e.target.value)}))}
+                      style={{ width:"100%", accentColor:C.primary, cursor:"pointer", height:6, marginBottom:6 }}/>
+                    <div style={{ display:"flex", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:10, color:C.textMuted }}>1 全くそう思わない</span>
+                      <span style={{ fontSize:10, color:C.textMuted }}>非常にそう思う 10</span>
+                    </div>
                   </div>
-                  {/* スライダー */}
-                  <input type="range" min={1} max={10} value={item.v||5}
-                    onChange={e=>item.set(Number(e.target.value))}
-                    style={{ width:"100%", accentColor:C.primary, cursor:"pointer", height:6, marginBottom:6 }}/>
-                  {/* ラベル */}
-                  <div style={{ display:"flex", justifyContent:"space-between" }}>
-                    <span style={{ fontSize:10, color:C.textMuted }}>1 {item.lo}</span>
-                    <span style={{ fontSize:10, color:C.textMuted }}>{item.hi} 10</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* 活動概要メモ */}
               {/* コメント（任意） */}
@@ -1887,56 +1915,89 @@ export default function App() {
                   </div>
                 )}
 
-                <div style={S.cardGlow}>
-                  {REFLECTION_QUESTIONS.map((q, idx) => {
-                    const val = reflectionAnswers[q.id] || 0;
-                    return (
-                      <div key={q.id} style={{ marginBottom:24, padding:"14px 16px", background:C.surface2, borderRadius:12, border:`1px solid ${C.border}` }}>
-                        <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:12 }}>
-                          Q{idx+1}. {q.text}
-                        </label>
-                        <div style={{ textAlign:"center", marginBottom:8 }}>
-                          <span style={{ fontSize:36, fontWeight:700, color: val===0 ? C.textMuted : C.primary, lineHeight:1 }}>
-                            {val===0 ? "–" : val}
-                          </span>
-                          <span style={{ fontSize:14, color:C.textMuted }}> / 10</span>
-                        </div>
-                        <input type="range" min={1} max={10} value={val||5}
-                          onChange={e=>setReflectionAnswers(prev=>({...prev,[q.id]:Number(e.target.value)}))}
-                          style={{ width:"100%", accentColor:C.primary, cursor:"pointer", height:6, marginBottom:6 }}/>
-                        <div style={{ display:"flex", justifyContent:"space-between" }}>
-                          <span style={{ fontSize:10, color:C.textMuted }}>1 全くそう思わない</span>
-                          <span style={{ fontSize:10, color:C.textMuted }}>非常にそう思う 10</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div style={{ marginBottom:16 }}>
-                    <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>コメント（任意）</label>
-                    <textarea value={reflectionComment} onChange={e=>setReflectionComment(e.target.value)}
-                      placeholder="今日の活動で感じたことや気づきを自由に書いてください"
-                      rows={3} style={{ ...S.textarea, minHeight:60 }}/>
+                {/* survey_questions.json 15問アンケート形式 */}
+                {surveyLoadErr ? (
+                  <div style={{ ...S.card, borderLeft:`3px solid ${C.accent2}`, marginBottom:12 }}>
+                    <p style={{ color:C.accent2, fontSize:13, margin:0 }}>⚠ アンケートの読み込みに失敗しました（{surveyLoadErr}）</p>
                   </div>
+                ) : !surveyDef ? (
+                  <div style={{ ...S.card, textAlign:"center", padding:"2rem" }}>
+                    <p style={{ color:C.textMuted, fontSize:13 }}>読み込み中...</p>
+                  </div>
+                ) : (
+                  <div style={S.cardGlow}>
+                    {surveyDef.sections.map((sec) => (
+                      <div key={sec.id} style={{ marginBottom:24 }}>
+                        <p style={{ fontSize:12, fontWeight:700, color:C.textSub, margin:"0 0 10px",
+                          padding:"4px 10px", background:C.surface2, borderRadius:8, borderLeft:`3px solid ${C.primary}` }}>
+                          {sec.title}
+                        </p>
+                        {sec.questions.map((q) => {
+                          const answered = reflectionAnswers[q.id];
+                          return (
+                            <div key={q.id} style={{ marginBottom:16, padding:"12px 14px", background:C.surface2,
+                              borderRadius:10, border:`1px solid ${answered ? C.primary+"55" : C.border}`,
+                              transition:"border-color 0.2s" }}>
+                              <label style={{ fontSize:13, fontWeight:600, color:C.text, display:"block", marginBottom:10, lineHeight:1.5 }}>
+                                {q.id}. {q.text}
+                              </label>
+                              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                                {q.options.map((opt) => {
+                                  const selected = reflectionAnswers[q.id] === opt.value;
+                                  return (
+                                    <button key={opt.value} onClick={()=>setReflectionAnswers(prev=>({...prev,[q.id]:opt.value}))}
+                                      style={{ textAlign:"left", padding:"8px 12px", borderRadius:8, fontSize:12,
+                                        fontWeight: selected ? 700 : 400,
+                                        background: selected ? `${C.primary}18` : "transparent",
+                                        border: `1.5px solid ${selected ? C.primary : C.border}`,
+                                        color: selected ? C.primary : C.text,
+                                        cursor:"pointer", transition:"all 0.15s" }}>
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
 
-                  <button
-                    style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8,
-                      opacity: Object.keys(reflectionAnswers).length < REFLECTION_QUESTIONS.length ? 0.5 : 1 }}
-                    onClick={() => {
-                      if (Object.keys(reflectionAnswers).length < REFLECTION_QUESTIONS.length) {
-                        alert("全ての問いに回答してください（スライダーを一度動かすと回答済みになります）");
-                        return;
-                      }
-                      submitReflection(reflectionAnswers, "survey", reflectionComment);
-                    }}>
-                    <Save size={14}/> 振り返りを提出する
-                  </button>
-                  {Object.keys(reflectionAnswers).length < REFLECTION_QUESTIONS.length && (
-                    <p style={{ fontSize:11, color:C.textMuted, marginTop:6 }}>
-                      ※ {REFLECTION_QUESTIONS.length - Object.keys(reflectionAnswers).length}問 未回答です（スライダーを動かすと回答済みになります）
-                    </p>
-                  )}
-                </div>
+                    <div style={{ marginBottom:16 }}>
+                      <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>コメント（任意）</label>
+                      <textarea value={reflectionComment} onChange={e=>setReflectionComment(e.target.value)}
+                        placeholder="今日の活動で感じたことや気づきを自由に書いてください"
+                        rows={3} style={{ ...S.textarea, minHeight:60 }}/>
+                    </div>
+
+                    {(() => {
+                      const allQs = surveyDef.sections.flatMap(s => s.questions);
+                      const totalQ = allQs.length;
+                      const answeredCount = Object.keys(reflectionAnswers).length;
+                      const remaining = totalQ - answeredCount;
+                      return (
+                        <>
+                          <button
+                            style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8, opacity: remaining > 0 ? 0.5 : 1 }}
+                            onClick={() => {
+                              if (remaining > 0) {
+                                alert(`全ての問いに回答してください（あと${remaining}問未回答です）`);
+                                return;
+                              }
+                              submitReflection(reflectionAnswers, "survey_json", reflectionComment, "", allQs);
+                            }}>
+                            <Save size={14}/> 振り返りを提出する
+                          </button>
+                          {remaining > 0 && (
+                            <p style={{ fontSize:11, color:C.textMuted, marginTop:6 }}>
+                              ※ あと {remaining}問 未回答です
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </>
             )}
           </div>
