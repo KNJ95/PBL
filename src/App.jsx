@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Home, ClipboardList, BookOpen, Briefcase, LogOut,
+  Home, ClipboardList, BookOpen, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
   BarChart2, Send, ArrowRight, Camera, Sparkles, X,
@@ -1618,8 +1618,8 @@ export default function App() {
               <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
                 <ClipboardList size={40} color={C.primary+"88"} style={{ marginBottom:12 }}/>
                 <p style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>まだアンケートがありません</p>
-                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>アンケートを記入して、あなたのBe-Readyを可視化しましょう。</p>
-                <button style={S.btnPrimary} onClick={()=>setScreen("survey")}>アンケートを記入する</button>
+                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>振り返りを提出するとメンターが採点し、レーダーチャートが表示されます。</p>
+                <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
               </div>
             )}
 
@@ -2135,7 +2135,6 @@ export default function App() {
         {screen==="project" && (() => {
           const projKey = `project_info:${currentUser.projectId || "default"}`;
           const projInfo = storage.get(projKey) || {};
-          const [editMode, setEditMode_] = [false, ()=>{}]; // eslint-disable-line no-unused-vars
           const saveField = (field, value) => {
             storage.set(projKey, { ...storage.get(projKey)||{}, [field]: value });
             tick();
