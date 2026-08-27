@@ -384,7 +384,6 @@ export default function App() {
   const [nextActInputs, setNextActInputs] = useState({});
   const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
   const [reflectionAnswers, setReflectionAnswers]   = useState({});    // 振り返りアンケート回答（survey_json用）
-  const [reflectionComment, setReflectionComment]   = useState("");    // 振り返りコメント
   const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
   const [surveyLoadErr, setSurveyLoadErr]           = useState(null);  // JSONロードエラー
   const [reflectionTarget, setReflectionTarget]     = useState("");    // 振り返り対象（何に対する振り返りか）
@@ -1950,7 +1949,7 @@ export default function App() {
                 <p style={{ fontSize:13, color:C.textSub, marginBottom:20 }}>メンターが確認・採点します。<br/>結果はFBページで確認できます。</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
                   <button style={S.btnPrimary} onClick={()=>setScreen("home")}>ホームへ戻る</button>
-                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionComment(""); setReflectionTarget(""); setReflectionPhase("target"); setReflectionStep(0); setDrill1Answer(null); setDrill2Choice(null); setDrill2FreeText(""); }}>続けて提出する</button>
+                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionTarget(""); setReflectionPhase("target"); setReflectionStep(0); setDrill1Answer(null); setDrill2Choice(null); setDrill2FreeText(""); }}>続けて提出する</button>
                 </div>
               </div>
             ) : surveyLoadErr ? (
