@@ -372,6 +372,8 @@ export default function App() {
   const [reflectionComment, setReflectionComment]   = useState("");    // 振り返りコメント
   const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
   const [surveyLoadErr, setSurveyLoadErr]           = useState(null);  // JSONロードエラー
+  const [reflectionTarget, setReflectionTarget]     = useState("");    // 振り返り対象（何に対する振り返りか）
+  const [logPopup, setLogPopup]                     = useState(null);  // 過去ログポップアップ
 
   // チュートリアル・ポップアップ state
   const [showTutorial, setShowTutorial] = useState(false);
@@ -573,7 +575,8 @@ export default function App() {
       if (nextAction) summary += `\n\n⚡ 次回の行動：${nextAction}`;
     } else if (mode === "survey_json") {
       const answered = Object.keys(answers).length;
-      summary = `アンケート振り返り（${answered}問回答）${comment?`\n\nコメント：${comment}`:""}`;
+      const targetLine = reflectionTarget ? `対象：${reflectionTarget}\n` : "";
+      summary = `${targetLine}アンケート振り返り（${answered}問回答）${comment?`\n\nコメント：${comment}`:""}`;
     } else {
       summary = REFLECTION_QUESTIONS.map(q => `${q.text} → ${typeof answers[q.id]==="number"?answers[q.id]+"/10":answers[q.id]}`).join("\n") + (comment?`\n\nコメント：${comment}`:"");
     }
@@ -1384,6 +1387,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
+      <style>{`@media (max-width: 480px) { body { zoom: 1.2; } }`}</style>
       <Header/>
       {StudentTutorialModal}
       {FeedbackWidget}
@@ -1474,57 +1478,7 @@ export default function App() {
                   <p style={{ fontSize:10, color:C.textMuted, marginTop:2 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
                 </div>
 
-                {/* 成長ポイント & ネクストアクション */}
-                {(() => {
-                  const grow   = AXES.filter(a => !a.ref && (latestSurvey.axes?.[a.id]||0) > 0 && (latestSurvey.axes?.[a.id]||0) <= 2);
-                  const strong = AXES.filter(a => !a.ref && (latestSurvey.axes?.[a.id]||0) >= 3);
-                  if (grow.length === 0 && strong.length === 0) return null;
-                  return (
-                    <div style={{ ...S.card, marginBottom:"1.25rem", borderColor:`${C.primary}33` }}>
-                      <p style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:"1rem", display:"flex", alignItems:"center", gap:6 }}>
-                        <Sparkles size={14} color={C.primary}/> 成長ポイント & ネクストアクション
-                      </p>
 
-                      {grow.length > 0 && (
-                        <div style={{ marginBottom: strong.length > 0 ? "1rem" : 0 }}>
-                          <p style={{ fontSize:12, fontWeight:700, color:C.warn, marginBottom:8 }}>📈 重点成長軸</p>
-                          {grow.map(a => {
-                            const na = myNextActions[a.id];
-                            return (
-                              <div key={a.id} style={{ marginBottom:8, padding:"10px 12px", background:C.surface2, borderRadius:10, border:`1px solid ${C.warn}22` }}>
-                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: na ? 6 : 0 }}>
-                                  <span style={S.tag(C.warn)}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>
-                                  {!na && (
-                                    <button onClick={()=>setScreen("portfolio")} style={{ ...S.btn, fontSize:11, padding:"3px 10px", marginLeft:"auto" }}>
-                                      NextAction を設定 →
-                                    </button>
-                                  )}
-                                </div>
-                                {na && (
-                                  <div style={{ display:"flex", alignItems:"flex-start", gap:6 }}>
-                                    <ArrowRight size={13} color={C.success} style={{ flexShrink:0, marginTop:2 }}/>
-                                    <span style={{ fontSize:12, color:C.text, lineHeight:1.5 }}>{na.text}</span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {strong.length > 0 && (
-                        <div>
-                          <p style={{ fontSize:12, fontWeight:700, color:C.success, marginBottom:8 }}>⭐ 強み</p>
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                            {strong.map(a => (
-                              <span key={a.id} style={{ ...S.tag(C.success), fontSize:12 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
               </>
             ) : (
               <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
@@ -1659,44 +1613,93 @@ export default function App() {
               <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8 }} onClick={saveLog}><Save size={14}/> 記録する</button>
             </div>
 
+            {/* ─── ログポップアップ ───────────────────────────────────── */}
+            {logPopup && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(4px)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"1rem" }}
+                onClick={()=>setLogPopup(null)}>
+                <div style={{ background:C.surface, borderRadius:"20px 20px 14px 14px", padding:"1.5rem", width:"100%", maxWidth:560, maxHeight:"80vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}
+                  onClick={e=>e.stopPropagation()}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:22 }}>{EMOTIONS[logPopup.emotion-1] || "📝"}</span>
+                      <div>
+                        <p style={{ margin:0, fontSize:15, fontWeight:700, color:C.text }}>{logPopup.activityTitle || "活動記録"}</p>
+                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>
+                          {fmt(logPopup.timestamp)}
+                          {logPopup.activityType && <span style={{ marginLeft:6, padding:"1px 6px", borderRadius:8, background: logPopup.activityType==="official"?C.warn+"22":C.accent1+"22", color: logPopup.activityType==="official"?C.warn:C.accent1, fontSize:10, fontWeight:600 }}>{logPopup.activityType==="official"?"📋 公式":"🙋 自主"}</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ storage.del(`log:${currentUser.id}:${logPopup.timestamp}`); setLogPopup(null); tick(); }}
+                        style={{ background:"none", border:"none", cursor:"pointer", color:C.accent2, padding:6 }}>
+                        <Trash2 size={15}/>
+                      </button>
+                      <button onClick={()=>setLogPopup(null)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:8, cursor:"pointer", color:C.textSub, padding:"4px 12px", fontSize:12 }}>閉じる</button>
+                    </div>
+                  </div>
+                  {/* メンチメーター回答 */}
+                  {logPopup.logAnswers && Object.keys(logPopup.logAnswers).length > 0 && (
+                    <div style={{ marginBottom:14 }}>
+                      <p style={{ fontSize:12, fontWeight:700, color:C.textSub, marginBottom:8 }}>📊 スコア</p>
+                      {REFLECTION_QUESTIONS.map(q => {
+                        const v = logPopup.logAnswers[q.id];
+                        if (!v) return null;
+                        return (
+                          <div key={q.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                            <span style={{ fontSize:12, color:C.textSub, flex:1, lineHeight:1.4 }}>{q.text}</span>
+                            <span style={{ fontSize:14, fontWeight:700, color:C.primary, minWidth:36, textAlign:"right" }}>{v}<span style={{ fontSize:10, fontWeight:400, color:C.textMuted }}>/10</span></span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* 旧フォーマット後方互換 */}
+                  {(logPopup.logQ1||logPopup.logQ2||logPopup.logQ3) && (
+                    <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+                      {[{l:"主体性",v:logPopup.logQ1},{l:"気づき",v:logPopup.logQ2},{l:"連携",v:logPopup.logQ3}].filter(f=>f.v).map(f=>(
+                        <span key={f.l} style={{ fontSize:12, padding:"4px 10px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>{f.l} {f.v}/10</span>
+                      ))}
+                    </div>
+                  )}
+                  {[{l:"Y やったこと",v:logPopup.yatta},{l:"W わかったこと",v:logPopup.wakatta},{l:"T 次にやること",v:logPopup.tsugi}].filter(f=>f.v).map(f => (
+                    <div key={f.l} style={{ marginBottom:8, padding:"8px 12px", background:C.surface2, borderRadius:8 }}>
+                      <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
+                      <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.6 }}>{f.v}</p>
+                    </div>
+                  ))}
+                  {logPopup.logMemo && (
+                    <div style={{ marginTop:10, padding:"10px 12px", background:C.surface2, borderRadius:8, borderLeft:`3px solid ${C.accent1}` }}>
+                      <p style={{ fontSize:11, fontWeight:700, color:C.accent1, margin:"0 0 4px" }}>📝 メモ</p>
+                      <p style={{ fontSize:13, color:C.text, margin:0, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{logPopup.logMemo}</p>
+                    </div>
+                  )}
+                  {logPopup.photo && (
+                    <img src={logPopup.photo} alt="log" style={{ marginTop:12, width:"100%", maxHeight:200, objectFit:"cover", borderRadius:10, border:`1px solid ${C.border}` }}/>
+                  )}
+                </div>
+              </div>
+            )}
+
             {myLogs.length>0 && (
               <div style={{ marginTop:"1rem" }}>
                 <h3 style={{ fontSize:14, fontWeight:700, color:C.textSub, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>過去のログ</h3>
                 {myLogs.map(lg => (
-                  <div key={lg.timestamp} style={S.scard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:0 }}>
-                        <span style={{ fontSize:18, flexShrink:0 }}>{EMOTIONS[lg.emotion-1]}</span>
-                        <div style={{ minWidth:0 }}>
-                          {lg.activityTitle && <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{lg.activityTitle}</p>}
-                          <p style={{ margin:0, fontSize:11, color:C.textSub }}>{fmt(lg.timestamp)}{lg.activityType && <span style={{ marginLeft:6, padding:"1px 5px", borderRadius:8, background: lg.activityType==="official"?C.warn+"22":C.accent1+"22", color: lg.activityType==="official"?C.warn:C.accent1, fontSize:10, fontWeight:600 }}>{lg.activityType==="official"?"📋 公式":"🙋 自主"}</span>}</p>
-                        </div>
+                  <div key={lg.timestamp} style={{ ...S.scard, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                    onClick={()=>setLogPopup(lg)}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, minWidth:0 }}>
+                      <span style={{ fontSize:20, flexShrink:0 }}>{EMOTIONS[lg.emotion-1] || "📝"}</span>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                          {lg.activityTitle || "活動記録"}
+                        </p>
+                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>
+                          {fmt(lg.timestamp)}
+                          {lg.activityType && <span style={{ marginLeft:6, padding:"1px 5px", borderRadius:8, background: lg.activityType==="official"?C.warn+"22":C.accent1+"22", color: lg.activityType==="official"?C.warn:C.accent1, fontSize:10, fontWeight:600 }}>{lg.activityType==="official"?"📋 公式":"🙋 自主"}</span>}
+                        </p>
                       </div>
-                      <button onClick={()=>{ storage.del(`log:${currentUser.id}:${lg.timestamp}`); tick(); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.textMuted, padding:4, flexShrink:0 }}><Trash2 size={13}/></button>
                     </div>
-                    {/* スライダー回答表示 */}
-                    {(lg.logQ1||lg.logQ2||lg.logQ3) && (
-                      <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
-                        {[{l:"主体性",v:lg.logQ1},{l:"気づき",v:lg.logQ2},{l:"連携",v:lg.logQ3}].filter(f=>f.v).map(f=>(
-                          <span key={f.l} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>
-                            {f.l} {f.v > 4 ? f.v+"/10" : ["😢","😕","😊","😄"][f.v-1]}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* 旧フォーマット後方互換：YWT */}
-                    {[{l:"Y やったこと",v:lg.yatta},{l:"W わかったこと",v:lg.wakatta},{l:"T 次にやること",v:lg.tsugi}].filter(f=>f.v).map(f => (
-                      <div key={f.l} style={{ marginBottom:6 }}>
-                        <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
-                        <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
-                      </div>
-                    ))}
-                    {lg.logMemo && (
-                      <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5, borderTop:`1px solid ${C.border}`, paddingTop:6 }}>{lg.logMemo}</p>
-                    )}
-                    {lg.photo && (
-                      <img src={lg.photo} alt="log" style={{ marginTop:8, width:"100%", maxHeight:180, objectFit:"cover", borderRadius:8, border:`1px solid ${C.border}` }}/>
-                    )}
+                    <ChevronRight size={15} color={C.textMuted} style={{ flexShrink:0 }}/>
                   </div>
                 ))}
               </div>
@@ -1898,7 +1901,7 @@ export default function App() {
                 <p style={{ fontSize:13, color:C.textSub, marginBottom:20 }}>メンターが確認・採点します。<br/>結果はFBページで確認できます。</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
                   <button style={S.btnPrimary} onClick={()=>setScreen("home")}>ホームへ戻る</button>
-                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionComment(""); }}>続けて提出する</button>
+                  <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionComment(""); setReflectionTarget(""); }}>続けて提出する</button>
                 </div>
               </div>
             ) : (
@@ -1914,6 +1917,20 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                {/* 振り返り対象の入力 */}
+                <div style={{ marginBottom:14, padding:"12px 14px", background:C.surface, borderRadius:12, border:`1px solid ${C.primary}33` }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:6 }}>
+                    📝 何に対する振り返りですか？
+                  </label>
+                  <input
+                    type="text"
+                    value={reflectionTarget}
+                    onChange={e => setReflectionTarget(e.target.value)}
+                    placeholder="例：今日のグループワーク、プレゼン発表..."
+                    style={{ ...S.input }}
+                  />
+                </div>
 
                 {/* survey_questions.json 15問アンケート形式 */}
                 {surveyLoadErr ? (
