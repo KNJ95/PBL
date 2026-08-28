@@ -3,7 +3,7 @@ import {
   Home, ClipboardList, BookOpen, LogOut,
   ChevronRight, Trash2, Save, Star,
   Users, MessageSquare, ThumbsUp, Zap, TrendingUp,
-  BarChart2, Send, ArrowRight, Sparkles, X,
+  Send, X,
   HelpCircle, Info, ChevronLeft
 } from "lucide-react";
 import {
@@ -278,11 +278,9 @@ const getMentorSurveys = (sid) => storage.keys(`mentor_survey:${sid}:`).map(k=>s
 // ─── インタラクション（問い/フィードバック）localStorage ──────────────────
 const getQuestions  = () => storage.get("questions_store") || [];
 const getFeedbacks  = () => storage.get("feedbacks_store") || [];
-const getNextActions= (uid) => storage.get(`next_actions:${uid}`) || {};
 const getPending    = () => storage.get("pending_evals") || [];
 
 const saveQuestions  = (d) => storage.set("questions_store", d);
-const saveNextActions= (uid,d) => storage.set(`next_actions:${uid}`, d);
 const savePending    = (d) => storage.set("pending_evals", d);
 
 // ─── スタイル ──────────────────────────────────────────────────────────────
@@ -313,17 +311,6 @@ function Avatar({ name, size=36, color=C.primary }) {
   );
 }
 
-function LvBar({ lv, maxLv=4, label="" }) {
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-      {label && <span style={{ fontSize:11, color:C.textSub, minWidth:48 }}>{label}</span>}
-      <div style={{ flex:1, height:6, background:C.surface3, borderRadius:99, overflow:"hidden" }}>
-        <div style={{ height:"100%", width:`${(lv/maxLv)*100}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, transition:"width 0.4s" }}/>
-      </div>
-      <span style={{ fontSize:12, fontWeight:700, color:LEVEL_COLOR[lv]||C.textSub, minWidth:14 }}>{lv||"—"}</span>
-    </div>
-  );
-}
 
 // ─── チャットボット型振り返り設問 ────────────────────────────────────────────
 const CHATBOT_QUESTIONS = [
@@ -401,8 +388,6 @@ export default function App() {
   const [logAnswers, setLogAnswers] = useState({});                    // ログ：REFLECTION_QUESTIONS 1-10スライダー
   const [logMemo, setLogMemo] = useState("");                          // 活動概要メモ
   const [reflectionDone, setReflectionDone] = useState(false);
-  const [nextActInputs, setNextActInputs] = useState({});
-  const [portfolioAiResult, setPortfolioAiResult]   = useState(null);
   const [reflectionAnswers, setReflectionAnswers]   = useState({});    // 振り返りアンケート回答（survey_json用）
   const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
   const [surveyLoadErr, setSurveyLoadErr]           = useState(null);  // JSONロードエラー
@@ -585,34 +570,6 @@ export default function App() {
     setLogAnswers({}); setLogMemo(""); tick();
   };
 
-  // ─── ポートフォリオ：Gemini プロンプト生成 ───────────────────────────
-  const runMockAiAnalysis = () => {
-    const axes = latestSurvey?.axes || {};
-    const recentLogs = myLogs.slice(0, 5);
-    const latestMentor = getMentorSurveys(currentUser.id)[0];
-
-    const axisLines   = AXES.map(a => `  ${a.id}. ${a.name}: Lv.${axes[a.id] ?? "未評価"}`).join("\n");
-    const logLines    = recentLogs.length
-      ? recentLogs.map((l, i) =>
-          `  [${i+1}] ${fmt(l.timestamp)}\n    やったこと: ${l.yatta || "（未記入）"}\n    わかったこと: ${l.wakatta || "（未記入）"}\n    次にやること: ${l.tsugi || "（未記入）"}`
-        ).join("\n")
-      : "  （ログなし）";
-    const mentorLines = latestMentor
-      ? AXES.map(a => `  ${a.name}: Lv.${latestMentor.axes?.[a.id] ?? "-"}`).join("\n")
-      : "  （メンター評価なし）";
-
-    const prompt =
-      `あなたはPBL（Project-Based Learning）の学習支援AIです。以下の学生データをもとに、「Be-Ready人材」観点での成長評価レポートを日本語で作成してください。\n\n` +
-      `【学生情報】\n名前: ${currentUser.name}  ログ記録数: ${myLogs.length}件  最新アンケート: ${latestSurvey?.term || "未実施"}\n\n` +
-      `【9軸自己評価（最新）】\n${axisLines}\n\n` +
-      `【直近の日次ログ（最大5件）】\n${logLines}\n\n` +
-      `【メンター評価（最新）】\n${mentorLines}\n\n` +
-      `以下の構成でレポートを作成してください：\n◆ 総合所見（3〜4文）\n💪 強みと判断される軸とその根拠\n🌱 成長が期待される軸とその根拠\n📋 今後へのアドバイス（具体的に2〜3点）`;
-
-    navigator.clipboard.writeText(prompt).catch(() => {});
-    setPortfolioAiResult(prompt);
-  };
-
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
   const submitReflection = (answers, mode, comment="", nextAction="", allQs=[], extra={}) => {
     let summary;
@@ -643,15 +600,6 @@ export default function App() {
     savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending" }]);
     tick();
     setReflectionDone(true);
-  };
-
-  // ─── 学生：NextAction ────────────────────────────────────────────────
-  const saveNextAction = (axisId) => {
-    const text = nextActInputs[axisId];
-    if (!text?.trim()) return;
-    const cur = getNextActions(currentUser.id);
-    saveNextActions(currentUser.id, { ...cur, [axisId]:{ text, createdAt:fmt(Date.now()) } });
-    setNextActInputs(m => ({ ...m, [axisId]:"" })); tick();
   };
 
   // ─── メンター：AI採点 ─────────────────────────────────────────────────
@@ -1417,7 +1365,6 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────
   // 学生画面
   // ─────────────────────────────────────────────────────────────────────
-  const myNextActions = getNextActions(currentUser.id);
   const myPending     = getPending().filter(p=>p.studentId===currentUser.id);
   const myQuestions   = getQuestions().filter(q=>q.studentId===currentUser.id);
   const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
@@ -1557,9 +1504,6 @@ export default function App() {
                         自己評価{latestMentor ? " / メンター評価" : ""}（最新）
                       </p>
                     </div>
-                    <button onClick={()=>setScreen("portfolio")} style={{ ...S.btn, fontSize:11, padding:"4px 10px", display:"flex", alignItems:"center", gap:4 }}>
-                      詳細 <ChevronRight size={12}/>
-                    </button>
                   </div>
                   <ResponsiveContainer width="100%" height={300}>
                     <RadarChart data={radarData(latestSurvey, latestMentor)}>
@@ -1618,7 +1562,6 @@ export default function App() {
               {[
                 { l:"活動を記録",        d:"メンチメーター形式で記録",   icon:BookOpen,   s:"log",        c:C.accent1 },
                 { l:"振り返り提出",      d:"アンケート形式で振り返り",   icon:TrendingUp, s:"reflection", c:C.warn    },
-                { l:"ポートフォリオ",    d:"成長を確認・出力",          icon:Star,       s:"portfolio",  c:"#f59e0b" },
                 { l:"プロジェクト情報",  d:"概要・ゴールを確認",        icon:Info,       s:"project",    c:C.textSub },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}33`, minWidth:0, overflow:"hidden", marginBottom:0, padding:"12px 14px" }}>
@@ -1804,182 +1747,7 @@ export default function App() {
         )}
 
         {/* ─── ポートフォリオ ──────────────────────────────────────── */}
-        {screen==="portfolio" && (
-          <div>
-            {!latestSurvey ? (
-              <div style={{ ...S.card, textAlign:"center", padding:"3rem" }}>
-                <BarChart2 size={40} color={C.primary+"44"} style={{ marginBottom:12 }}/>
-                <p style={{ color:C.textSub, marginBottom:16 }}>まだ評価データがありません。<br/>振り返りを提出するとメンターが採点します。</p>
-                <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
-              </div>
-            ) : (
-              <>
-                {/* レーダーチャート */}
-                <div style={S.card}>
-                  <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>自己評価 vs 他者評価</p>
-                  <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>最新のアンケートとメンター評価を重ねて表示します。</p>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <RadarChart data={radarData(latestSurvey, latestMentor)}>
-                      <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
-                      <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
-                      <Legend wrapperStyle={{ fontSize:12 }}/>
-                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
-                    </RadarChart>
-                  </ResponsiveContainer>
-                  <p style={{ fontSize:10, color:C.textMuted, marginTop:4 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
-                </div>
 
-                {/* 今期目標 */}
-                <div style={{ ...S.card, borderColor:C.primary+"44" }}>
-                  <p style={{ fontSize:12, fontWeight:700, color:C.primary, marginBottom:6 }}>今期の目標</p>
-                  <p style={{ fontSize:14, color:C.text, margin:0, lineHeight:1.7 }}>{latestSurvey.term}</p>
-                </div>
-
-                {/* GAPとNextAction */}
-                <div style={S.card}>
-                  <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>GAP と NextAction</p>
-                  <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>
-                    <span style={{ color:C.primary }}>■ 自己</span>　<span style={{ color:C.accent1 }}>■ 他者</span>　GAPを確認して次の行動を設定してください。
-                  </p>
-                  {AXES.map(a => {
-                    const self  = latestSurvey?.axes?.[a.id] || 0;
-                    const other = latestMentor?.axes?.[a.id] || 0;
-                    const gap   = self - other;
-                    const existing = myNextActions[a.id];
-                    return (
-                      <div key={a.id} style={{ marginBottom:"1rem", paddingBottom:"1rem", borderBottom:`1px solid ${C.border}` }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-                          <span style={{ fontSize:13, fontWeight:700, minWidth:110, color:C.text }}>{a.name}</span>
-                          {self>0 && <span style={S.tag(C.primary)}>自己 {self}</span>}
-                          {other>0 && <span style={S.tag(C.accent1)}>他者 {other}</span>}
-                          {self>0 && other>0 && (
-                            <span style={S.tag(gap>0?C.warn:gap<0?C.accent1:C.success)}>
-                              {gap>0?`自己+${gap}`:gap<0?`他者+${Math.abs(gap)}`:"一致"}
-                            </span>
-                          )}
-                        </div>
-                        {existing ? (
-                          <div style={{ background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                            <span style={{ fontSize:13, color:C.text }}><ArrowRight size={12} style={{ verticalAlign:"middle", marginRight:4, color:C.success }}/>{existing.text}</span>
-                            <button style={{ ...S.btn, fontSize:11, padding:"3px 10px" }} onClick={()=>{ const na=getNextActions(currentUser.id); delete na[a.id]; saveNextActions(currentUser.id,na); tick(); }}>変更</button>
-                          </div>
-                        ) : (
-                          <div style={{ display:"flex", gap:8 }}>
-                            <input value={nextActInputs[a.id]||""} onChange={e=>setNextActInputs(m=>({...m,[a.id]:e.target.value}))} placeholder="NextActionを入力..." style={{ ...S.input, flex:1 }}/>
-                            <button style={S.btnPrimary} onClick={()=>saveNextAction(a.id)}>保存</button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* 9軸レベルバー */}
-                <div style={S.card}>
-                  <p style={{ fontSize:13, fontWeight:700, marginBottom:12, color:C.text }}>9軸スコア（最新）</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                    {AXES.map(a => {
-                      const self  = latestSurvey?.axes?.[a.id] || 0;
-                      const other = latestMentor?.axes?.[a.id] || 0;
-                      return (
-                        <div key={a.id} style={{ background:C.surface2, borderRadius:10, padding:"10px 12px", border:`1px solid ${C.border}`, opacity: a.ref ? 0.7 : 1 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:6, flexWrap:"wrap" }}>
-                            <p style={{ fontSize:11, color:C.textSub, margin:0 }}>{a.name}</p>
-                            {a.ref && <span style={{ fontSize:9, color:C.textMuted, background:C.surface3, borderRadius:4, padding:"1px 4px", flexShrink:0 }}>参考値</span>}
-                          </div>
-                          <LvBar lv={self} label="自己" maxLv={4}/>
-                          <div style={{ marginTop:4 }}>
-                            <LvBar lv={other} label="他者" maxLv={4}/>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 強み・成長エリア */}
-                {(() => {
-                  const strong = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) >= 3 && !a.ref);
-                  const grow   = AXES.filter(a => (latestSurvey.axes?.[a.id]||0) <= 2 && (latestSurvey.axes?.[a.id]||0) > 0 && !a.ref);
-                  const refAxes = AXES.filter(a => a.ref && (latestSurvey.axes?.[a.id]||0) > 0);
-                  return (
-                    <div>
-                      {strong.length>0 && (
-                        <div style={{ ...S.card, borderColor:C.success+"44", marginBottom:10 }}>
-                          <p style={{ fontSize:13, fontWeight:700, color:C.success, marginBottom:10 }}>💪 強みのエリア（Lv3以上）</p>
-                          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                            {strong.map(a => <span key={a.id} style={{ ...S.tag(C.success), fontSize:13 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
-                          </div>
-                        </div>
-                      )}
-                      {grow.length>0 && (
-                        <div style={{ ...S.card, borderColor:C.warn+"44", marginBottom:10 }}>
-                          <p style={{ fontSize:13, fontWeight:700, color:C.warn, marginBottom:10 }}>🌱 成長のエリア</p>
-                          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                            {grow.map(a => <span key={a.id} style={{ ...S.tag(C.warn), fontSize:13 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
-                          </div>
-                        </div>
-                      )}
-                      {refAxes.length>0 && (
-                        <div style={{ ...S.scard, borderLeft:`3px solid ${C.textMuted}`, opacity:0.7 }}>
-                          <p style={{ fontSize:11, fontWeight:700, color:C.textMuted, marginBottom:6 }}>参考値（評価基準未確定）</p>
-                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                            {refAxes.map(a => <span key={a.id} style={{ ...S.tag(C.textMuted), fontSize:11 }}>{a.name} Lv.{latestSurvey.axes[a.id]}</span>)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* AI分析 */}
-                <div style={{ ...S.card, borderColor:C.accent1+"44", marginTop:12 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                    <Sparkles size={16} color={C.accent1}/>
-                    <p style={{ fontSize:13, fontWeight:700, color:C.text, margin:0 }}>Gemini 成長分析</p>
-                    <span style={{ fontSize:10, background:"#1a73e822", color:"#1a73e8", borderRadius:4, padding:"2px 6px" }}>Gemini</span>
-                  </div>
-                  <p style={{ fontSize:12, color:C.textSub, marginBottom:12 }}>
-                    プロンプトを生成してコピー → Gemini に貼り付けると AI 分析レポートを取得できます。
-                  </p>
-                  {portfolioAiResult ? (
-                    <div>
-                      <textarea
-                        readOnly
-                        value={portfolioAiResult}
-                        style={{ width:"100%", height:200, fontSize:11, color:C.text, background:C.surface2, border:`1px solid ${C.border}`, borderRadius:8, padding:"0.75rem", lineHeight:1.6, resize:"vertical", boxSizing:"border-box" }}
-                      />
-                      <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
-                        <button style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:6 }}
-                          onClick={() => navigator.clipboard.writeText(portfolioAiResult)}>
-                          <Sparkles size={13}/> コピーする
-                        </button>
-                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"
-                          style={{ ...S.btn, display:"flex", alignItems:"center", gap:6, textDecoration:"none" }}>
-                          Gemini を開く →
-                        </a>
-                        <button style={{ ...S.btn, display:"flex", alignItems:"center", gap:6 }} onClick={()=>setPortfolioAiResult(null)}>
-                          再生成
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      style={{ ...S.btnPrimary, display:"flex", alignItems:"center", gap:8, background:`linear-gradient(135deg,${C.primary},${C.accent1})` }}
-                      onClick={runMockAiAnalysis}
-                    >
-                      <Sparkles size={14}/> プロンプトを生成・コピー
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ─── 振り返り ──────────────────────────────────────────────── */}
         {screen==="reflection" && (
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.warn}15`, borderRadius:12, border:`1px solid ${C.warn}33` }}>
