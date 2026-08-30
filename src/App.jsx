@@ -843,6 +843,40 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                ) : p.mode==="survey_json" && p.answers && surveyDef ? (
+                  // survey_json（15問アンケート）回答表示
+                  <div>
+                    {surveyDef.sections.flatMap(s=>s.questions).map((q, i, allQs) => {
+                      const val = p.answers[q.id];
+                      const opt = q.options?.find(o => o.value === val);
+                      const drill = p.drillAnswers?.[q.id];
+                      return (
+                        <div key={q.id} style={{ marginBottom: i<allQs.length-1?14:0, paddingBottom: i<allQs.length-1?14:0, borderBottom: i<allQs.length-1?`1px solid ${C.border}`:"none" }}>
+                          <p style={{ fontSize:11, color:C.textMuted, margin:"0 0 3px" }}>Q{i+1}</p>
+                          <p style={{ fontSize:12, color:C.textSub, margin:"0 0 5px", lineHeight:1.5 }}>{q.text}</p>
+                          {opt ? (
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:20,
+                                background: val===0?C.surface3:C.primary+"18", color: val===0?C.textMuted:C.primary,
+                                border:`1px solid ${val===0?C.border:C.primary+"44"}` }}>
+                                {val===0?"—":` Lv.${val}`}
+                              </span>
+                              <span style={{ fontSize:13, color:C.text }}>{opt.label}</span>
+                            </div>
+                          ) : <span style={{ fontSize:12, color:C.textMuted }}>未回答</span>}
+                          {drill?.d1 && (
+                            <p style={{ fontSize:11, color:C.textSub, margin:"5px 0 0", paddingLeft:10, borderLeft:`2px solid ${C.primary}44` }}>
+                              🔍 {drill.d1}
+                              {drill.d2choice && <><br/>⚡ {drill.d2choice}{drill.d2text?`（${drill.d2text}）`:""}</>}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : p.mode==="survey_json" && p.answers ? (
+                  // surveyDef未ロード時はテキスト表示
+                  <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", margin:0, lineHeight:1.7 }}>{p.reflection}</p>
                 ) : p.answers ? REFLECTION_QUESTIONS.map((q, i) => {
                   const val = p.answers[q.id] || 0;
                   return (
