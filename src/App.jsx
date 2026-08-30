@@ -907,7 +907,7 @@ export default function App() {
 
             {/* 採点 */}
             <p style={{ fontSize:13, fontWeight:700, marginBottom:4, color:C.text }}>他者評価スコア</p>
-            <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性</p>
+            <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性　迷った場合は「迷った」にチェック</p>
             {AXES.map(a => {
               const aiScore = aiResult?.scores[a.id];
               const cur = mentorScores[a.id] || aiScore || 1;
@@ -934,7 +934,7 @@ export default function App() {
                           onChange={e => setMentorUncertain(prev => ({ ...prev, [a.id]: e.target.checked }))}
                           style={{ width:13, height:13, accentColor:C.warn, cursor:"pointer" }}
                         />
-                        {isUncertain ? "⚠️ 迷い" : "迷い"}
+                        {isUncertain ? "⚠️ 迷った" : "迷った"}
                       </label>
                     </div>
                   </div>
@@ -1148,7 +1148,7 @@ export default function App() {
                           <div>
                             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                               <p style={{ margin:0, fontWeight:700, fontSize:14, color:C.text }}>{st.name}</p>
-                              {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷い</span>}
+                              {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷った</span>}
                             </div>
                             <p style={{ margin:0, fontSize:11, color:C.textSub }}>
                               アンケート {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}
@@ -1276,7 +1276,7 @@ export default function App() {
                   {/* 評価入力フォーム */}
                   <div style={{ ...S.card, marginTop:16 }}>
                     <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>評価を入力（他者評価）</p>
-                    <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性</p>
+                    <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性　迷った場合は「迷った」にチェック</p>
                     {AXES.map(a => {
                       const cur = mentorAxisScores[a.id] || 0;
                       const isUncertain = !!mentorUncertain[a.id];
@@ -1301,7 +1301,7 @@ export default function App() {
                                   onChange={e => setMentorUncertain(prev => ({ ...prev, [a.id]: e.target.checked }))}
                                   style={{ width:13, height:13, accentColor:C.warn, cursor:"pointer" }}
                                 />
-                                {isUncertain ? "⚠️ 迷い" : "迷い"}
+                                {isUncertain ? "⚠️ 迷った" : "迷った"}
                               </label>
                             </div>
                           </div>
