@@ -517,13 +517,13 @@ export default function App() {
 
   // プロジェクト情報をストレージから読み込んで編集ステートに反映
   useEffect(() => {
-    if (currentUser?.projectId) {
-      const projKey = `project_info:${currentUser.projectId}`;
+    if (currentUser?.id) {
+      const projKey = `project_info:${currentUser.id}`;
       const info = storage.get(projKey) || {};
       setProjEditState({ name: info.name || "", summary: info.summary || "" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.projectId]);
+  }, [currentUser?.id]);
 
   // survey_questions.json の読み込み（振り返りアンケート用）
   useEffect(() => {
@@ -1462,7 +1462,7 @@ export default function App() {
           <div>
             {/* プロジェクト情報（最上部） */}
             {(() => {
-              const projKey = `project_info:${currentUser.projectId || "default"}`;
+              const projKey = `project_info:${currentUser.id}`;
               const saveProjInfo = () => {
                 storage.set(projKey, { ...storage.get(projKey)||{}, name: projEditState.name, summary: projEditState.summary });
                 tick();
@@ -1876,9 +1876,10 @@ export default function App() {
                   const progress = ((reflectionStep) / allQs.length) * 100;
                   const mainSel = reflectionAnswers[q.id];
                   const dData   = drillAnswers[q.id] || {};
-                  const { d1q, d1opts, d2q, d2opts } = getDrillConfig(mainSel);
+                  const skipDrill = mainSel === 0; // value:0 は「該当なし」→深堀り不要
+                  const { d1q, d1opts, d2q, d2opts } = skipDrill ? { d1q:"", d1opts:[], d2q:"", d2opts:[] } : getDrillConfig(mainSel);
                   const isLast  = reflectionStep === allQs.length - 1;
-                  const canNext = mainSel && dData.d1 && dData.d2choice;
+                  const canNext = mainSel !== undefined && mainSel !== null && (skipDrill || (dData.d1 && dData.d2choice));
 
                   const setDrill = (field, val) => setDrillAnswers(prev => ({
                     ...prev, [q.id]: { ...(prev[q.id]||{}), [field]: val }
@@ -1944,8 +1945,8 @@ export default function App() {
                           })}
                         </div>
 
-                        {/* ─ 深堀り（メイン選択後に表示） ─ */}
-                        {mainSel && (
+                        {/* ─ 深堀り（メイン選択後に表示、value:0の「該当なし」は除く） ─ */}
+                        {mainSel && !skipDrill && (
                           <>
                             <div style={{ borderTop:`1px dashed ${C.border}`, margin:"18px 0 14px" }}/>
                             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10 }}>
@@ -1996,7 +1997,7 @@ export default function App() {
                           {isLast ? <><Save size={14}/> 振り返りを提出する</> : <>次の質問へ <ChevronRight size={15}/></>}
                         </button>
                       )}
-                      {mainSel && !canNext && (
+                      {mainSel !== undefined && mainSel !== null && !canNext && !skipDrill && (
                         <p style={{ fontSize:11, color:C.textMuted, marginTop:10, textAlign:"center" }}>
                           🔍 と ⚡ にも答えると次へ進めます
                         </p>
@@ -2097,7 +2098,7 @@ export default function App() {
 
         {/* ─── プロジェクト情報 ──────────────────────────────────────── */}
         {screen==="project" && (() => {
-          const projKey = `project_info:${currentUser.projectId || "default"}`;
+          const projKey = `project_info:${currentUser.id}`;
           const projInfo = storage.get(projKey) || {};
           const saveField = (field, value) => {
             storage.set(projKey, { ...storage.get(projKey)||{}, [field]: value });
