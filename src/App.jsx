@@ -418,6 +418,7 @@ export default function App() {
   const [mentorAxisScores, setMentorAxisScores] = useState({});
   const [mentorHistView, setMentorHistView] = useState("survey");
   const [mentorUncertain, setMentorUncertain] = useState({}); // #14 判定迷いフラグ { [axisId]: boolean }
+  const [showAllAnswers, setShowAllAnswers]   = useState(false); // 採点画面：全回答表示トグル
 
   // ログイン
   const [loginId, setLoginId]             = useState("");
@@ -817,8 +818,13 @@ export default function App() {
 
             {/* 振り返り内容 */}
             <div style={{ marginBottom:"1.25rem" }}>
-              <p style={{ fontSize:12, fontWeight:700, color:C.textSub, marginBottom:8, letterSpacing:"0.06em", textTransform:"uppercase" }}>振り返り回答内容</p>
-              <div style={{ background:C.surface2, borderRadius:10, padding:"0.875rem" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: showAllAnswers ? 8 : 0 }}>
+                <p style={{ fontSize:12, fontWeight:700, color:C.textSub, margin:0, letterSpacing:"0.06em", textTransform:"uppercase" }}>振り返り回答内容（全体）</p>
+                <button onClick={()=>setShowAllAnswers(v=>!v)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, cursor:"pointer", padding:"3px 10px", fontSize:11, color:C.primary }}>
+                  {showAllAnswers ? "▲ 閉じる" : "▼ 全回答を見る"}
+                </button>
+              </div>
+              {showAllAnswers && <div style={{ background:C.surface2, borderRadius:10, padding:"0.875rem" }}>
                 {p.mode==="chatbot" && p.answers ? (
                   <div>
                     {CHATBOT_QUESTIONS.map((q, i) => {
@@ -894,7 +900,7 @@ export default function App() {
                     </div>
                   );
                 }) : <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", margin:0, lineHeight:1.7 }}>{p.reflection}</p>}
-              </div>
+              </div>}
             </div>
 
             {/* AI採点ボタン */}
@@ -944,6 +950,42 @@ export default function App() {
                     ))}
                   </div>
                   {aiResult?.rationale?.[a.id] && <p style={{ fontSize:11, color:C.textMuted, margin:0, lineHeight:1.5 }}>{aiResult.rationale[a.id]}</p>}
+                  {/* 関連回答インライン表示（survey_json のみ） */}
+                  {p.mode==="survey_json" && surveyDef && (() => {
+                    const axisQs = surveyDef.sections.flatMap(s=>s.questions).filter(q => (q.axisWeights?.[a.id] || 0) > 0);
+                    if (!axisQs.length) return null;
+                    return (
+                      <div style={{ marginTop:8, padding:"8px 10px", background:C.surface2, borderRadius:8 }}>
+                        <p style={{ fontSize:10, color:C.textMuted, margin:"0 0 6px", fontWeight:700, letterSpacing:"0.05em" }}>この軸に関連する学生の回答</p>
+                        {axisQs.map((q, qi) => {
+                          const val = p.answers?.[q.id];
+                          const opt = q.options?.find(o => o.value === val);
+                          const drill = p.drillAnswers?.[q.id];
+                          return (
+                            <div key={q.id} style={{ paddingBottom: qi<axisQs.length-1?8:0, marginBottom: qi<axisQs.length-1?8:0, borderBottom: qi<axisQs.length-1?`1px solid ${C.border}`:"none" }}>
+                              <p style={{ fontSize:11, color:C.textSub, margin:"0 0 3px", lineHeight:1.4 }}>{q.text}</p>
+                              {opt ? (
+                                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                  <span style={{ fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:20,
+                                    background:val===0?C.surface3:C.primary+"18", color:val===0?C.textMuted:C.primary,
+                                    border:`1px solid ${val===0?C.border:C.primary+"44"}` }}>
+                                    {val===0?"—":`Lv.${val}`}
+                                  </span>
+                                  <span style={{ fontSize:12, color:C.text }}>{opt.label}</span>
+                                </div>
+                              ) : <span style={{ fontSize:11, color:C.textMuted }}>未回答</span>}
+                              {drill?.d1 && val !== 0 && (
+                                <p style={{ fontSize:10, color:C.textSub, margin:"3px 0 0", paddingLeft:8, borderLeft:`2px solid ${C.primary}44`, lineHeight:1.4 }}>
+                                  🔍 {drill.d1}
+                                  {drill.d2choice && <><br/>⚡ {drill.d2choice}{drill.d2text?`（${drill.d2text}）`:""}</>}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
