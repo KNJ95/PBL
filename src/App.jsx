@@ -387,6 +387,8 @@ export default function App() {
   const [activityType, setActivityType]   = useState("self");       // ログ："official" | "self"
   const [logAnswers, setLogAnswers] = useState({});                    // ログ：REFLECTION_QUESTIONS 1-10スライダー
   const [logMemo, setLogMemo] = useState("");                          // 活動概要メモ
+  const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0,10));         // ログ日付
+  const [reflectionDate, setReflectionDate] = useState(() => new Date().toISOString().slice(0,10)); // 振り返り日付
   const [reflectionDone, setReflectionDone] = useState(false);
   const [reflectionAnswers, setReflectionAnswers]   = useState({});    // 振り返りアンケート回答（survey_json用）
   const [surveyDef, setSurveyDef]                   = useState(null);  // survey_questions.json
@@ -560,7 +562,7 @@ export default function App() {
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
     if (!activityTitle.trim() && Object.keys(logAnswers).length === 0) return;
-    const ts = Date.now();
+    const ts = logDate ? new Date(logDate).setHours(12,0,0,0) : Date.now();
     storage.set(`log:${currentUser.id}:${ts}`, {
       userID: currentUser.id, timestamp: ts,
       activityTitle: activityTitle.trim() || "活動記録",
@@ -568,7 +570,8 @@ export default function App() {
       logAnswers, logMemo,
     });
     setActivityTitle(""); setActivityType("self");
-    setLogAnswers({}); setLogMemo(""); tick();
+    setLogAnswers({}); setLogMemo("");
+    setLogDate(new Date().toISOString().slice(0,10)); tick();
   };
 
   // ─── 学生：振り返り提出 ───────────────────────────────────────────────
@@ -598,7 +601,9 @@ export default function App() {
     }
     const pending = getPending();
     const axes = (mode === "survey_json" && allQs.length > 0) ? calcAxesFromAnswers(answers, allQs) : {};
-    savePending([...pending, { id:"pe"+Date.now(), studentId:currentUser.id, date:fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending" }]);
+    const refTs = reflectionDate ? new Date(reflectionDate).setHours(12,0,0,0) : Date.now();
+    savePending([...pending, { id:"pe"+refTs, studentId:currentUser.id, date:reflectionDate || fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending" }]);
+    setReflectionDate(new Date().toISOString().slice(0,10));
     tick();
     setReflectionDone(true);
   };
@@ -1620,13 +1625,26 @@ export default function App() {
             </div>
             <div style={S.cardGlow}>
               {/* 活動タイトル（何に対してのログなのか） */}
-              <div style={{ marginBottom:20 }}>
+              <div style={{ marginBottom:16 }}>
                 <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:6 }}>
                   📌 何の活動のログですか？ <span style={{ color:C.accent2 }}>*</span>
                 </label>
                 <input value={activityTitle} onChange={e=>setActivityTitle(e.target.value)}
                   placeholder="例：チームミーティング、現場視察、企業インタビュー"
                   style={{ ...S.input, width:"100%", boxSizing:"border-box" }}/>
+              </div>
+
+              {/* 活動日 */}
+              <div style={{ marginBottom:20 }}>
+                <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:6 }}>
+                  📅 活動日
+                </label>
+                <input
+                  type="date"
+                  value={logDate}
+                  onChange={e => setLogDate(e.target.value)}
+                  style={{ ...S.input, width:"100%", boxSizing:"border-box" }}
+                />
               </div>
 
               {/* 公式/自主 区分 */}
@@ -1832,6 +1850,15 @@ export default function App() {
                       value={reflectionTarget}
                       onChange={e => setReflectionTarget(e.target.value)}
                       placeholder="例：今日のグループワーク、プレゼン発表..."
+                      style={{ ...S.input, marginBottom:16 }}
+                    />
+                    <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:8 }}>
+                      📅 振り返り日
+                    </label>
+                    <input
+                      type="date"
+                      value={reflectionDate}
+                      onChange={e => setReflectionDate(e.target.value)}
                       style={{ ...S.input, marginBottom:20 }}
                     />
                     <button style={{ ...S.btnPrimary, width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
