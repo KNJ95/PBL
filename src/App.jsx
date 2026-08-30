@@ -417,7 +417,7 @@ export default function App() {
   const [answerMap, setAnswerMap]     = useState({});
   const [mentorAxisScores, setMentorAxisScores] = useState({});
   const [mentorHistView, setMentorHistView] = useState("survey");
-  const [mentorUncertain, setMentorUncertain] = useState(false); // #14 判定迷いフラグ
+  const [mentorUncertain, setMentorUncertain] = useState({}); // #14 判定迷いフラグ { [axisId]: boolean }
 
   // ログイン
   const [loginId, setLoginId]             = useState("");
@@ -641,11 +641,11 @@ export default function App() {
       studentId:pending.studentId, mentorId:currentUser.id,
       timestamp:ts, axes:{ ...mentorScores }, note:mentorNote, aiSuggested:aiResult?.scores,
       reflection:pending.reflection,
-      uncertain: mentorUncertain, // #14 判定迷いフラグ
+      uncertain: mentorUncertain, // #14 判定迷いフラグ { [axisId]: boolean }
     });
     const newPending = getPending().filter(p => p.id !== pending.id);
     savePending(newPending);
-    setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); setMentorUncertain(false); tick();
+    setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); setMentorUncertain({}); tick();
     alert("他者評価を確定しました。");
   };
 
@@ -910,8 +910,10 @@ export default function App() {
             {AXES.map(a => {
               const aiScore = aiResult?.scores[a.id];
               const cur = mentorScores[a.id] || aiScore || 1;
+              const isUncertain = !!mentorUncertain[a.id];
               return (
-                <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}`,
+                  background: isUncertain ? `${C.warn}08` : "transparent", borderRadius: isUncertain ? 8 : 0, padding: isUncertain ? "8px 10px" : 0 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                     <div>
                       <button onClick={()=>setRubricAxis(a)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"inline-flex", alignItems:"center", gap:5, fontSize:13, color:C.text, fontWeight:600 }} title="採点基準を見る">
@@ -920,7 +922,20 @@ export default function App() {
                       </button>
                       {aiScore && <p style={{ margin:0, fontSize:11, color:C.primary }}>AI提案: Lv.{aiScore}</p>}
                     </div>
-                    {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {mentorScores[a.id]!==undefined && aiScore && mentorScores[a.id]!==aiScore && <span style={S.tag(C.warn)}>修正済</span>}
+                      {/* #14 軸ごと迷いフラグ */}
+                      <label style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer", fontSize:11,
+                        color: isUncertain ? C.warn : C.textMuted, fontWeight: isUncertain ? 700 : 400 }}>
+                        <input
+                          type="checkbox"
+                          checked={isUncertain}
+                          onChange={e => setMentorUncertain(prev => ({ ...prev, [a.id]: e.target.checked }))}
+                          style={{ width:13, height:13, accentColor:C.warn, cursor:"pointer" }}
+                        />
+                        {isUncertain ? "⚠️ 迷い" : "迷い"}
+                      </label>
+                    </div>
                   </div>
                   <div style={{ display:"flex", gap:6, marginBottom:4 }}>
                     {[1,2,3,4].map(s => (
@@ -932,16 +947,6 @@ export default function App() {
               );
             })}
             <textarea value={mentorNote} onChange={e=>setMentorNote(e.target.value)} placeholder="メンターコメント（任意）" style={{ ...S.textarea, marginBottom:12 }}/>
-            {/* #14 判定迷いフラグ */}
-            <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, cursor:"pointer", fontSize:13, color:C.warn, fontWeight:mentorUncertain?700:400 }}>
-              <input
-                type="checkbox"
-                checked={mentorUncertain}
-                onChange={e=>setMentorUncertain(e.target.checked)}
-                style={{ width:16, height:16, accentColor:C.warn, cursor:"pointer" }}
-              />
-              ⚠️ この評価に迷いあり（フラグを立てる）
-            </label>
             <button style={S.btnSuccess} onClick={()=>approveEval(p)}>他者評価を確定・承認する</button>
           </div>
         </div>
@@ -1127,7 +1132,7 @@ export default function App() {
                   const lastSurvTs = svs[0]?.timestamp || pendingTs;
                   // #14 迷いフラグ（採点済み評価にuncertain=trueがあるか）
                   const mentorEvs = getMentorSurveys(st.id);
-                  const hasUncertain = mentorEvs.some(e => e.uncertain);
+                  const hasUncertain = mentorEvs.some(e => e.uncertain === true || (e.uncertain && Object.values(e.uncertain).some(Boolean)));
                   return (
                     <div key={st.id}
                       onClick={()=>setSelStudent(isSel ? null : st)}
