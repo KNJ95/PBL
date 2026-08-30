@@ -674,8 +674,9 @@ export default function App() {
     storage.set(`mentor_survey:${selStudent.id}:${ts}`, {
       studentId:selStudent.id, mentorId:currentUser.id,
       timestamp:ts, axes:{ ...mentorAxisScores }, note:mentorNote,
+      uncertain: { ...mentorUncertain }, // #14 軸ごと迷いフラグ
     });
-    setMentorAxisScores({}); setMentorNote(""); tick();
+    setMentorAxisScores({}); setMentorNote(""); setMentorUncertain({}); tick();
     alert("評価を保存しました。");
   };
 
@@ -1278,14 +1279,31 @@ export default function App() {
                     <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性</p>
                     {AXES.map(a => {
                       const cur = mentorAxisScores[a.id] || 0;
+                      const isUncertain = !!mentorUncertain[a.id];
                       return (
-                        <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}` }}>
+                        <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}`,
+                          background: isUncertain ? `${C.warn}08` : "transparent", borderRadius: isUncertain ? 8 : 0, padding: isUncertain ? "8px 10px" : 0 }}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                            <button onClick={()=>setRubricAxis(a)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"inline-flex", alignItems:"center", gap:5, fontSize:13, color:C.text, fontWeight:600 }}>
-                              {a.name}
-                              <Info size={13} color={C.primary}/>
-                            </button>
-                            {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
+                            <div>
+                              <button onClick={()=>setRubricAxis(a)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"inline-flex", alignItems:"center", gap:5, fontSize:13, color:C.text, fontWeight:600 }}>
+                                {a.name}
+                                <Info size={13} color={C.primary}/>
+                              </button>
+                            </div>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
+                              {/* #14 軸ごと迷いフラグ */}
+                              <label style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer", fontSize:11,
+                                color: isUncertain ? C.warn : C.textMuted, fontWeight: isUncertain ? 700 : 400 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isUncertain}
+                                  onChange={e => setMentorUncertain(prev => ({ ...prev, [a.id]: e.target.checked }))}
+                                  style={{ width:13, height:13, accentColor:C.warn, cursor:"pointer" }}
+                                />
+                                {isUncertain ? "⚠️ 迷い" : "迷い"}
+                              </label>
+                            </div>
                           </div>
                           <div style={{ display:"flex", gap:6 }}>
                             {[1,2,3,4].map(s => (
