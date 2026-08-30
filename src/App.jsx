@@ -415,6 +415,7 @@ export default function App() {
   const [answerMap, setAnswerMap]     = useState({});
   const [mentorAxisScores, setMentorAxisScores] = useState({});
   const [mentorHistView, setMentorHistView] = useState("survey");
+  const [mentorUncertain, setMentorUncertain] = useState(false); // #14 判定迷いフラグ
 
   // ログイン
   const [loginId, setLoginId]             = useState("");
@@ -635,10 +636,11 @@ export default function App() {
       studentId:pending.studentId, mentorId:currentUser.id,
       timestamp:ts, axes:{ ...mentorScores }, note:mentorNote, aiSuggested:aiResult?.scores,
       reflection:pending.reflection,
+      uncertain: mentorUncertain, // #14 判定迷いフラグ
     });
     const newPending = getPending().filter(p => p.id !== pending.id);
     savePending(newPending);
-    setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); tick();
+    setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); setMentorUncertain(false); tick();
     alert("他者評価を確定しました。");
   };
 
@@ -891,6 +893,16 @@ export default function App() {
               );
             })}
             <textarea value={mentorNote} onChange={e=>setMentorNote(e.target.value)} placeholder="メンターコメント（任意）" style={{ ...S.textarea, marginBottom:12 }}/>
+            {/* #14 判定迷いフラグ */}
+            <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, cursor:"pointer", fontSize:13, color:C.warn, fontWeight:mentorUncertain?700:400 }}>
+              <input
+                type="checkbox"
+                checked={mentorUncertain}
+                onChange={e=>setMentorUncertain(e.target.checked)}
+                style={{ width:16, height:16, accentColor:C.warn, cursor:"pointer" }}
+              />
+              ⚠️ この評価に迷いあり（フラグを立てる）
+            </label>
             <button style={S.btnSuccess} onClick={()=>approveEval(p)}>他者評価を確定・承認する</button>
           </div>
         </div>
@@ -1064,10 +1076,19 @@ export default function App() {
                 {students.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>同じチームIDで登録された学生がいません。</p>}
                 {students.map(st => {
                   const svs = getSurveys(st.id);
+                  const stLogs = getLogs(st.id);
                   const latest = svs[0];
                   const pend = pending.filter(p=>p.studentId===st.id).length;
                   const avg1 = latest ? axisAvg(latest.axes).toFixed(1) : "—";
                   const isSel = selStudent?.id === st.id;
+                  // #15 入力日表示
+                  const lastLogTs  = stLogs[0]?.timestamp || 0;
+                  const pendingItem = pending.find(p=>p.studentId===st.id);
+                  const pendingTs  = pendingItem ? parseInt(pendingItem.id.slice(2)) : 0;
+                  const lastSurvTs = svs[0]?.timestamp || pendingTs;
+                  // #14 迷いフラグ（採点済み評価にuncertain=trueがあるか）
+                  const mentorEvs = getMentorSurveys(st.id);
+                  const hasUncertain = mentorEvs.some(e => e.uncertain);
                   return (
                     <div key={st.id}
                       onClick={()=>setSelStudent(isSel ? null : st)}
@@ -1080,8 +1101,17 @@ export default function App() {
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                           <Avatar name={st.name} size={34}/>
                           <div>
-                            <p style={{ margin:0, fontWeight:700, fontSize:14, color:C.text }}>{st.name}</p>
-                            <p style={{ margin:0, fontSize:11, color:C.textSub }}>アンケート {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}</p>
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <p style={{ margin:0, fontWeight:700, fontSize:14, color:C.text }}>{st.name}</p>
+                              {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷い</span>}
+                            </div>
+                            <p style={{ margin:0, fontSize:11, color:C.textSub }}>
+                              アンケート {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}
+                            </p>
+                            <p style={{ margin:"2px 0 0", fontSize:11, color:C.textSub }}>
+                              📓 ログ: {lastLogTs > 0 ? fmt(lastLogTs) : "未入力"}
+                              　📋 振り返り: {lastSurvTs > 0 ? fmt(lastSurvTs) : "未入力"}
+                            </p>
                           </div>
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -1515,7 +1545,6 @@ export default function App() {
                       <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
                     </RadarChart>
                   </ResponsiveContainer>
-                  <p style={{ fontSize:10, color:C.textMuted, marginTop:2 }}>※ 情報（②）・動機（⑧）は基準未確定のため参考値</p>
                 </div>
 
 
