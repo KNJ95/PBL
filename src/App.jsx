@@ -1316,29 +1316,36 @@ export default function App() {
                       <div key={lg.timestamp} style={{ ...S.scard, marginBottom:10 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <span style={{ fontSize:18 }}>{EMOTIONS[lg.emotion-1]}</span>
-                            {lg.activityTitle && <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{lg.activityTitle}</span>}
+                            <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{lg.activityTitle || "活動記録"}</span>
                           </div>
                           <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
                             <span style={{ fontSize:11, color:C.textSub }}>{fmt(lg.timestamp)}</span>
                             {lg.activityType && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:10, background: lg.activityType==="official"?C.warn+"22":C.accent1+"22", color: lg.activityType==="official"?C.warn:C.accent1, fontWeight:600 }}>{lg.activityType==="official"?"📋 公式":"🙋 自主"}</span>}
                           </div>
                         </div>
+                        {/* 新フォーマット：logAnswers（1-10スライダー） */}
+                        {lg.logAnswers && Object.keys(lg.logAnswers).length > 0 && (
+                          <div style={{ marginBottom:8 }}>
+                            {REFLECTION_QUESTIONS.map(q => {
+                              const v = lg.logAnswers[q.id];
+                              if (!v) return null;
+                              return (
+                                <div key={q.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                                  <span style={{ fontSize:11, color:C.textSub, flex:1, lineHeight:1.4 }}>{q.text}</span>
+                                  <span style={{ fontSize:13, fontWeight:700, color:C.primary, minWidth:36, textAlign:"right" }}>{v}<span style={{ fontSize:10, fontWeight:400, color:C.textMuted }}>/10</span></span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* 旧フォーマット後方互換 */}
                         {(lg.logQ1||lg.logQ2||lg.logQ3) && (
                           <div style={{ display:"flex", gap:6, marginBottom:6, flexWrap:"wrap" }}>
                             {[{l:"取り組み",v:lg.logQ1},{l:"気づき",v:lg.logQ2},{l:"連携",v:lg.logQ3}].filter(f=>f.v).map(f=>(
-                              <span key={f.l} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>
-                                {f.l} {["😢","😕","😊","😄"][f.v-1]}
-                              </span>
+                              <span key={f.l} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:C.primary+"18", color:C.primary, fontWeight:700 }}>{f.l} {f.v}/10</span>
                             ))}
                           </div>
                         )}
-                        {[{l:"Y やったこと",v:lg.yatta},{l:"W わかったこと",v:lg.wakatta},{l:"T 次にやること",v:lg.tsugi}].filter(f=>f.v).map(f => (
-                          <div key={f.l} style={{ marginBottom:6 }}>
-                            <span style={{ fontSize:11, color:C.primary, fontWeight:700 }}>{f.l}</span>
-                            <p style={{ fontSize:13, color:C.text, margin:"2px 0 0", lineHeight:1.5 }}>{f.v}</p>
-                          </div>
-                        ))}
                         {lg.logMemo && <p style={{ fontSize:13, color:C.text, margin:"4px 0 0", lineHeight:1.5 }}>{lg.logMemo}</p>}
                       </div>
                     ))
@@ -1410,7 +1417,13 @@ export default function App() {
           {/* 採点待ち */}
           {screen==="scoring" && (
             <div>
-              <h3 style={{ fontSize:16, fontWeight:700, marginBottom:"1rem" }}>採点待ちの振り返り</h3>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
+                <h3 style={{ fontSize:16, fontWeight:700, margin:0 }}>採点待ちの振り返り</h3>
+                <button style={{ ...S.btn, fontSize:11, padding:"4px 12px", display:"flex", alignItems:"center", gap:4 }}
+                  onClick={()=>{ const skip = new Set(["current_user","tutorial_seen"]); Promise.all(students.map(st=>storage.syncFromCloud(st.id,skip))).then(()=>tick()); }}>
+                  🔄 更新
+                </button>
+              </div>
               {pending.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>採点待ちはありません。</p>}
               {pending.map(p => (
                 <div key={p.id} style={S.card}>
@@ -2089,7 +2102,7 @@ export default function App() {
                         </div>
 
                         {/* ─ 深堀り（メイン選択後に表示、value:0の「該当なし」は除く） ─ */}
-                        {mainSel && !skipDrill && (
+                        {!!mainSel && !skipDrill && (
                           <>
                             <div style={{ borderTop:`1px dashed ${C.border}`, margin:"18px 0 14px" }}/>
                             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10 }}>
