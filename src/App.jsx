@@ -558,14 +558,6 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
-  // メンター: 担当学生全員のデータをクラウドから同期（ログ・振り返り日表示のため）
-  useEffect(() => {
-    if (currentUser?.role === "mentor" && students.length > 0) {
-      Promise.all(students.map(st => storage.syncFromCloud(st.id))).then(() => tick());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id, students.length]);
-
   // survey_questions.json の読み込み（振り返りアンケート用）
   useEffect(() => {
     fetch("/survey_questions.json")
@@ -588,6 +580,15 @@ export default function App() {
     return all;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, refresh]);
+
+  // メンター: 担当学生全員のデータをクラウドから同期（ログ・振り返り日表示のため）
+  // students 定義の後に置くこと（no-use-before-define 対策）
+  useEffect(() => {
+    if (currentUser?.role === "mentor" && students.length > 0) {
+      Promise.all(students.map(st => storage.syncFromCloud(st.id))).then(() => tick());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, students.length]);
 
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
