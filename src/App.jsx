@@ -593,6 +593,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, students.length]);
 
+  // メンター: 採点タブを開くたびに再同期（学生がログイン後に提出した分を拾う）
+  useEffect(() => {
+    if (currentUser?.role === "mentor" && screen === "scoring" && students.length > 0) {
+      const skip = new Set(["current_user", "tutorial_seen"]);
+      Promise.all(students.map(st => storage.syncFromCloud(st.id, skip))).then(() => tick());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
     AXES.map(a => ({
