@@ -1324,15 +1324,20 @@ export default function App() {
                           </div>
                         </div>
                         {/* 新フォーマット：logAnswers（1-10スライダー） */}
-                        {lg.logAnswers && Object.keys(lg.logAnswers).length > 0 && (
-                          <div style={{ marginBottom:8 }}>
+                        {lg.logAnswers && Object.keys(lg.logAnswers).filter(k => lg.logAnswers[k]).length > 0 && (
+                          <div style={{ marginBottom:8, padding:"8px 10px", background:C.surface2, borderRadius:8 }}>
                             {REFLECTION_QUESTIONS.map(q => {
                               const v = lg.logAnswers[q.id];
                               if (!v) return null;
                               return (
-                                <div key={q.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                                  <span style={{ fontSize:11, color:C.textSub, flex:1, lineHeight:1.4 }}>{q.text}</span>
-                                  <span style={{ fontSize:13, fontWeight:700, color:C.primary, minWidth:36, textAlign:"right" }}>{v}<span style={{ fontSize:10, fontWeight:400, color:C.textMuted }}>/10</span></span>
+                                <div key={q.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+                                  <span style={{ fontSize:12, color:C.textSub, flex:1, lineHeight:1.4 }}>{q.text}</span>
+                                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                    <div style={{ width:50, height:5, background:C.surface3, borderRadius:99, overflow:"hidden" }}>
+                                      <div style={{ height:"100%", width:`${v*10}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99 }}/>
+                                    </div>
+                                    <span style={{ fontSize:14, fontWeight:700, color:C.primary, minWidth:32, textAlign:"right" }}>{v}<span style={{ fontSize:10, fontWeight:400, color:C.textMuted }}>/10</span></span>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1740,6 +1745,26 @@ export default function App() {
                 <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
               </div>
             )}
+            {/* ネクストアクション（最新の振り返りの⚡回答を要約） */}
+            {(() => {
+              const src = myPending[0] || latestSurvey;
+              if (!src?.drillAnswers) return null;
+              const actions = Object.values(src.drillAnswers)
+                .filter(d => d.d2choice)
+                .map(d => d.d2text ? `${d.d2choice}（${d.d2text}）` : d.d2choice);
+              if (!actions.length) return null;
+              return (
+                <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"0.75rem" }}>
+                  <p style={{ fontSize:12, fontWeight:700, color:C.accent1, margin:"0 0 8px" }}>⚡ ネクストアクション</p>
+                  {actions.slice(0,3).map((a, i) => (
+                    <p key={i} style={{ fontSize:13, color:C.text, margin: i < actions.length-1 ? "0 0 5px" : 0, lineHeight:1.5 }}>• {a}</p>
+                  ))}
+                  <p style={{ fontSize:11, color:C.textMuted, margin:"6px 0 0" }}>
+                    前回の振り返り（{src.date}）より
+                  </p>
+                </div>
+              );
+            })()}
             {unreadQ>0 && (
               <div style={{ ...S.scard, borderLeft:`3px solid ${C.accent1}`, marginBottom:"0.75rem", cursor:"pointer" }} onClick={()=>setScreen("feedback")}>
                 <p style={{ fontSize:13, color:C.accent1, fontWeight:600, margin:0 }}>💬 メンターから未回答の問いが {unreadQ}件 あります。</p>
