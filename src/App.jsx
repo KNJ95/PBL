@@ -615,7 +615,7 @@ export default function App() {
 
   // ─── 学生：ログ保存 ───────────────────────────────────────────────────
   const saveLog = () => {
-    if (!activityTitle.trim() && Object.keys(logAnswers).length === 0) return;
+    if (!activityTitle.trim() && !logMemo.trim()) return;
     const ts = logDate ? new Date(logDate).setHours(12,0,0,0) : Date.now();
     storage.set(`log:${currentUser.id}:${ts}`, {
       userID: currentUser.id, timestamp: ts,
@@ -1851,31 +1851,6 @@ export default function App() {
                   ))}
                 </div>
               </div>
-
-              {/* REFLECTION_QUESTIONS：1-10スライダー（メンチメーター形式） */}
-              {REFLECTION_QUESTIONS.map((q, idx) => {
-                const val = logAnswers[q.id] || 0;
-                return (
-                  <div key={q.id} style={{ marginBottom:24, padding:"14px 16px", background:C.surface2, borderRadius:12, border:`1px solid ${C.border}` }}>
-                    <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:12 }}>
-                      Q{idx+1}. {q.text}
-                    </label>
-                    <div style={{ textAlign:"center", marginBottom:8 }}>
-                      <span style={{ fontSize:36, fontWeight:700, color: val===0 ? C.textMuted : C.primary, lineHeight:1 }}>
-                        {val===0 ? "–" : val}
-                      </span>
-                      <span style={{ fontSize:14, color:C.textMuted }}> / 10</span>
-                    </div>
-                    <input type="range" min={1} max={10} value={val||5}
-                      onChange={e=>setLogAnswers(prev=>({...prev,[q.id]:Number(e.target.value)}))}
-                      style={{ width:"100%", accentColor:C.primary, cursor:"pointer", height:6, marginBottom:6 }}/>
-                    <div style={{ display:"flex", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:10, color:C.textMuted }}>1 全くそう思わない</span>
-                      <span style={{ fontSize:10, color:C.textMuted }}>非常にそう思う 10</span>
-                    </div>
-                  </div>
-                );
-              })}
 
               {/* 活動概要メモ */}
               {/* コメント（任意） */}
