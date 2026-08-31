@@ -249,7 +249,25 @@ const storage = {
       const r = await fetch(`${CLOUD_API}?userId=${encodeURIComponent(uid)}`);
       const json = await r.json();
       if (json.ok && Array.isArray(json.data)) {
-        json.data.forEach(item => { try { if (item.payload && !skipKeys.has(item.dataKey)) localStorage.setItem(item.dataKey, item.payload); } catch {} });
+        json.data.forEach(item => {
+          try {
+            if (!item.payload || skipKeys.has(item.dataKey)) return;
+            // pending_evals:* はマージ（上書きではなく、既存と結合して重複排除）
+            if (item.dataKey.startsWith("pending_evals:")) {
+              const existing = (() => { try { const v = localStorage.getItem(item.dataKey); return v ? JSON.parse(v) : []; } catch { return []; } })();
+              const incoming = (() => { try { return JSON.parse(item.payload); } catch { return []; } })();
+              if (Array.isArray(existing) && Array.isArray(incoming)) {
+                const merged = [...existing];
+                incoming.forEach(e => { if (e.id && !merged.find(x => x.id === e.id)) merged.push(e); });
+                localStorage.setItem(item.dataKey, JSON.stringify(merged));
+              } else {
+                localStorage.setItem(item.dataKey, item.payload);
+              }
+            } else {
+              localStorage.setItem(item.dataKey, item.payload);
+            }
+          } catch {}
+        });
       }
     } catch {}
   },
@@ -584,7 +602,7 @@ export default function App() {
   // current_user・tutorial_seen はメンター自身のセッションを上書きしないよう除外
   useEffect(() => {
     if (currentUser?.role === "mentor" && students.length > 0) {
-      const skip = new Set(["current_user", "tutorial_seen"]);
+      const skip = new Set(["current_user", "tutorial_seen", "mentor_done_ids"]);
       Promise.all(students.map(st => storage.syncFromCloud(st.id, skip))).then(() => tick());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -593,7 +611,7 @@ export default function App() {
   // メンター: 採点タブを開くたびに再同期（学生がログイン後に提出した分を拾う）
   useEffect(() => {
     if (currentUser?.role === "mentor" && screen === "scoring" && students.length > 0) {
-      const skip = new Set(["current_user", "tutorial_seen"]);
+      const skip = new Set(["current_user", "tutorial_seen", "mentor_done_ids"]);
       Promise.all(students.map(st => storage.syncFromCloud(st.id, skip))).then(() => tick());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -694,8 +712,10 @@ export default function App() {
       reflection:pending.reflection,
       uncertain: mentorUncertain, // #14 判定迷いフラグ { [axisId]: boolean }
     });
-    const newPending = getPending().filter(p => p.id !== pending.id);
-    savePending(newPending);
+    // savePending を呼ばず、採点済みIDだけメンター自身のパーティションに記録する
+    // （savePending は学生の pending_evals をメンターパーティションに書き込んでしまうため）
+    const doneIds = storage.get("mentor_done_ids") || [];
+    if (!doneIds.includes(pending.id)) storage.set("mentor_done_ids", [...doneIds, pending.id]);
     setAiResult(null); setMentorScores({}); setMentorNote(""); setScoringTarget(null); setMentorUncertain({}); tick();
     alert("他者評価を確定しました。");
   };
@@ -1114,7 +1134,10 @@ export default function App() {
   // メンター画面
   // ─────────────────────────────────────────────────────────────────────
   if (currentUser.role === "mentor") {
-    const pending   = getPending().filter(p => students.some(s => s.id === p.studentId));
+    const doneIds   = storage.get("mentor_done_ids") || [];
+    const pending   = getPending()
+      .filter(p => students.some(s => s.id === p.studentId))
+      .filter(p => !doneIds.includes(p.id));
     const selSurveys= selStudent ? getSurveys(selStudent.id) : [];
     const selLogs   = selStudent ? getLogs(selStudent.id) : [];
     const selMentorSvs = selStudent ? getMentorSurveys(selStudent.id) : [];
@@ -1330,7 +1353,7 @@ export default function App() {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
                 <h3 style={{ fontSize:16, fontWeight:700, margin:0 }}>採点待ちの振り返り</h3>
                 <button style={{ ...S.btn, fontSize:11, padding:"4px 12px", display:"flex", alignItems:"center", gap:4 }}
-                  onClick={()=>{ const skip = new Set(["current_user","tutorial_seen"]); Promise.all(students.map(st=>storage.syncFromCloud(st.id,skip))).then(()=>tick()); }}>
+                  onClick={()=>{ const skip = new Set(["current_user","tutorial_seen","mentor_done_ids"]); Promise.all(students.map(st=>storage.syncFromCloud(st.id,skip))).then(()=>tick()); }}>
                   🔄 更新
                 </button>
               </div>
