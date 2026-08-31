@@ -443,12 +443,10 @@ export default function App() {
   const [selStudent, setSelStudent]   = useState(null);
   const [mentorScores, setMentorScores] = useState({});
   const [mentorNote, setMentorNote]   = useState("");
-  const [newQuestion, setNewQuestion] = useState("");
   const [scoringTarget, setScoringTarget] = useState(null);
   const [aiLoading, setAiLoading]     = useState(false);
   const [aiResult, setAiResult]       = useState(null);
   const [answerMap, setAnswerMap]     = useState({});
-  const [mentorAxisScores, setMentorAxisScores] = useState({});
   const [mentorHistView, setMentorHistView] = useState("survey");
   const [mentorUncertain, setMentorUncertain] = useState({}); // #14 判定迷いフラグ { [axisId]: boolean }
   const [showAllAnswers, setShowAllAnswers]   = useState(false); // 採点画面：全回答表示トグル
@@ -703,35 +701,12 @@ export default function App() {
     alert("他者評価を確定しました。");
   };
 
-  // ─── メンター：問い送信 ──────────────────────────────────────────────
-  const postQuestion = () => {
-    if (!newQuestion.trim() || !selStudent) return;
-    const qs = getQuestions();
-    saveQuestions([...qs, { id:"q"+Date.now(), mentorId:currentUser.id, studentId:selStudent.id, text:newQuestion, createdAt:fmt(Date.now()), answer:"" }]);
-    setNewQuestion(""); tick();
-  };
-
   // ─── 学生：問い回答 ──────────────────────────────────────────────────
   const submitAnswer = (qid) => {
     const ans = answerMap[qid] || "";
     if (!ans.trim()) return;
     const qs = getQuestions().map(q => q.id===qid ? {...q, answer:ans} : q);
     saveQuestions(qs); setAnswerMap(m => ({...m,[qid]:""})); tick();
-  };
-
-  // ─── メンター：学生評価入力 ──────────────────────────────────────────
-  const saveMentorEval = () => {
-    if (!selStudent) return;
-    const hasAny = AXES.some(a => mentorAxisScores[a.id]);
-    if (!hasAny) return;
-    const ts = Date.now();
-    storage.set(`mentor_survey:${selStudent.id}:${ts}`, {
-      studentId:selStudent.id, mentorId:currentUser.id,
-      timestamp:ts, axes:{ ...mentorAxisScores }, note:mentorNote,
-      uncertain: { ...mentorUncertain }, // #14 軸ごと迷いフラグ
-    });
-    setMentorAxisScores({}); setMentorNote(""); setMentorUncertain({}); tick();
-    alert("評価を保存しました。");
   };
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1246,7 +1221,7 @@ export default function App() {
                               {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷った</span>}
                             </div>
                             <p style={{ margin:0, fontSize:11, color:C.textSub }}>
-                              アンケート {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}
+                              振り返り {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}
                             </p>
                             <p style={{ margin:"2px 0 0", fontSize:11, color:C.textSub }}>
                               📓 ログ: {lastLogTs > 0 ? fmt(lastLogTs) : "未入力"}
@@ -1299,13 +1274,13 @@ export default function App() {
 
                   {/* 閲覧タブ */}
                   <div style={{ display:"flex", gap:6, marginBottom:"1rem", overflowX:"auto" }}>
-                    {[{v:"survey",l:"アンケート"},{v:"logs",l:"ログ"},{v:"mentor_hist",l:"評価履歴"}].map(t => (
+                    {[{v:"survey",l:"振り返り"},{v:"logs",l:"ログ"},{v:"mentor_hist",l:"評価履歴"}].map(t => (
                       <button key={t.v} style={{ ...S.navBtn(mentorHistView===t.v), flexShrink:0 }} onClick={()=>setMentorHistView(t.v)}>{t.l}</button>
                     ))}
                   </div>
 
                   {mentorHistView==="survey" && (selSurveys.length===0
-                    ? <p style={{ color:C.textSub, fontSize:13 }}>アンケートデータがありません。</p>
+                    ? <p style={{ color:C.textSub, fontSize:13 }}>振り返りデータがありません。</p>
                     : selSurveys.map(sv => (
                       <div key={sv.timestamp} style={{ ...S.scard, marginBottom:10 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
@@ -1380,49 +1355,6 @@ export default function App() {
                     ))
                   )}
 
-                  {/* 評価入力フォーム */}
-                  <div style={{ ...S.card, marginTop:16 }}>
-                    <p style={{ fontSize:14, fontWeight:700, marginBottom:4, color:C.text }}>評価を入力（他者評価）</p>
-                    <p style={{ fontSize:12, color:C.textSub, marginBottom:"1rem" }}>1=受動性　2=能動性　3=自律性　4=創造性　迷った場合は「迷った」にチェック</p>
-                    {AXES.map(a => {
-                      const cur = mentorAxisScores[a.id] || 0;
-                      const isUncertain = !!mentorUncertain[a.id];
-                      return (
-                        <div key={a.id} style={{ marginBottom:12, paddingBottom:12, borderBottom:`1px solid ${C.border}`,
-                          background: isUncertain ? `${C.warn}08` : "transparent", borderRadius: isUncertain ? 8 : 0, padding: isUncertain ? "8px 10px" : 0 }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                            <div>
-                              <button onClick={()=>setRubricAxis(a)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"inline-flex", alignItems:"center", gap:5, fontSize:13, color:C.text, fontWeight:600 }}>
-                                {a.name}
-                                <Info size={13} color={C.primary}/>
-                              </button>
-                            </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              {cur>0 && <span style={S.badge(cur)}>{LEVELS[cur-1].name}</span>}
-                              {/* #14 軸ごと迷いフラグ */}
-                              <label style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer", fontSize:11,
-                                color: isUncertain ? C.warn : C.textMuted, fontWeight: isUncertain ? 700 : 400 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={isUncertain}
-                                  onChange={e => setMentorUncertain(prev => ({ ...prev, [a.id]: e.target.checked }))}
-                                  style={{ width:13, height:13, accentColor:C.warn, cursor:"pointer" }}
-                                />
-                                {isUncertain ? "⚠️ 迷った" : "迷った"}
-                              </label>
-                            </div>
-                          </div>
-                          <div style={{ display:"flex", gap:6 }}>
-                            {[1,2,3,4].map(s => (
-                              <button key={s} onClick={()=>setMentorAxisScores(sc=>({...sc,[a.id]:s}))} style={{ flex:1, padding:"8px 0", borderRadius:7, border:`1px solid ${cur===s?C.primary:C.border}`, background:cur===s?C.primary+"22":"transparent", color:cur===s?C.primary:C.textSub, fontSize:13, cursor:"pointer", fontWeight:cur===s?700:400, transition:"all 0.15s" }}>{s}</button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <textarea value={mentorNote} onChange={e=>setMentorNote(e.target.value)} placeholder="コメント（任意）" style={{ ...S.textarea, marginBottom:12 }}/>
-                    <button style={S.btnPrimary} onClick={saveMentorEval}>評価を保存</button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1446,7 +1378,7 @@ export default function App() {
                       <Avatar name={p.studentId} size={30}/>
                       <div>
                         <p style={{ margin:0, fontSize:13, fontWeight:700 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
-                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター":"アンケート"}</p>
+                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター形式":"振り返り"}</p>
                       </div>
                     </div>
                     <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);}}>採点する</button>
@@ -1457,75 +1389,13 @@ export default function App() {
             </div>
           )}
 
-          {/* 問いを送る */}
-          {screen==="questions" && (
-            <div>
-              {/* 送信フォーム */}
-              <div style={S.card}>
-                <p style={{ fontSize:13, fontWeight:700, marginBottom:10, color:C.text }}>問いを送る</p>
-                <div style={{ marginBottom:10 }}>
-                  <select
-                    value={selStudent?.id||""}
-                    onChange={e=>{ const s=students.find(x=>x.id===e.target.value); setSelStudent(s||null); }}
-                    style={{ width:"100%", padding:"8px 12px", border:`1px solid ${C.border}`, borderRadius:8, fontSize:13, color:C.text, background:C.surface, outline:"none" }}
-                  >
-                    <option value="">学生を選択...</option>
-                    {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <textarea value={newQuestion} onChange={e=>setNewQuestion(e.target.value)} placeholder="問いを入力..." style={{ ...S.textarea, marginBottom:10, minHeight:60 }}/>
-                <button
-                  style={{ ...S.btnPrimary, opacity:(!selStudent||!newQuestion.trim())?0.45:1, cursor:(!selStudent||!newQuestion.trim())?"not-allowed":"pointer" }}
-                  onClick={postQuestion}
-                  disabled={!selStudent||!newQuestion.trim()}
-                >
-                  <Send size={13} style={{ verticalAlign:"middle", marginRight:5 }}/>送信
-                </button>
-              </div>
-
-              {/* 問い一覧（全学生） */}
-              <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:"1.25rem 0 0.75rem" }}>問い一覧</p>
-              {(() => {
-                const allQs = students.flatMap(st =>
-                  getQuestions().filter(q=>q.studentId===st.id).map(q=>({...q, studentName:st.name}))
-                ).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
-                if (allQs.length===0) return (
-                  <p style={{ fontSize:13, color:C.textSub, textAlign:"center", padding:"2rem 0" }}>まだ問いを送っていません。</p>
-                );
-                return allQs.map(q=>(
-                  <div key={q.id} style={{ ...S.scard, borderLeft:`3px solid ${q.answer?C.success:C.warn}`, marginBottom:"0.75rem" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <Avatar name={q.studentName} size={22}/>
-                        <span style={{ fontSize:12, fontWeight:600, color:C.text }}>{q.studentName}</span>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        {q.answer
-                          ? <span style={S.tag(C.success)}>回答済</span>
-                          : <span style={S.tag(C.warn)}>未回答</span>}
-                        <span style={{ fontSize:11, color:C.textMuted }}>{q.createdAt}</span>
-                      </div>
-                    </div>
-                    <p style={{ fontSize:13, color:C.text, margin:"0 0 6px", lineHeight:1.5 }}>{q.text}</p>
-                    {q.answer && (
-                      <div style={{ background:C.surface3, borderRadius:8, padding:"6px 10px" }}>
-                        <span style={{ fontSize:11, color:C.textMuted }}>回答：</span>
-                        <span style={{ fontSize:13, color:C.textSub }}>{q.answer}</span>
-                      </div>
-                    )}
-                  </div>
-                ));
-              })()}
-            </div>
-          )}
         </div>
 
         {/* ─── フッターナビ（メンター用） */}
         <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {[
-            { v:"home",      l:"学生/評価", icon:Users,         badge:0 },
-            { v:"scoring",   l:"採点",     icon:ClipboardList, badge:pending.length },
-            { v:"questions", l:"問い",     icon:MessageSquare, badge:0 },
+            { v:"home",    l:"学生",  icon:Users,         badge:0 },
+            { v:"scoring", l:"採点",  icon:ClipboardList, badge:pending.length },
           ].map(item => {
             const active = screen===item.v;
             return (
