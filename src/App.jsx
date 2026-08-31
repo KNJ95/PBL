@@ -278,10 +278,42 @@ const getMentorSurveys = (sid) => storage.keys(`mentor_survey:${sid}:`).map(k=>s
 // ─── インタラクション（問い/フィードバック）localStorage ──────────────────
 const getQuestions  = () => storage.get("questions_store") || [];
 const getFeedbacks  = () => storage.get("feedbacks_store") || [];
-const getPending    = () => storage.get("pending_evals") || [];
+// pending_evals は学生ごとのキー pending_evals:{studentId} で管理
+// （PC/スマホ切替でも上書きされないよう per-student 化）
+const getPending = () => {
+  // 新形式: pending_evals:{studentId}
+  const perStudent = storage.keys("pending_evals:").flatMap(k => {
+    const v = storage.get(k); return Array.isArray(v) ? v : [];
+  });
+  // 旧形式（移行期間の互換読み込み）
+  const legacy = storage.get("pending_evals");
+  const all = [...perStudent, ...(Array.isArray(legacy) ? legacy : [])];
+  // id 重複除去
+  const seen = new Set();
+  return all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+};
 
-const saveQuestions  = (d) => storage.set("questions_store", d);
-const savePending    = (d) => storage.set("pending_evals", d);
+const saveQuestions = (d) => storage.set("questions_store", d);
+const savePending = (list) => {
+  // studentId ごとにグループ化して保存
+  const grouped = {};
+  list.forEach(p => {
+    if (!p.studentId) return;
+    if (!grouped[p.studentId]) grouped[p.studentId] = [];
+    grouped[p.studentId].push(p);
+  });
+  // リストから消えた studentId のキーを削除
+  storage.keys("pending_evals:").forEach(k => {
+    const sid = k.slice("pending_evals:".length);
+    if (!grouped[sid]) storage.del(k);
+  });
+  // 各 studentId のデータを保存
+  Object.entries(grouped).forEach(([sid, entries]) => {
+    storage.set(`pending_evals:${sid}`, entries);
+  });
+  // 旧形式 localStorage キーを削除（DynamoDB の旧エントリは自然消滅）
+  try { localStorage.removeItem("pending_evals"); } catch {}
+};
 
 // ─── スタイル ──────────────────────────────────────────────────────────────
 const S = {
@@ -525,6 +557,14 @@ export default function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  // メンター: 担当学生全員のデータをクラウドから同期（ログ・振り返り日表示のため）
+  useEffect(() => {
+    if (currentUser?.role === "mentor" && students.length > 0) {
+      Promise.all(students.map(st => storage.syncFromCloud(st.id))).then(() => tick());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, students.length]);
 
   // survey_questions.json の読み込み（振り返りアンケート用）
   useEffect(() => {
