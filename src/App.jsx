@@ -243,12 +243,13 @@ const storage = {
   keys: (prefix) => { try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; } },
   setUser: (uid) => { _cloudUid = uid; },
   clearUser: () => { _cloudUid = null; },
-  syncFromCloud: async (uid) => {
+  // skipKeys: 上書きしないキーのSet（他ユーザー同期時に current_user 等を保護）
+  syncFromCloud: async (uid, skipKeys = new Set()) => {
     try {
       const r = await fetch(`${CLOUD_API}?userId=${encodeURIComponent(uid)}`);
       const json = await r.json();
       if (json.ok && Array.isArray(json.data)) {
-        json.data.forEach(item => { try { if (item.payload) localStorage.setItem(item.dataKey, item.payload); } catch {} });
+        json.data.forEach(item => { try { if (item.payload && !skipKeys.has(item.dataKey)) localStorage.setItem(item.dataKey, item.payload); } catch {} });
       }
     } catch {}
   },
@@ -583,9 +584,11 @@ export default function App() {
 
   // メンター: 担当学生全員のデータをクラウドから同期（ログ・振り返り日表示のため）
   // students 定義の後に置くこと（no-use-before-define 対策）
+  // current_user・tutorial_seen はメンター自身のセッションを上書きしないよう除外
   useEffect(() => {
     if (currentUser?.role === "mentor" && students.length > 0) {
-      Promise.all(students.map(st => storage.syncFromCloud(st.id))).then(() => tick());
+      const skip = new Set(["current_user", "tutorial_seen"]);
+      Promise.all(students.map(st => storage.syncFromCloud(st.id, skip))).then(() => tick());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, students.length]);
