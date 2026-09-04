@@ -4,8 +4,6 @@
 # production
 /build
 
-# 議事録
-/議事録
 
 # misc
 .DS_Store
