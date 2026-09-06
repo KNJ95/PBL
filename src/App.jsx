@@ -699,7 +699,7 @@ export default function App() {
       Object.entries(parsed.scores).forEach(([k,v]) => scores[parseInt(k)] = parseInt(v));
       setAiResult({ scores, rationale:parsed.rationale });
       setMentorScores({ ...scores });
-    } catch(e) { alert("AI採点失敗: " + e.message); }
+    } catch(e) { alert("AIサービスは現在使用できません"); }
     setAiLoading(false);
   };
 
@@ -1507,6 +1507,7 @@ export default function App() {
         {/* ─── ホーム ─────────────────────────────────────────────── */}
         {screen==="home" && (
           <div>
+
             {/* プロジェクト情報（最上部） */}
             {(() => {
               const projKey = `project_info:${currentUser.id}`;
@@ -1549,13 +1550,19 @@ export default function App() {
                       style={{ ...S.textarea, minHeight:48, fontSize:12 }}
                     />
                   </div>
-                  {/* 保存ボタン */}
+                  {/* 保存ボタン・詳細ボタン */}
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                     <button
                       onClick={saveProjInfo}
                       style={{ ...S.btn, background:C.primary, color:"#fff", fontSize:13, padding:"6px 18px" }}
                     >
                       💾 保存する
+                    </button>
+                    <button
+                      onClick={() => setScreen("project")}
+                      style={{ ...S.btn, background:"transparent", color:C.primary, border:`1px solid ${C.primary}`, fontSize:13, padding:"6px 18px" }}
+                    >
+                      詳細
                     </button>
                     {projSaved && (
                       <span style={{ fontSize:12, color:C.primary, fontWeight:600 }}>✅ 保存しました</span>
@@ -1663,7 +1670,6 @@ export default function App() {
               {[
                 { l:"活動を記録",        d:"メンチメーター形式で記録",   icon:BookOpen,   s:"log",        c:C.accent1 },
                 { l:"振り返り提出",      d:"アンケート形式で振り返り",   icon:TrendingUp, s:"reflection", c:C.warn    },
-                { l:"プロジェクト情報",  d:"概要・ゴールを確認",        icon:Info,       s:"project",    c:C.textSub },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, border:`1px solid ${item.c}33`, minWidth:0, overflow:"hidden", marginBottom:0, padding:"12px 14px" }}>
                   <div style={{ width:36, height:36, borderRadius:10, background:item.c+"22", border:`1px solid ${item.c}44`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -2181,6 +2187,13 @@ export default function App() {
           ];
           return (
             <div>
+              <button
+                onClick={() => setScreen("home")}
+                style={{ ...S.btn, background:"transparent", color:C.primary, border:`1px solid ${C.primary}`, fontSize:13, padding:"6px 16px", marginBottom:"1rem", display:"flex", alignItems:"center", gap:6 }}
+              >
+                <ChevronLeft size={15}/> 戻る
+              </button>
+
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.textSub}15`, borderRadius:12, border:`1px solid ${C.textSub}33` }}>
                 <Info size={16} color={C.textSub}/>
                 <div>
