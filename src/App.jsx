@@ -1874,7 +1874,7 @@ export default function App() {
               <TrendingUp size={16} color={C.warn}/>
               <div>
                 <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.warn }}>振り返りアンケート</p>
-                <p style={{ margin:0, fontSize:11, color:C.textSub }}>7つの問いにそれぞれ1〜10で答えて提出しよう</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub, lineHeight:1.7 }}>PBL活動を通じて身についた力や課題を整理し、自身の成長を確認するためのものです。<br/><strong style={{ color:C.warn }}>PBL公式活動の終了後</strong>に入力してください。</p>
               </div>
             </div>
 
