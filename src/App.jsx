@@ -1898,18 +1898,6 @@ export default function App() {
               </div>
             ) : (
               <>
-                {myPending.length>0 && (
-                  <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"1rem", background:`${C.warn}08` }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:18 }}>⏳</span>
-                      <div>
-                        <p style={{ fontSize:13, color:C.warn, fontWeight:700, margin:0 }}>{myPending.length}件の振り返りが採点待ちです</p>
-                        <p style={{ fontSize:11, color:C.textSub, margin:"2px 0 0" }}>メンターが採点後、FBページに反映されます</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* ─── フェーズ：振り返り対象入力 ─── */}
                 {reflectionPhase === "target" && (
                   <div style={S.cardGlow}>
@@ -1962,7 +1950,7 @@ export default function App() {
                     const isSel = current === val;
                     return (
                       <button key={val} onClick={()=>setDrill(field, val)}
-                        style={{ textAlign:"left", padding:"10px 14px", borderRadius:9, fontSize:12,
+                        style={{ textAlign:"left", padding:"10px 14px", borderRadius:9, fontSize:14,
                           fontWeight: isSel ? 700 : 400,
                           background: isSel ? `${C.primary}18` : C.surface2,
                           border: `1.5px solid ${isSel ? C.primary : C.border}`,
@@ -1977,11 +1965,11 @@ export default function App() {
                     <div>
                       {/* プログレスバー */}
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                        <button style={{ background:"none", border:"none", cursor:"pointer", color:C.textSub, fontSize:12, padding:0, display:"flex", alignItems:"center", gap:4 }}
+                        <button style={{ background:"none", border:"none", cursor:"pointer", color:C.textSub, fontSize:14, padding:0, display:"flex", alignItems:"center", gap:4 }}
                           onClick={()=>{ if (reflectionStep===0) setReflectionPhase("target"); else setReflectionStep(s=>s-1); }}>
-                          <ChevronLeft size={14}/> 戻る
+                          <ChevronLeft size={16}/> 戻る
                         </button>
-                        <span style={{ fontSize:12, color:C.textMuted }}>Q{reflectionStep+1} / {allQs.length}</span>
+                        <span style={{ fontSize:14, color:C.textMuted }}>Q{reflectionStep+1} / {allQs.length}</span>
                       </div>
                       <div style={{ height:5, background:C.surface2, borderRadius:99, marginBottom:18, overflow:"hidden" }}>
                         <div style={{ height:"100%", width:`${progress}%`, background:`linear-gradient(90deg,${C.primary},${C.accent1})`, borderRadius:99, transition:"width 0.4s" }}/>
@@ -1989,12 +1977,12 @@ export default function App() {
 
                       <div style={S.cardGlow}>
                         {secTitle && (
-                          <p style={{ fontSize:10, fontWeight:700, color:C.textSub, margin:"0 0 10px",
+                          <p style={{ fontSize:12, fontWeight:700, color:C.textSub, margin:"0 0 10px",
                             padding:"2px 8px", background:C.surface2, borderRadius:6, display:"inline-block", borderLeft:`3px solid ${C.primary}` }}>
                             {secTitle}
                           </p>
                         )}
-                        <p style={{ fontSize:15, fontWeight:700, color:C.text, lineHeight:1.6, marginBottom:16 }}>
+                        <p style={{ fontSize:17, fontWeight:700, color:C.text, lineHeight:1.6, marginBottom:16 }}>
                           {q.text}
                         </p>
 
@@ -2005,7 +1993,7 @@ export default function App() {
                             return (
                               <button key={opt.value}
                                 onClick={()=>setReflectionAnswers(prev=>({...prev,[q.id]:opt.value}))}
-                                style={{ textAlign:"left", padding:"12px 16px", borderRadius:10, fontSize:13,
+                                style={{ textAlign:"left", padding:"12px 16px", borderRadius:10, fontSize:15,
                                   fontWeight: isSel ? 700 : 400,
                                   background: isSel ? `${C.primary}18` : C.surface2,
                                   border: `2px solid ${isSel ? C.primary : C.border}`,
