@@ -1692,11 +1692,11 @@ export default function App() {
         {/* ─── ログ ──────────────────────────────────────────────────── */}
         {screen==="log" && (
           <div>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"0.75rem", padding:"8px 14px", background:`${C.accent1}15`, borderRadius:12, border:`1px solid ${C.accent1}33` }}>
               <BookOpen size={16} color={C.accent1}/>
               <div>
                 <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.accent1 }}>活動ログ</p>
-                <p style={{ margin:0, fontSize:11, color:C.textSub }}>活動内容と振り返りを記録しよう。</p>
+                <p style={{ margin:0, fontSize:11, color:C.textSub, lineHeight:1.7 }}>授業・ワークショップ以外の<strong style={{ color:C.accent1 }}>自主活動</strong>を記録するものです。<br/>活動後に9つの問いに答えて、自身の成長を確認しましょう。</p>
               </div>
             </div>
             <div style={S.cardGlow}>
@@ -1721,21 +1721,6 @@ export default function App() {
                   onChange={e => setLogDate(e.target.value)}
                   style={{ ...S.input, width:"100%", boxSizing:"border-box" }}
                 />
-              </div>
-
-              {/* 公式/自主 区分 */}
-              <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, fontWeight:700, color:C.text, display:"block", marginBottom:8 }}>活動の種類</label>
-                <div style={{ display:"flex", gap:8 }}>
-                  {[{ v:"official", l:"📋 公式活動", d:"メンター参加あり" }, { v:"self", l:"🙋 自主活動", d:"チーム・個人" }].map(t => (
-                    <button key={t.v} onClick={()=>setActivityType(t.v)}
-                      style={{ flex:1, padding:"8px 10px", borderRadius:10, border:`2px solid ${activityType===t.v?C.primary:C.border}`,
-                        background: activityType===t.v ? C.primary+"18" : "transparent", cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>
-                      <p style={{ margin:0, fontSize:12, fontWeight:700, color: activityType===t.v?C.primary:C.text }}>{t.l}</p>
-                      <p style={{ margin:0, fontSize:10, color:C.textMuted }}>{t.d}</p>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* 9軸簡易チェック（1-10スライダー） */}
