@@ -471,6 +471,7 @@ export default function App() {
   const [answerMap, setAnswerMap]     = useState({});
   const [mentorUncertain, setMentorUncertain] = useState({}); // #14 判定迷いフラグ { [axisId]: boolean }
   const [showAllAnswers, setShowAllAnswers]   = useState(false); // 採点画面：全回答表示トグル
+  const [fbSelStudentId, setFbSelStudentId] = useState(null); // FB画面の学生フィルタ（null=全員）
 
   // ログイン
   const [loginId, setLoginId]             = useState("");
@@ -1361,42 +1362,90 @@ export default function App() {
                   🔄 更新
                 </button>
               </div>
-              {pending.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>FB待ちはありません。</p>}
-              {pending.map(p => (
-                <div key={p.id} style={S.card}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <Avatar name={p.studentId} size={30}/>
-                      <div>
-                        <p style={{ margin:0, fontSize:13, fontWeight:700 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
-                        <p style={{ margin:0, fontSize:11, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター形式":"振り返り"}</p>
-                      </div>
-                    </div>
-                    <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);setShowAllAnswers(true);}}>FBする</button>
-                  </div>
-                  {/* 振り返り内容プレビュー */}
-                  {p.mode==="survey_json" && p.answers && surveyDef ? (
-                    <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:4 }}>
-                      {surveyDef.sections.flatMap(s=>s.questions).filter(q => p.answers[q.id] != null && p.answers[q.id] > 0).slice(0,5).map(q => {
-                        const val = p.answers[q.id];
-                        const opt = q.options?.find(o => o.value === val);
-                        return (
-                          <span key={q.id} style={{ fontSize:11, padding:"2px 8px", borderRadius:20, background:C.primary+"15", color:C.primary, border:`1px solid ${C.primary}33` }}>
-                            {q.text.slice(0,12)}… Lv.{val}{opt?` (${opt.label.slice(0,8)})` :""}
+
+              {/* 学生フィルタタブ */}
+              {students.length > 0 && (
+                <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4, marginBottom:"1rem", scrollbarWidth:"none" }}>
+                  {/* 全員タブ */}
+                  <button onClick={()=>setFbSelStudentId(null)}
+                    style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight: fbSelStudentId===null ? 700 : 400,
+                      border:`1.5px solid ${fbSelStudentId===null ? C.primary : C.border}`,
+                      background: fbSelStudentId===null ? `${C.primary}18` : C.surface2,
+                      color: fbSelStudentId===null ? C.primary : C.text, cursor:"pointer", transition:"all 0.15s" }}>
+                    全員 ({pending.length})
+                  </button>
+                  {/* 学生ごとのタブ（pending がある学生のみ） */}
+                  {students.map(st => {
+                    const cnt = pending.filter(p=>p.studentId===st.id).length;
+                    const isSel = fbSelStudentId === st.id;
+                    return (
+                      <button key={st.id} onClick={()=>setFbSelStudentId(st.id)}
+                        style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"6px 14px", borderRadius:20, fontSize:12,
+                          fontWeight: isSel ? 700 : 400,
+                          border:`1.5px solid ${isSel ? C.primary : C.border}`,
+                          background: isSel ? `${C.primary}18` : C.surface2,
+                          color: isSel ? C.primary : C.text, cursor:"pointer", transition:"all 0.15s",
+                          opacity: cnt === 0 ? 0.5 : 1 }}>
+                        {st.name}
+                        {cnt > 0 && (
+                          <span style={{ background:C.accent2, color:"#fff", borderRadius:99, fontSize:9, fontWeight:700, minWidth:16, height:16, lineHeight:"16px", textAlign:"center", padding:"0 3px" }}>
+                            {cnt}
                           </span>
-                        );
-                      })}
-                      {Object.values(p.answers).filter(v => v > 0).length > 5 && (
-                        <span style={{ fontSize:11, color:C.textMuted }}>他{Object.values(p.answers).filter(v=>v>0).length-5}問...</span>
-                      )}
-                    </div>
-                  ) : (
-                    <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", lineHeight:1.7, margin:"8px 0 0" }}>
-                      {(p.reflection||"").slice(0,200)}{(p.reflection||"").length>200?"…":""}
-                    </p>
-                  )}
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
+
+              {/* 振り返り一覧（フィルタ適用） */}
+              {(() => {
+                const filtered = fbSelStudentId
+                  ? pending.filter(p => p.studentId === fbSelStudentId)
+                  : pending;
+                if (filtered.length === 0) return (
+                  <p style={{ color:C.textSub, fontSize:13 }}>
+                    {fbSelStudentId ? `${students.find(s=>s.id===fbSelStudentId)?.name || fbSelStudentId} のFB待ちはありません。` : "FB待ちはありません。"}
+                  </p>
+                );
+                return filtered.map(p => (
+                  <div key={p.id} style={S.card}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <Avatar name={p.studentId} size={30}/>
+                        <div>
+                          <p style={{ margin:0, fontSize:13, fontWeight:700 }}>{students.find(s=>s.id===p.studentId)?.name || p.studentId}</p>
+                          <p style={{ margin:0, fontSize:11, color:C.textSub }}>
+                            {p.date}{p.stage ? ` · ${p.stage}` : ""} · {p.mode==="mentimeter"?"メンチメーター形式":"振り返り"}
+                          </p>
+                        </div>
+                      </div>
+                      <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);setShowAllAnswers(true);}}>FBする</button>
+                    </div>
+                    {/* 振り返り内容プレビュー */}
+                    {p.mode==="survey_json" && p.answers && surveyDef ? (
+                      <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {surveyDef.sections.flatMap(s=>s.questions).filter(q => p.answers[q.id] != null && p.answers[q.id] > 0).slice(0,5).map(q => {
+                          const val = p.answers[q.id];
+                          const opt = q.options?.find(o => o.value === val);
+                          return (
+                            <span key={q.id} style={{ fontSize:11, padding:"2px 8px", borderRadius:20, background:C.primary+"15", color:C.primary, border:`1px solid ${C.primary}33` }}>
+                              {q.text.slice(0,12)}… Lv.{val}{opt?` (${opt.label.slice(0,8)})` :""}
+                            </span>
+                          );
+                        })}
+                        {Object.values(p.answers).filter(v => v > 0).length > 5 && (
+                          <span style={{ fontSize:11, color:C.textMuted }}>他{Object.values(p.answers).filter(v=>v>0).length-5}問...</span>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize:13, color:C.textSub, whiteSpace:"pre-line", lineHeight:1.7, margin:"8px 0 0" }}>
+                        {(p.reflection||"").slice(0,200)}{(p.reflection||"").length>200?"…":""}
+                      </p>
+                    )}
+                  </div>
+                ));
+              })()}
             </div>
           )}
 
