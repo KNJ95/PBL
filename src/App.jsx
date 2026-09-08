@@ -127,7 +127,7 @@ const STUDENT_TUTORIAL_STEPS = [
     title: "振り返りタブ",
     icon: "📝",
     tab: "振り返り",
-    content: "【できること】\n• 活動の振り返りをメンターに提出\n• メンチメーター形式（10段階スライダー）で回答\n• 提出するとメンターが採点・フィードバックできる\n\n【使い方】\n各質問に回答 → 「振り返りを提出する」を押す。\nメンターが採点すると「フィードバック」タブに結果が届きます。",
+    content: "【できること】\n• 活動の振り返りをメンターに提出\n• メンチメーター形式（10段階スライダー）で回答\n• 提出するとメンターがFBできる\n\n【使い方】\n各質問に回答 → 「振り返りを提出する」を押す。\nメンターがFBするとFBページに結果が届きます。",
     visual: "student",
   },
   {
@@ -144,21 +144,21 @@ const MENTOR_TUTORIAL_STEPS = [
     title: "Be-Readyへようこそ",
     icon: "⭐",
     tab: null,
-    content: "このアプリは、PBL学生の成長を「Be-Ready人材」の観点で評価・支援するメンター向けツールです。\n\n学生の自己評価への他者評価付与・振り返り採点・問いの送信を一元管理できます。",
+    content: "このアプリは、PBL学生の成長を「Be-Ready人材」の観点で評価・支援するメンター向けツールです。\n\n学生の自己評価への他者評価付与・振り返りFB・問いの送信を一元管理できます。",
     visual: "radar",
   },
   {
     title: "学生/評価タブ",
     icon: "👥",
     tab: "学生/評価",
-    content: "【できること】\n• 担当学生の一覧を確認（同じチームIDの学生のみ表示）\n• 学生を選択してレーダーチャート・評価履歴を確認\n• 「評価を入力」フォームで他者評価スコアを記録\n\n【使い方】\n学生名をタップして選択 → チャート下のフォームで各軸を採点 → 「評価を保存」を押す。\n軸名の横の ⓘ をタップすると採点基準（ルーブリック）を確認できます。",
+    content: "【できること】\n• 担当学生の一覧を確認（同じチームIDの学生のみ表示）\n• 学生を選択してレーダーチャート・評価履歴を確認\n• 「評価を入力」フォームで他者評価スコアを記録\n\n【使い方】\n学生名をタップして選択 → チャート下のフォームで各軸をFB入力 → 「評価を保存」を押す。\n軸名の横の ⓘ をタップすると評価基準（ルーブリック）を確認できます。",
     visual: "mentor",
   },
   {
-    title: "採点タブ",
+    title: "FBタブ",
     icon: "✅",
-    tab: "採点",
-    content: "【できること】\n• 学生が提出した振り返りを一覧で確認\n• 振り返り内容を読んで9軸でスコアを付ける\n• AIによる採点提案を参考にして効率化\n\n【使い方】\n「採点する」ボタンを押す → 振り返り内容を確認 → 各軸のスコアを選択 → 「他者評価を確定・承認する」を押す。\n軸名をタップするとルーブリック（採点基準）が表示されます。",
+    tab: "FB",
+    content: "【できること】\n• 学生が提出した振り返りを一覧で確認\n• 振り返り内容を読んで9軸でスコアを付ける\n• AIによるFB提案を参考にして効率化\n\n【使い方】\n「FBする」ボタンを押す → 振り返り内容を確認 → 各軸のスコアを選択 → 「他者評価を確定・承認する」を押す。\n軸名をタップするとルーブリック（評価基準）が表示されます。",
     visual: "scoring",
   },
   {
@@ -1246,7 +1246,7 @@ export default function App() {
                               {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷った</span>}
                             </div>
                             <p style={{ margin:0, fontSize:11, color:C.textSub }}>
-                              振り返り {svs.length}件{pend>0?` · 採点待ち ${pend}件`:""}
+                              振り返り {svs.length}件{pend>0?` · FB待ち ${pend}件`:""}
                             </p>
                             <p style={{ margin:"2px 0 0", fontSize:11, color:C.textSub }}>
                               📓 ログ: {lastLogTs > 0 ? fmt(lastLogTs) : "未入力"}
@@ -1354,13 +1354,13 @@ export default function App() {
           {screen==="scoring" && (
             <div>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-                <h3 style={{ fontSize:16, fontWeight:700, margin:0 }}>採点待ちの振り返り</h3>
+                <h3 style={{ fontSize:16, fontWeight:700, margin:0 }}>FB待ちの振り返り</h3>
                 <button style={{ ...S.btn, fontSize:11, padding:"4px 12px", display:"flex", alignItems:"center", gap:4 }}
                   onClick={()=>{ const skip = new Set(["current_user","tutorial_seen","mentor_done_ids"]); Promise.all(students.map(st=>storage.syncFromCloud(st.id,skip))).then(()=>tick()); }}>
                   🔄 更新
                 </button>
               </div>
-              {pending.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>採点待ちはありません。</p>}
+              {pending.length===0 && <p style={{ color:C.textSub, fontSize:13 }}>FB待ちはありません。</p>}
               {pending.map(p => (
                 <div key={p.id} style={S.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
@@ -1371,7 +1371,7 @@ export default function App() {
                         <p style={{ margin:0, fontSize:11, color:C.textSub }}>{p.date} · {p.mode==="mentimeter"?"メンチメーター形式":"振り返り"}</p>
                       </div>
                     </div>
-                    <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);setShowAllAnswers(true);}}>採点する</button>
+                    <button style={S.btnPrimary} onClick={()=>{setScoringTarget(p);setMentorScores({});setAiResult(null);setShowAllAnswers(true);}}>FBする</button>
                   </div>
                   {/* 振り返り内容プレビュー */}
                   {p.mode==="survey_json" && p.answers && surveyDef ? (
@@ -1405,7 +1405,7 @@ export default function App() {
         <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:30, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {[
             { v:"home",    l:"学生",  icon:Users,         badge:0 },
-            { v:"scoring", l:"採点",  icon:ClipboardList, badge:pending.length },
+            { v:"scoring", l:"FB",    icon:ClipboardList, badge:pending.length },
           ].map(item => {
             const active = screen===item.v;
             return (
@@ -1615,7 +1615,7 @@ export default function App() {
               <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
                 <ClipboardList size={40} color={C.primary+"88"} style={{ marginBottom:12 }}/>
                 <p style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>まだアンケートがありません</p>
-                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>振り返りを提出するとメンターが採点し、レーダーチャートが表示されます。</p>
+                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>振り返りを提出するとメンターがFBし、レーダーチャートが表示されます。</p>
                 <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
               </div>
             )}
@@ -1625,7 +1625,7 @@ export default function App() {
               {[
                 { l:"ログ記録",   v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
                 { l:"振り返り",  v:mySurveys.length,   c:C.primary, icon:ClipboardList, s:"reflection" },
-                { l:"採点待ち",  v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
+                { l:"FB待ち",    v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
                   <item.icon size={18} color={item.c} style={{ marginBottom:4 }}/>
@@ -1638,7 +1638,7 @@ export default function App() {
             {/* 通知 */}
             {myPending.length>0 && (
               <div style={{ ...S.scard, borderLeft:`3px solid ${C.warn}`, marginBottom:"0.75rem" }}>
-                <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターの採点を待っています。</p>
+                <p style={{ fontSize:13, color:C.warn, fontWeight:600, margin:0 }}>⏳ {myPending.length}件の振り返りがメンターのFBを待っています。</p>
               </div>
             )}
             {/* ネクストアクション（最新の振り返りの⚡回答を要約） */}
@@ -1875,7 +1875,7 @@ export default function App() {
               <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", borderColor:`${C.success}55` }}>
                 <div style={{ fontSize:44, marginBottom:12 }}>🎉</div>
                 <p style={{ fontSize:16, fontWeight:700, color:C.success, marginBottom:6 }}>振り返りを提出しました！</p>
-                <p style={{ fontSize:13, color:C.textSub, marginBottom:20 }}>メンターが確認・採点します。<br/>結果はFBページで確認できます。</p>
+                <p style={{ fontSize:13, color:C.textSub, marginBottom:20 }}>メンターが確認・FBします。<br/>結果はFBページで確認できます。</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
                   <button style={S.btnPrimary} onClick={()=>setScreen("home")}>ホームへ戻る</button>
                   <button style={S.btn} onClick={()=>{ setReflectionDone(false); setReflectionAnswers({}); setReflectionTarget(""); setReflectionPhase("target"); setReflectionStep(0); setDrillAnswers({}); }}>続けて提出する</button>
