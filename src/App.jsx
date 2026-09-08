@@ -1975,7 +1975,7 @@ export default function App() {
                     </label>
                     <p style={{ fontSize:11, color:C.textMuted, marginBottom:10 }}>今回の振り返りはPBLのどのタイミングですか？</p>
                     <div style={{ display:"flex", gap:8, marginBottom:20 }}>
-                      {["初回","中間","最終"].map(s => (
+                      {["初回","通常","中間","最終"].map(s => (
                         <button key={s} onClick={()=>setReflectionStage(s)}
                           style={{ flex:1, padding:"10px 0", borderRadius:8,
                             border:`1.5px solid ${reflectionStage===s ? C.primary : C.border}`,
