@@ -172,14 +172,17 @@ const MENTOR_TUTORIAL_STEPS = [
 
 
 
+// 9軸に対応した簡易チェック設問（ログ用）
 const REFLECTION_QUESTIONS = [
-  { id:1, text:"以前に比べて積極的に発言できましたか？" },
-  { id:2, text:"新たに学んだことはありましたか？" },
-  { id:3, text:"思うように行かなかったことや困ったことはありましたか？" },
-  { id:4, text:"失敗したなーと後悔したシーンはありましたか？" },
-  { id:5, text:"チームと協力して動けましたか？" },
-  { id:6, text:"自分から課題や問題を見つけようとしましたか？" },
-  { id:7, text:"今日の活動への満足度はどのくらいですか？" },
+  { id:1, axis:"課題設定力",      text:"今日の活動で、自分なりに課題の意味・価値を考えられましたか？" },
+  { id:2, axis:"情報活用力",      text:"必要な情報を集めて、判断や行動に活かせましたか？" },
+  { id:3, axis:"不確実性への耐性", text:"想定外のことが起きても、粘り強く柔軟に対応できましたか？" },
+  { id:4, axis:"提案・発信力",    text:"自分の考えや意見をチームや関係者に伝えられましたか？" },
+  { id:5, axis:"実行・改善力",    text:"自分ごととして粘り強く取り組めましたか？" },
+  { id:6, axis:"オーナーシップ",  text:"活動の意味や価値を自分なりに理解して取り組めましたか？" },
+  { id:7, axis:"協働・調整力",    text:"他者の意見を取り入れながら柔軟に動けましたか？" },
+  { id:8, axis:"自律・内発的動機", text:"自分なりの理由・動機を持って活動に取り組めましたか？" },
+  { id:9, axis:"行動変容力",      text:"前回の気づきやフィードバックを、今日の行動に活かせましたか？" },
 ];
 
 // ─── 深堀り設定（選択肢の値 1〜4 ごとに変化） ──────────────────
@@ -1735,13 +1738,18 @@ export default function App() {
                 </div>
               </div>
 
-              {/* REFLECTION_QUESTIONS：1-10スライダー（メンチメーター形式） */}
+              {/* 9軸簡易チェック（1-10スライダー） */}
               {REFLECTION_QUESTIONS.map((q, idx) => {
                 const val = logAnswers[q.id] || 0;
                 return (
                   <div key={q.id} style={{ marginBottom:24, padding:"14px 16px", background:C.surface2, borderRadius:12, border:`1px solid ${C.border}` }}>
+                    {q.axis && (
+                      <span style={{ fontSize:11, fontWeight:700, color:C.primary, background:C.primary+"18", border:`1px solid ${C.primary}44`, borderRadius:6, padding:"2px 8px", display:"inline-block", marginBottom:8 }}>
+                        {idx+1}. {q.axis}
+                      </span>
+                    )}
                     <label style={{ fontSize:13, fontWeight:700, color:C.text, display:"block", marginBottom:12 }}>
-                      Q{idx+1}. {q.text}
+                      {q.text}
                     </label>
                     <div style={{ textAlign:"center", marginBottom:8 }}>
                       <span style={{ fontSize:36, fontWeight:700, color: val===0 ? C.textMuted : C.primary, lineHeight:1 }}>
