@@ -1499,8 +1499,9 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────
   // 学生画面
   // ─────────────────────────────────────────────────────────────────────
-  const myPending     = getPending().filter(p=>p.studentId===currentUser.id);
-  const myQuestions   = getQuestions().filter(q=>q.studentId===currentUser.id);
+  const mentorDoneIds  = storage.get("mentor_done_ids") || [];
+  const myPending      = getPending().filter(p=>p.studentId===currentUser.id && !mentorDoneIds.includes(p.id));
+  const myQuestions    = getQuestions().filter(q=>q.studentId===currentUser.id);
   const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
   const latestMentor  = getMentorSurveys(currentUser.id)[0];
 
