@@ -828,23 +828,34 @@ export default function App() {
 
   // ─── 共通ヘッダー ─────────────────────────────────────────────────────
   const Header = () => (
-    <div style={{ borderBottom:`1px solid ${C.border}`, padding:"0.875rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", background:C.surface, position:"sticky", top:0, zIndex:20, backdropFilter:"blur(12px)" }}>
-      <button style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:10, padding:0 }} onClick={() => setScreen("home")}>
-        <Star size={16} color={C.primary}/>
-        <div>
+    <div style={{ borderBottom:`1px solid ${C.border}`, padding:"0.75rem 1rem", display:"flex", alignItems:"center", justifyContent:"space-between", background:C.surface, position:"sticky", top:0, zIndex:20, backdropFilter:"blur(12px)" }}>
+      <button style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:8, padding:0, minWidth:0 }} onClick={() => setScreen("home")}>
+        <Star size={16} color={C.primary} style={{ flexShrink:0 }}/>
+        <div style={{ minWidth:0 }}>
           <span style={{ fontSize:15, fontWeight:700, color:C.primary, letterSpacing:-0.3 }}>Be-Ready</span>
           {currentUser?.projectId && (
-            <span style={{ display:"block", fontSize:10, color:C.textMuted, lineHeight:1, marginTop:1 }}>
+            <span style={{ display:"block", fontSize:10, color:C.textMuted, lineHeight:1, marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:120 }}>
               📁 {currentUser.projectId}
             </span>
           )}
         </div>
       </button>
-      <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-        <button style={{ ...S.btn, padding:"5px 10px", fontSize:11, display:"flex", alignItems:"center", gap:4 }} onClick={()=>{ setTutorialStep(0); setShowTutorial(true); }}>
-          <HelpCircle size={12}/>チュートリアル
+      <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+        {/* スマホ：アイコンのみ / PC：テキスト付き */}
+        <button
+          title="チュートリアル"
+          style={{ ...S.btn, padding:"6px 8px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
+          onClick={()=>{ setTutorialStep(0); setShowTutorial(true); }}>
+          <HelpCircle size={15}/>
+          <span style={{ display:"none" }} className="header-btn-label">チュートリアル</span>
         </button>
-        <button style={{ ...S.btn, padding:"5px 12px", fontSize:12 }} onClick={logout}><LogOut size={13} style={{ verticalAlign:"middle" }}/> ログアウト</button>
+        <button
+          title="ログアウト"
+          style={{ ...S.btn, padding:"6px 8px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
+          onClick={logout}>
+          <LogOut size={15}/>
+          <span style={{ display:"none" }} className="header-btn-label">ログアウト</span>
+        </button>
       </div>
     </div>
   );
@@ -857,7 +868,7 @@ export default function App() {
     return (
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
         <Header/>
-        <div style={{ maxWidth:780, margin:"0 auto", padding:`1.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom))` }}>
+        <div style={{ maxWidth:780, margin:"0 auto", padding:`1rem 1rem calc(2rem + env(safe-area-inset-bottom))` }}>
           <button style={{ ...S.btn, marginBottom:"1rem" }} onClick={()=>{setScoringTarget(null);setAiResult(null);setMentorScores({});}}>← 戻る</button>
           <div style={S.cardGlow}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
@@ -1202,7 +1213,7 @@ export default function App() {
         <Header/>
         {TutorialModal}
         {FeedbackWidget}
-        <div style={{ maxWidth:820, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
+        <div style={{ maxWidth:820, margin:"0 auto", padding:`1rem 1rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
           {/* 学生一覧 + 評価（マージ） */}
           {screen==="home" && (
@@ -1551,11 +1562,17 @@ export default function App() {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      <style>{`@media (max-width: 480px) { body { zoom: 1.2; } }`}</style>
+      <style>{`
+        * { box-sizing: border-box; }
+        input, textarea, select, button { max-width: 100%; }
+        @media (max-width: 480px) {
+          body { -webkit-text-size-adjust: 100%; }
+        }
+      `}</style>
       <Header/>
       {StudentTutorialModal}
       {FeedbackWidget}
-      <div style={{ maxWidth:860, margin:"0 auto", padding:`1.5rem 1.5rem calc(7rem + env(safe-area-inset-bottom))` }}>
+      <div style={{ maxWidth:860, margin:"0 auto", padding:`1rem 1rem calc(7rem + env(safe-area-inset-bottom))` }}>
 
         {/* ─── ホーム ─────────────────────────────────────────────── */}
         {screen==="home" && (
