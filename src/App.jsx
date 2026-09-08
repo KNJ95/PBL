@@ -841,20 +841,15 @@ export default function App() {
         </div>
       </button>
       <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-        {/* スマホ：アイコンのみ / PC：テキスト付き */}
         <button
-          title="チュートリアル"
-          style={{ ...S.btn, padding:"6px 8px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
+          style={{ ...S.btn, padding:"5px 10px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
           onClick={()=>{ setTutorialStep(0); setShowTutorial(true); }}>
-          <HelpCircle size={15}/>
-          <span style={{ display:"none" }} className="header-btn-label">チュートリアル</span>
+          <HelpCircle size={13}/>チュートリアル
         </button>
         <button
-          title="ログアウト"
-          style={{ ...S.btn, padding:"6px 8px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
+          style={{ ...S.btn, padding:"5px 10px", fontSize:11, display:"flex", alignItems:"center", gap:4 }}
           onClick={logout}>
-          <LogOut size={15}/>
-          <span style={{ display:"none" }} className="header-btn-label">ログアウト</span>
+          <LogOut size={13}/>ログアウト
         </button>
       </div>
     </div>
@@ -1565,6 +1560,12 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         input, textarea, select, button { max-width: 100%; }
+        input[type="date"] {
+          width: 100%;
+          min-width: 0;
+          -webkit-appearance: none;
+          appearance: none;
+        }
         @media (max-width: 480px) {
           body { -webkit-text-size-adjust: 100%; }
         }
