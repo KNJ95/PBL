@@ -450,6 +450,7 @@ export default function App() {
   const [reflectionTarget, setReflectionTarget]     = useState("");    // 振り返り対象
   const [reflectionPhase, setReflectionPhase]       = useState("target"); // "target"|"survey"
   const [reflectionStep, setReflectionStep]         = useState(0);     // 現在の問い番号（0..N-1）
+  const [reflectionStage, setReflectionStage]       = useState("初回"); // "初回"|"中間"|"最終"
   const [drillAnswers, setDrillAnswers]             = useState({});    // 問ごと深堀り { [qId]: {d1,d2choice,d2text} }
   const [logPopup, setLogPopup]                     = useState(null);  // 過去ログポップアップ
   const [projEditState, setProjEditState]           = useState({ name:"", summary:"" }); // プロジェクト情報編集用
@@ -674,7 +675,7 @@ export default function App() {
     const pending = getPending();
     const axes = (mode === "survey_json" && allQs.length > 0) ? calcAxesFromAnswers(answers, allQs) : {};
     const refTs = reflectionDate ? new Date(reflectionDate).setHours(12,0,0,0) : Date.now();
-    savePending([...pending, { id:"pe"+refTs, studentId:currentUser.id, date:reflectionDate || fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending" }]);
+    savePending([...pending, { id:"pe"+refTs, studentId:currentUser.id, date:reflectionDate || fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending", stage:reflectionStage }]);
     setReflectionDate(new Date().toISOString().slice(0,10));
     tick();
     setReflectionDone(true);
@@ -1586,39 +1587,93 @@ export default function App() {
             </div>
 
             {/* レーダーチャート（最優先表示） */}
-            {latestSurvey ? (
-              <>
+            {(() => {
+              // axes を持つ pending items（最古→最新の順）
+              const pendingWithAxes = myPending.filter(p => p.axes && Object.keys(p.axes).length > 0);
+              // 初回：stage="初回" のもの、なければ最古
+              const initialEval = pendingWithAxes.find(p => p.stage === "初回") || pendingWithAxes[0] || null;
+              // 最新：最後に追加されたもの（or latestSurvey）
+              const latestEval  = pendingWithAxes[pendingWithAxes.length - 1] || latestSurvey || null;
+              // 2件以上かつ初回≠最新なら比較表示
+              const showComparison = initialEval && latestEval && initialEval.id !== latestEval.id;
+
+              const singleRadarCard = (evalData, mentorData, label, sublabel) => (
                 <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                    <div>
-                      <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:0 }}>Be-Ready 評価レーダー</p>
-                      <p style={{ fontSize:11, color:C.textSub, marginTop:3 }}>
-                        自己評価{latestMentor ? " / メンター評価" : ""}（最新）
-                      </p>
-                    </div>
-                  </div>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <RadarChart data={radarData(latestSurvey, latestMentor)}>
+                  <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:"0 0 2px" }}>{label}</p>
+                  <p style={{ fontSize:11, color:C.textSub, marginBottom:8 }}>{sublabel}</p>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart data={radarData(evalData, mentorData)}>
                       <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:12, fill:"#460073", fontWeight:600 }}/>
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize:11, fill:"#460073", fontWeight:600 }}/>
                       <Radar name="自己評価" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
-                      {latestMentor && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
-                      <Legend wrapperStyle={{ fontSize:12, color:C.textSub }}/>
-                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:12 }}/>
+                      {mentorData && <Radar name="メンター評価" dataKey="他者" stroke="#0088aa" fill="#0088aa" fillOpacity={0.25}/>}
+                      <Legend wrapperStyle={{ fontSize:11, color:C.textSub }}/>
+                      <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:11 }}/>
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
+              );
 
+              if (showComparison) {
+                return (
+                  <>
+                    <div style={{ ...S.cardGlow, marginBottom:"1.25rem" }}>
+                      <p style={{ fontSize:14, fontWeight:700, color:C.text, margin:"0 0 4px" }}>📈 成長の比較</p>
+                      <p style={{ fontSize:11, color:C.textSub, marginBottom:12 }}>初回と最新の評価を比較して、あなたの成長を確認しましょう</p>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div style={{ textAlign:"center" }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:"#0088aa", margin:"0 0 4px" }}>
+                            🔵 初回{initialEval.stage ? `（${initialEval.stage}）` : ""} {initialEval.date || ""}
+                          </p>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <RadarChart data={radarData(initialEval, null)}>
+                              <PolarGrid stroke="rgba(0,136,170,0.2)" strokeDasharray="3 3"/>
+                              <PolarAngleAxis dataKey="subject" tick={{ fontSize:9, fill:"#0088aa", fontWeight:600 }}/>
+                              <Radar name="初回" dataKey="自己" stroke="#0088aa" fill="#0088aa" fillOpacity={0.4}/>
+                              <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:10 }}/>
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div style={{ textAlign:"center" }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:C.primary, margin:"0 0 4px" }}>
+                            🟣 最新{latestEval.stage ? `（${latestEval.stage}）` : ""} {latestEval.date || ""}
+                          </p>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <RadarChart data={radarData(latestEval, latestMentor)}>
+                              <PolarGrid stroke="rgba(117,0,192,0.2)" strokeDasharray="3 3"/>
+                              <PolarAngleAxis dataKey="subject" tick={{ fontSize:9, fill:"#460073", fontWeight:600 }}/>
+                              <Radar name="最新" dataKey="自己" stroke="#CC44FF" fill="#CC44FF" fillOpacity={0.5}/>
+                              {latestMentor && <Radar name="メンター" dataKey="他者" stroke="#00aacc" fill="#00aacc" fillOpacity={0.25}/>}
+                              <Tooltip contentStyle={{ background:C.surface2, border:`1px solid ${C.borderLight}`, borderRadius:8, fontSize:10 }}/>
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                      {latestMentor && (
+                        <p style={{ fontSize:11, color:C.textSub, textAlign:"center", margin:0 }}>最新チャートにはメンターのFBも表示しています</p>
+                      )}
+                    </div>
+                  </>
+                );
+              }
 
-              </>
-            ) : (
-              <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
-                <ClipboardList size={40} color={C.primary+"88"} style={{ marginBottom:12 }}/>
-                <p style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>まだアンケートがありません</p>
-                <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>振り返りを提出するとメンターがFBし、レーダーチャートが表示されます。</p>
-                <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
-              </div>
-            )}
+              if (latestEval) {
+                return singleRadarCard(
+                  latestEval, latestMentor,
+                  "Be-Ready 評価レーダー",
+                  `自己評価${latestMentor ? " / メンター評価" : ""}（最新）`
+                );
+              }
+
+              return (
+                <div style={{ ...S.cardGlow, textAlign:"center", padding:"2.5rem 1.5rem", marginBottom:"1.25rem" }}>
+                  <ClipboardList size={40} color={C.primary+"88"} style={{ marginBottom:12 }}/>
+                  <p style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>まだアンケートがありません</p>
+                  <p style={{ fontSize:13, color:C.textSub, marginBottom:16 }}>振り返りを提出するとメンターがFBし、レーダーチャートが表示されます。</p>
+                  <button style={S.btnPrimary} onClick={()=>setScreen("reflection")}>振り返りを提出する</button>
+                </div>
+              );
+            })()}
 
             {/* 統計カード */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
@@ -1915,6 +1970,23 @@ export default function App() {
                       onChange={e => setReflectionDate(e.target.value)}
                       style={{ ...S.input, marginBottom:20 }}
                     />
+                    <label style={{ fontSize:12, fontWeight:700, color:C.textSub, display:"block", marginBottom:8 }}>
+                      📊 評価ステージ
+                    </label>
+                    <p style={{ fontSize:11, color:C.textMuted, marginBottom:10 }}>今回の振り返りはPBLのどのタイミングですか？</p>
+                    <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+                      {["初回","中間","最終"].map(s => (
+                        <button key={s} onClick={()=>setReflectionStage(s)}
+                          style={{ flex:1, padding:"10px 0", borderRadius:8,
+                            border:`1.5px solid ${reflectionStage===s ? C.primary : C.border}`,
+                            background: reflectionStage===s ? `${C.primary}18` : C.surface2,
+                            color: reflectionStage===s ? C.primary : C.text,
+                            fontWeight: reflectionStage===s ? 700 : 400,
+                            fontSize:14, cursor:"pointer", transition:"all 0.15s" }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                     <button style={{ ...S.btnPrimary, width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
                       onClick={()=>{ setReflectionPhase("survey"); setReflectionStep(0); }}>
                       開始する <ChevronRight size={15}/>
