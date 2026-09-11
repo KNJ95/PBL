@@ -236,7 +236,16 @@ const storage = {
     if (_cloudUid) fetch(`${CLOUD_API}?userId=${encodeURIComponent(_cloudUid)}&dataKey=${encodeURIComponent(k)}`,
       { method:"DELETE" }).catch(()=>{});
   },
-  keys: (prefix) => { try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; } },
+  keys: (prefix) => {
+    const result = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) result.push(k);
+      }
+    } catch {}
+    return result;
+  },
   setUser: (uid) => { _cloudUid = uid; },
   clearUser: () => { _cloudUid = null; },
   // skipKeys: 上書きしないキーのSet（他ユーザー同期時に current_user 等を保護）
@@ -1523,7 +1532,9 @@ export default function App() {
   // 学生画面
   // ─────────────────────────────────────────────────────────────────────
   const mentorDoneIds  = storage.get("mentor_done_ids") || [];
-  const myPending      = getPending().filter(p=>p.studentId===currentUser.id && !mentorDoneIds.includes(p.id));
+  // storage.keys() に頼らず自分のキーを直接参照（Object.keys(localStorage) 互換性問題の回避）
+  const _myPendingRaw  = storage.get(`pending_evals:${currentUser.id}`);
+  const myPending      = (Array.isArray(_myPendingRaw) ? _myPendingRaw : []).filter(p => !mentorDoneIds.includes(p.id));
   const myQuestions    = getQuestions().filter(q=>q.studentId===currentUser.id);
   const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
   const latestMentor  = getMentorSurveys(currentUser.id)[0];
@@ -2382,3 +2393,20 @@ export default function App() {
     </div>
   );
 }
+
+// ─── テスト用名前付きエクスポート ─────────────────────────────────────────────
+// 本番ビルドでは webpack が tree-shake するためランタイムコストなし
+export {
+  calcAxesFromAnswers,
+  getDrillConfig,
+  hashPassword,
+  fmt,
+  avg,
+  axisAvg,
+  storage,
+  Avatar,
+  AXES,
+  LEVELS,
+  CHATBOT_QUESTIONS,
+  REFLECTION_QUESTIONS,
+};
