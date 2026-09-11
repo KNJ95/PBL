@@ -1077,10 +1077,15 @@ export default function App() {
   const FeedbackWidget = (
     <>
       <button onClick={openFeedback}
-        style={{ position:"fixed", bottom:"calc(72px + env(safe-area-inset-bottom))", right:18, zIndex:100,
-          width:48, height:48, borderRadius:"50%", background:"#7c3aed", border:"none", cursor:"pointer",
-          display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(124,58,237,0.5)" }}>
-        <MessageSquare size={20} color="#fff"/>
+        style={{ position:"fixed", bottom:"calc(72px + env(safe-area-inset-bottom))", right:14, zIndex:100,
+          width:52, display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+          background:"none", border:"none", cursor:"pointer", padding:0 }}>
+        <div style={{ width:48, height:48, borderRadius:"50%", background:"#7c3aed",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:"0 4px 14px rgba(124,58,237,0.5)" }}>
+          <MessageSquare size={20} color="#fff"/>
+        </div>
+        <span style={{ fontSize:10, fontWeight:700, color:"#7c3aed", letterSpacing:0.2 }}>ご意見</span>
       </button>
       {fbOpen && (
         <div onClick={()=>setFbOpen(false)}
