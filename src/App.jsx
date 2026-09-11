@@ -683,8 +683,11 @@ export default function App() {
     }
     const pending = getPending();
     const axes = (mode === "survey_json" && allQs.length > 0) ? calcAxesFromAnswers(answers, allQs) : {};
-    const refTs = reflectionDate ? new Date(reflectionDate).setHours(12,0,0,0) : Date.now();
-    savePending([...pending, { id:"pe"+refTs, studentId:currentUser.id, date:reflectionDate || fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending", stage:reflectionStage }]);
+    // ID は常に Date.now() で一意にする（reflectionDate はあくまで表示用の日付）
+    // 日付ベースの固定タイムスタンプを使うと同日2回提出時に同一IDになり
+    // mentor_done_ids によって新規提出がフィルタされてしまうため
+    const refId = "pe" + Date.now();
+    savePending([...pending, { id:refId, studentId:currentUser.id, date:reflectionDate || fmt(Date.now()), reflection:summary, answers, mode, nextAction, axes, drillAnswers:extra.drillAnswers||{}, status:"pending", stage:reflectionStage }]);
     setReflectionDate(new Date().toISOString().slice(0,10));
     tick();
     setReflectionDone(true);
