@@ -297,8 +297,11 @@ const getFeedbacks  = () => storage.get("feedbacks_store") || [];
 // （PC/スマホ切替でも上書きされないよう per-student 化）
 const getPending = () => {
   // 新形式: pending_evals:{studentId}
+  // キー名を studentId の正とする（フィールドが欠落・不一致でも確実に一致させるため）
   const perStudent = storage.keys("pending_evals:").flatMap(k => {
-    const v = storage.get(k); return Array.isArray(v) ? v : [];
+    const sid = k.slice("pending_evals:".length);
+    const v = storage.get(k);
+    return Array.isArray(v) ? v.map(e => ({ ...e, studentId: sid })) : [];
   });
   // 旧形式（移行期間の互換読み込み）
   const legacy = storage.get("pending_evals");
@@ -493,7 +496,7 @@ export default function App() {
     if (!storage.get("tutorial_seen")) { setShowTutorial(true); setTutorialStep(0); }
     storage.syncFromCloud(u.id).then(() => tick());
   };
-  const logout = () => { storage.clearUser(); storage.del("current_user"); setCurrentUser(null); setScreen("home"); };
+  const logout = () => { storage.clearUser(); storage.del("current_user"); setCurrentUser(null); setScreen("home"); setFbSelStudentId(null); };
 
   const handleLogin = async () => {
     if (!loginId.trim() || !loginPassword.trim()) return;
@@ -614,6 +617,18 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
+
+  // メンター: FB タブを開いている間は 30 秒ごとに自動同期（学生がリアルタイム提出した分を反映）
+  useEffect(() => {
+    if (currentUser?.role !== "mentor" || screen !== "scoring") return;
+    const id = setInterval(() => {
+      if (students.length === 0) return;
+      const skip = new Set(["current_user", "tutorial_seen", "mentor_done_ids"]);
+      Promise.all(students.map(st => storage.syncFromCloud(st.id, skip))).then(() => tick());
+    }, 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, currentUser?.role]);
 
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
