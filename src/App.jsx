@@ -265,6 +265,8 @@ const storage = {
                 const merged = [...existing];
                 incoming.forEach(e => { if (e.id && !merged.find(x => x.id === e.id)) merged.push(e); });
                 localStorage.setItem(item.dataKey, JSON.stringify(merged));
+              } else if (Array.isArray(existing) && existing.length > 0) {
+                // incoming が配列でない（null・不正データ）場合は既存データを保護して上書きしない
               } else {
                 localStorage.setItem(item.dataKey, item.payload);
               }
@@ -1558,8 +1560,11 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────
   const mentorDoneIds  = storage.get("mentor_done_ids") || [];
   // storage.keys() に頼らず自分のキーを直接参照（Object.keys(localStorage) 互換性問題の回避）
-  const _myPendingRaw  = storage.get(`pending_evals:${currentUser.id}`);
-  const myPending      = (Array.isArray(_myPendingRaw) ? _myPendingRaw : []).filter(p => !mentorDoneIds.includes(p.id));
+  const _myPendingRaw   = storage.get(`pending_evals:${currentUser.id}`);
+  // allMyReflections: 承認済みを含む全提出（レーダーチャート・件数表示に使用）
+  const allMyReflections = Array.isArray(_myPendingRaw) ? _myPendingRaw : [];
+  // myPending: メンター未承認のみ（FB待ちカウント表示に使用）
+  const myPending        = allMyReflections.filter(p => !mentorDoneIds.includes(p.id));
   const myQuestions    = getQuestions().filter(q=>q.studentId===currentUser.id);
   const myFeedbacks   = getFeedbacks().filter(f=>f.studentId===currentUser.id);
   const latestMentor  = getMentorSurveys(currentUser.id)[0];
@@ -1708,10 +1713,12 @@ export default function App() {
 
             {/* レーダーチャート（最優先表示） */}
             {(() => {
-              // axes を持つ pending items（最古→最新の順）
-              // axes が空の場合は answers から再計算（旧バージョンの提出データ互換）
-              const pendingWithAxes = myPending.map(p => {
+              // allMyReflections を使用（承認済みを含む全提出を対象）
+              // myPending（未承認のみ）では mentor_done_ids によって承認済みがフィルタされ
+              // メンターと学生が同デバイスを使う場合にチャートが消えてしまうため
+              const pendingWithAxes = allMyReflections.map(p => {
                 if (p.axes && Object.keys(p.axes).length > 0) return p;
+                // axes が空の場合は answers から再計算（旧バージョンの提出データ互換）
                 if (p.answers && p.mode === "survey_json" && surveyDef) {
                   const allQs = surveyDef.sections.flatMap(s => s.questions);
                   const recomputed = calcAxesFromAnswers(p.answers, allQs);
@@ -1807,9 +1814,9 @@ export default function App() {
             {/* 統計カード */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
               {[
-                { l:"ログ記録",   v:myLogs.length,                          c:C.accent1, icon:BookOpen,      s:"log"    },
-                { l:"振り返り",  v:myPending.length + mySurveys.length,   c:C.primary, icon:ClipboardList, s:"reflection" },
-                { l:"FB待ち",    v:myPending.length,                       c:C.warn,    icon:Star,          s:"reflection" },
+                { l:"ログ記録",   v:myLogs.length,                                c:C.accent1, icon:BookOpen,      s:"log"    },
+                { l:"振り返り",  v:allMyReflections.length + mySurveys.length,  c:C.primary, icon:ClipboardList, s:"reflection" },
+                { l:"FB待ち",    v:myPending.length,                             c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
                   <item.icon size={18} color={item.c} style={{ marginBottom:4 }}/>
@@ -1827,7 +1834,7 @@ export default function App() {
             )}
             {/* ネクストアクション（最新の振り返りの⚡回答を要約） */}
             {(() => {
-              const src = myPending[0] || latestSurvey;
+              const src = allMyReflections[allMyReflections.length - 1] || latestSurvey;
               if (!src?.drillAnswers) return null;
               const actions = Object.values(src.drillAnswers)
                 .filter(d => d.d2choice)

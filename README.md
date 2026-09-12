@@ -17,6 +17,7 @@
 7. [設計上の判断](#7-設計上の判断)
 8. [バージョン履歴・今後の課題](#8-バージョン履歴今後の課題)
 9. [関連システム](#9-関連システム)
+10. [テスト](#10-テスト)
 
 ---
 
@@ -556,7 +557,193 @@ ID + パスワード認証。パスワードは Web Crypto API の SHA-256 で�
 
 ---
 
-## 10. 動作環境
+## 10. テスト
+
+### 10.1 テスト環境
+
+`react-scripts 5.0.1` に同梱された **Jest 27 + jsdom** を使用。追加ライブラリとして `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event` をインストール済み。
+
+> `jest.config.js` は不要（CRA が自動認識）。`src/setupTests.js` がセットアップファイル。
+
+### 10.2 テストの実行方法
+
+```bash
+# 対話モード（ファイル変更を監視して自動再実行）
+npm test
+
+# 1 回だけ実行（CI 向け）
+npm test -- --watchAll=false
+
+# カバレッジレポート付き
+npm test -- --watchAll=false --coverage
+
+# 特定ファイルのみ実行
+npm test -- --watchAll=false pureUtils
+npm test -- --watchAll=false LoginScreen
+```
+
+### 10.3 テストファイル一覧
+
+| ファイル | テスト種別 | テスト対象 |
+|---|---|---|
+| `src/__tests__/pureUtils.test.js` | ユニットテスト | ピュア関数 |
+| `src/__tests__/hashPassword.test.js` | ユニットテスト | SHA-256 ハッシュ化 |
+| `src/__tests__/storage.test.js` | ユニットテスト | ストレージ層 |
+| `src/__tests__/Avatar.test.jsx` | コンポーネントテスト | Avatar UI |
+| `src/__tests__/LoginScreen.test.jsx` | 統合テスト | ログイン画面 |
+| `src/__tests__/StudentFlow.test.jsx` | 統合テスト | 学生フロー |
+| `src/__tests__/MentorFlow.test.jsx` | 統合テスト | メンターフロー |
+
+### 10.4 各テストファイルの要件
+
+#### `pureUtils.test.js` — ピュア関数のユニットテスト
+
+レンダリングなしで実行できる最速テスト群。
+
+**`calcAxesFromAnswers(answers, allQuestions)`**
+- 空の回答を渡すと空のオブジェクトが返る
+- 全設問に回答値 1 を渡すと全軸が Lv 1 になる
+- 全設問に回答値 4 を渡すと全軸が Lv 4 になる
+- `axisWeights` による重み付き加重平均が正しく計算される（Q02・回答 3 のケースで検証）
+- 回答値 0 の設問は計算から除外される
+- 出力値は常に 1〜4 の範囲に収まる（クランプ処理）
+
+**`getDrillConfig(mainValue)`**
+- mainValue 1〜4 それぞれで `d1q` / `d1opts` / `d2q` / `d2opts` を持つオブジェクトを返す
+- 各 opts の長さが正確に 4 個
+- mainValue=1 の d1q が「状況」を含む文言（受動的状況の深堀り）
+- mainValue=4 の d1q が「きっかけ」を含む文言（強みの自覚促進）
+- 4 以外の範囲外値（例: 99）は Lv4 と同じ設定を返す
+
+**`fmt(ts)` / `avg(arr)` / `axisAvg(scores)`**
+- `fmt`: タイムスタンプを `YYYY/MM/DD` 形式に変換・月日のゼロパディング
+- `avg`: 空配列は 0・単一要素・複数要素の平均
+- `axisAvg`: null / undefined は 0・スコア 0 の軸を除外して平均計算
+
+---
+
+#### `hashPassword.test.js` — SHA-256 ハッシュ化のユニットテスト
+
+> jsdom 環境では `crypto.subtle` が未実装のため、`setupTests.js` で 32 バイトの `ArrayBuffer` を返すモックに差し替えている。
+
+- 非同期関数であり `Promise` を返す
+- 戻り値が長さ 64 の小文字 16 進数文字列（SHA-256 の 32 バイト出力）
+- 内部で `crypto.subtle.digest` を `"SHA-256"` アルゴリズムで 1 回だけ呼び出す
+- `TextEncoder` で文字列をエンコードした `Uint8Array` を渡す
+- バイト `0x0f` は `"0f"` にゼロパディングされる（パディング処理の検証）
+- 空文字列でも例外を投げない
+
+---
+
+#### `storage.test.js` — ストレージ層のユニットテスト
+
+> `_cloudUid` はモジュールレベルの状態のため、`afterEach` で `storage.clearUser()` を呼んでリセットする。
+
+**`storage.get` / `storage.set`**
+- JSON シリアライズ可能な値（オブジェクト・配列・数値）を localStorage に保存・取得できる
+- 存在しないキーは `null` を返す
+- `setUser` 呼び出し前は `fetch` を呼ばない（クラウド書き込みなし）
+- `setUser` 後の `set` は Lambda URL に `POST` リクエストを送る
+- POST ボディに `userId` と `dataKey` が含まれる
+
+**`storage.del`**
+- localStorage からキーを削除する
+- `setUser` 後の `del` は Lambda URL に `DELETE` リクエストを送る
+
+**`storage.keys`**
+- 指定プレフィックスに一致するキーの一覧を返す
+- 不一致のキーは含まれない
+
+**`storage.syncFromCloud`**
+- クラウドから取得したデータを localStorage に書き込む
+- `skipKeys` に指定したキーは上書きしない
+- `pending_evals:` キーはマージ方式（同一 `id` の重複を排除して結合）
+- `ok: false` のレスポンスやネットワークエラーで例外を投げない
+
+---
+
+#### `Avatar.test.jsx` — Avatar コンポーネントのユニットテスト
+
+- `name` が渡されたとき先頭の 1 文字が表示される（日本語名も対応）
+- `name` が `undefined` または空文字列のとき `"?"` が表示される
+- `size` prop がインラインスタイルの `width` / `height` に `px` 単位で反映される
+- デフォルト `size` は `36px`
+- `borderRadius` が `"50%"` で円形になる
+- props なしでクラッシュしない
+
+---
+
+#### `LoginScreen.test.jsx` — ログイン画面の統合テスト
+
+> `beforeEach` で localStorage をクリアし、`fetch` を URL で分岐するモックに設定する。
+
+**ログイン画面の表示確認**
+- `"Be-Ready ポートフォリオ"` 見出しと `"Project-Based Learning Portfolio"` サブタイトルが表示される
+- ユーザーID・パスワード・プロジェクトID の入力欄が存在する
+
+**ログインボタンの活性化制御**
+- 入力欄が空のとき `disabled`
+- ID のみ入力でも `disabled` のまま
+- ID とパスワードが両方入力されたとき `enabled` になる
+
+**ログインエラー表示**
+- `fetchUserProfile` が `null`（`ok: false`）を返した場合 → `"IDが存在しません。管理者に確認してください。"` が表示される
+- パスワードハッシュが不一致の場合 → `"パスワードが違います。"` が表示される
+- `isFirstLogin: true` のユーザーの場合 → パスワード変更画面（"初回ログインのため…"）へ遷移する
+
+---
+
+#### `StudentFlow.test.jsx` — 学生フローの統合テスト
+
+> `beforeEach` で localStorage に `role: "student"` の `current_user` をセット。`afterEach` で `storage.clearUser()` を呼んで `_cloudUid` 状態をリセット。
+
+**ホーム画面**
+- `"Be-Ready"` ブランドテキストがヘッダーに表示される
+- プロジェクトID がヘッダーに表示される
+- ボトムナビに「ホーム」「ログ」「振り返り」「FB」タブが存在する
+- ログアウトボタンをクリックするとログイン画面に戻り、localStorage から `current_user` が削除される
+
+**ボトムナビゲーション**
+- 「ログ」タブをクリックすると `"活動ログ"` 見出しが表示される（ログ記録画面）
+- 「振り返り」タブをクリックすると `"振り返りアンケート"` 見出しが表示される（振り返り画面）
+
+**活動ログ入力**
+- ログ画面に活動タイトルのラベル（"何の活動のログですか"）が表示される
+- 活動タイトル入力欄に文字を入力できる
+
+---
+
+#### `MentorFlow.test.jsx` — メンターフローの統合テスト
+
+> `beforeEach` で localStorage に `role: "mentor"` の `current_user`・`students_list`・`pending_evals:{studentId}` をセット。
+
+**メンターホーム画面**
+- `"Be-Ready"` ブランドテキストがヘッダーに表示される
+- メンター専用ボトムナビに「学生」「FB」タブが表示される
+- 採点待ち 1 件のとき FB タブにバッジ `"1"` が表示される
+- ログアウトボタンクリックでログイン画面に戻る
+
+**FB（採点）タブ**
+- FB タブをクリックすると `"FB待ち"` 見出しが表示される
+- `pending_evals` が空のとき FB タブにバッジ `"0"` が表示されない
+
+**AI 採点**
+- AI 採点ボタンをクリックすると `"api.anthropic.com"` への `fetch` が呼ばれる
+
+### 10.5 モック設定（`src/setupTests.js`）
+
+| モック対象 | 方針 |
+|---|---|
+| `fetch` | `jest.fn()` でグローバルを差し替え。`beforeEach` でデフォルト成功レスポンスを設定。テストごとに `mockResolvedValueOnce` で上書き可能 |
+| `localStorage` | jsdom が提供する実装をそのまま使用。`beforeEach` で `localStorage.clear()` によりリセット |
+| `crypto.subtle.digest` | jsdom 未実装のため 32 バイトの `ArrayBuffer` を返すモックに差し替え。`beforeEach` で `mockResolvedValue` を再設定 |
+| `survey_questions.json` | `fetch.mockImplementation` で URL を判定し、本物の JSON データを返す |
+| `matchMedia` | recharts の `ResponsiveContainer` が必要とするため jsdom スタブを設定 |
+| `ResizeObserver` | recharts が必要とするため jsdom スタブを設定 |
+
+---
+
+## 11. 動作環境
 
 | 項目 | 推奨 |
 |---|---|
@@ -568,6 +755,6 @@ ID + パスワード認証。パスワードは Web Crypto API の SHA-256 で�
 
 ---
 
-**最終更新日**: 2026年9月10日（v1.9）  
+**最終更新日**: 2026年9月12日（テストスイート追加）  
 **開発体制**: 谷川 賢嗣（Accenture）  
 **対応プロジェクト**: Be-Ready人材育成プログラム 評価軸 POC（北海学園大学 佐藤教授 共同検討）
