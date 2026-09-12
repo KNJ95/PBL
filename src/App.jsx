@@ -733,12 +733,24 @@ export default function App() {
   // ─── メンター：他者評価承認 ──────────────────────────────────────────
   const approveEval = (pending) => {
     const ts = Date.now();
-    storage.set(`mentor_survey:${pending.studentId}:${ts}`, {
+    const evalData = {
       studentId:pending.studentId, mentorId:currentUser.id,
       timestamp:ts, axes:{ ...mentorScores }, note:mentorNote, aiSuggested:aiResult?.scores,
       reflection:pending.reflection,
       uncertain: mentorUncertain, // #14 判定迷いフラグ { [axisId]: boolean }
-    });
+    };
+    const evalKey = `mentor_survey:${pending.studentId}:${ts}`;
+    // メンター自身のパーティションに保存（DynamoDB: userId=mentorId）
+    storage.set(evalKey, evalData);
+    // ── クロスデバイス対応 ──
+    // storage.set は _cloudUid（=メンターID）で DynamoDB に書き込むため、
+    // 学生が別デバイスで syncFromCloud(studentId) してもデータが見えない。
+    // → 学生パーティション（userId=studentId）にも同じデータを直接書き込む。
+    fetch(CLOUD_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: pending.studentId, dataKey: evalKey, payload: JSON.stringify(evalData) }),
+    }).catch(() => {});
     // savePending を呼ばず、採点済みIDだけメンター自身のパーティションに記録する
     // （savePending は学生の pending_evals をメンターパーティションに書き込んでしまうため）
     const doneIds = storage.get("mentor_done_ids") || [];
