@@ -1437,6 +1437,67 @@ export default function App() {
                     ))
                   }
 
+                  {/* 過去のFB履歴 */}
+                  <p style={{ fontSize:13, fontWeight:700, color:C.textSub, margin:"1rem 0 0.75rem" }}>過去のFB履歴</p>
+                  {selMentorSvs.length === 0 ? (
+                    <p style={{ color:C.textSub, fontSize:13 }}>まだFBはありません。</p>
+                  ) : (
+                    selMentorSvs.map((sv, idx) => {
+                      const avg = axisAvg(sv.axes).toFixed(1);
+                      const hasUncertain = sv.uncertain && Object.values(sv.uncertain).some(Boolean);
+                      return (
+                        <div key={sv.timestamp} style={{ ...S.scard, marginBottom:10 }}>
+                          {/* ヘッダー行 */}
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontSize:12, fontWeight:700, color:C.primary }}>
+                                {idx === 0 ? "🔵 最新" : `#${selMentorSvs.length - idx}`}
+                              </span>
+                              <span style={{ fontSize:12, color:C.textSub }}>{fmt(sv.timestamp)}</span>
+                              {hasUncertain && (
+                                <span style={{ fontSize:10, padding:"1px 6px", borderRadius:6, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, fontWeight:600 }}>⚠️ 迷った</span>
+                              )}
+                            </div>
+                            <span style={{ fontSize:18, fontWeight:700, color:C.primary }}>Lv {avg}</span>
+                          </div>
+
+                          {/* 9軸スコア */}
+                          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"4px 8px", marginBottom: sv.note ? 8 : 0 }}>
+                            {AXES.map(a => {
+                              const score = sv.axes?.[a.id];
+                              const uncertain = sv.uncertain?.[a.id];
+                              return (
+                                <div key={a.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"3px 6px", borderRadius:6, background: uncertain ? C.warn+"10" : C.surface2 }}>
+                                  <span style={{ fontSize:10, color: uncertain ? C.warn : C.textSub, fontWeight:600 }}>{a.short}</span>
+                                  <span style={{ fontSize:12, fontWeight:700, color: score ? LEVEL_COLOR[score] : C.textMuted }}>
+                                    {score ? `Lv.${score}` : "—"}
+                                    {uncertain ? " ⚠️" : ""}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* メンターコメント */}
+                          {sv.note && (
+                            <div style={{ marginTop:6, padding:"8px 10px", background:`${C.primary}0a`, borderRadius:8, borderLeft:`3px solid ${C.primary}` }}>
+                              <p style={{ fontSize:11, fontWeight:700, color:C.primary, margin:"0 0 4px" }}>💬 メンターコメント</p>
+                              <p style={{ fontSize:13, color:C.text, margin:0, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{sv.note}</p>
+                            </div>
+                          )}
+
+                          {/* 振り返りテキスト（学生の提出内容） */}
+                          {sv.reflection && (
+                            <details style={{ marginTop:6 }}>
+                              <summary style={{ fontSize:11, color:C.textMuted, cursor:"pointer", userSelect:"none" }}>📋 学生の振り返り内容を表示</summary>
+                              <p style={{ fontSize:12, color:C.textSub, margin:"6px 0 0", lineHeight:1.7, whiteSpace:"pre-wrap", padding:"8px 10px", background:C.surface2, borderRadius:8 }}>{sv.reflection}</p>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+
                 </div>
               )}
             </div>
