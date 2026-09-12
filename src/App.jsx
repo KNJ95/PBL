@@ -1177,7 +1177,20 @@ export default function App() {
     const selSurveys= selStudent ? getSurveys(selStudent.id) : [];
     const selLogs   = selStudent ? getLogs(selStudent.id) : [];
     const selMentorSvs = selStudent ? getMentorSurveys(selStudent.id) : [];
-    const latestSelf  = selSurveys[0];
+    // pending_evals:{studentId} から最新の自己評価 axes を取得（新フォーマット対応）
+    // getSurveys() は旧 survey:{uid}: 形式しか読まないため、新フォーマットでは常に null になる
+    const _selPendingRaw = selStudent ? (storage.get(`pending_evals:${selStudent.id}`) || []) : [];
+    const _selPendingWithAxes = _selPendingRaw.filter(p => {
+      if (!p.axes) return false;
+      // axes が空の場合、answers から再計算（旧バージョン互換）
+      if (Object.keys(p.axes).length === 0 && p.answers && p.mode === "survey_json" && surveyDef) {
+        const recomputed = calcAxesFromAnswers(p.answers, surveyDef.sections.flatMap(s => s.questions));
+        if (Object.keys(recomputed).length > 0) { p.axes = recomputed; return true; }
+        return false;
+      }
+      return Object.keys(p.axes).length > 0;
+    });
+    const latestSelf  = selSurveys[0] || _selPendingWithAxes[_selPendingWithAxes.length - 1] || null;
     const latestOther = selMentorSvs[0];
 
     const TutorialModal = showTutorial ? (
@@ -1250,14 +1263,26 @@ export default function App() {
                 {students.map(st => {
                   const svs = getSurveys(st.id);
                   const stLogs = getLogs(st.id);
-                  const latest = svs[0];
                   const pend = pending.filter(p=>p.studentId===st.id).length;
-                  const avg1 = latest ? axisAvg(latest.axes).toFixed(1) : "—";
                   const isSel = selStudent?.id === st.id;
                   // #15 入力日表示
                   const lastLogTs  = stLogs[0]?.timestamp || 0;
                   const pendingItem = pending.find(p=>p.studentId===st.id);
                   const pendingTs  = pendingItem ? parseInt(pendingItem.id.slice(2)) : 0;
+                  // 最新評価の取得（新フォーマット: pending_evals を優先）
+                  const stPendingItems = storage.get(`pending_evals:${st.id}`) || [];
+                  const stPendingWithAxes = stPendingItems.filter(p => {
+                    if (!p.axes) return false;
+                    if (Object.keys(p.axes).length === 0 && p.answers && p.mode === "survey_json" && surveyDef) {
+                      const recomputed = calcAxesFromAnswers(p.answers, surveyDef.sections.flatMap(s => s.questions));
+                      if (Object.keys(recomputed).length > 0) { p.axes = recomputed; return true; }
+                      return false;
+                    }
+                    return Object.keys(p.axes).length > 0;
+                  });
+                  const latest = svs[0] || stPendingWithAxes[stPendingWithAxes.length - 1] || null;
+                  const totalSurveyCount = svs.length + stPendingItems.length;
+                  const avg1 = latest ? axisAvg(latest.axes).toFixed(1) : "—";
                   const lastSurvTs = svs[0]?.timestamp || pendingTs;
                   // #14 迷いフラグ（採点済み評価にuncertain=trueがあるか）
                   const mentorEvs = getMentorSurveys(st.id);
@@ -1279,7 +1304,7 @@ export default function App() {
                               {hasUncertain && <span title="判定に迷いあり" style={{ fontSize:11, background:C.warn+"22", color:C.warn, border:`1px solid ${C.warn}44`, borderRadius:5, padding:"1px 5px" }}>⚠️ 迷った</span>}
                             </div>
                             <p style={{ margin:0, fontSize:11, color:C.textSub }}>
-                              振り返り {svs.length}件{pend>0?` · FB待ち ${pend}件`:""}
+                              振り返り {totalSurveyCount}件{pend>0?` · FB待ち ${pend}件`:""}
                             </p>
                             <p style={{ margin:"2px 0 0", fontSize:11, color:C.textSub }}>
                               📓 ログ: {lastLogTs > 0 ? fmt(lastLogTs) : "未入力"}
@@ -1684,7 +1709,16 @@ export default function App() {
             {/* レーダーチャート（最優先表示） */}
             {(() => {
               // axes を持つ pending items（最古→最新の順）
-              const pendingWithAxes = myPending.filter(p => p.axes && Object.keys(p.axes).length > 0);
+              // axes が空の場合は answers から再計算（旧バージョンの提出データ互換）
+              const pendingWithAxes = myPending.map(p => {
+                if (p.axes && Object.keys(p.axes).length > 0) return p;
+                if (p.answers && p.mode === "survey_json" && surveyDef) {
+                  const allQs = surveyDef.sections.flatMap(s => s.questions);
+                  const recomputed = calcAxesFromAnswers(p.answers, allQs);
+                  if (Object.keys(recomputed).length > 0) return { ...p, axes: recomputed };
+                }
+                return p;
+              }).filter(p => p.axes && Object.keys(p.axes).length > 0);
               // 初回：stage="初回" のもの、なければ最古
               const initialEval = pendingWithAxes.find(p => p.stage === "初回") || pendingWithAxes[0] || null;
               // 最新：最後に追加されたもの（or latestSurvey）
@@ -1773,9 +1807,9 @@ export default function App() {
             {/* 統計カード */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"1rem" }}>
               {[
-                { l:"ログ記録",   v:myLogs.length,      c:C.accent1, icon:BookOpen,      s:"log"    },
-                { l:"振り返り",  v:mySurveys.length,   c:C.primary, icon:ClipboardList, s:"reflection" },
-                { l:"FB待ち",    v:myPending.length,   c:C.warn,    icon:Star,          s:"reflection" },
+                { l:"ログ記録",   v:myLogs.length,                          c:C.accent1, icon:BookOpen,      s:"log"    },
+                { l:"振り返り",  v:myPending.length + mySurveys.length,   c:C.primary, icon:ClipboardList, s:"reflection" },
+                { l:"FB待ち",    v:myPending.length,                       c:C.warn,    icon:Star,          s:"reflection" },
               ].map(item => (
                 <button key={item.l} onClick={()=>setScreen(item.s)} style={{ ...S.card, cursor:"pointer", textAlign:"center", padding:"1rem 0.5rem", border:`1px solid ${item.c}33`, marginBottom:0 }}>
                   <item.icon size={18} color={item.c} style={{ marginBottom:4 }}/>
