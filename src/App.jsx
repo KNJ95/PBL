@@ -641,14 +641,30 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, currentUser?.role]);
 
+  // 学生: ホーム画面を開いている間は 60 秒ごとに自動同期
+  // （メンターが別デバイスで承認した場合にレーダーチャートへ反映されるようにする）
+  useEffect(() => {
+    if (currentUser?.role !== "student" || screen !== "home") return;
+    const id = setInterval(() => {
+      const skip = new Set(["current_user", "tutorial_seen", "mentor_done_ids"]);
+      storage.syncFromCloud(currentUser.id, skip).then(() => tick());
+    }, 60000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, currentUser?.role, currentUser?.id]);
+
   // ─── レーダーチャートデータ ───────────────────────────────────────────
   const radarData = (selfSurvey, mentorSurvey) =>
-    AXES.map(a => ({
-      subject: a.ref ? `${a.short}※` : a.short,
-      自己: selfSurvey?.axes?.[a.id] || 0,
-      他者: mentorSurvey?.axes?.[a.id] || 0,
-      fullMark: 4,
-    }));
+    AXES.map(a => {
+      const mentorVal = mentorSurvey?.axes?.[a.id];
+      return {
+        subject: a.ref ? `${a.short}※` : a.short,
+        自己: selfSurvey?.axes?.[a.id] || 0,
+        // 0 または未設定の軸は undefined にして recharts にスキップさせる
+        ...(mentorVal ? { 他者: mentorVal } : {}),
+        fullMark: 4,
+      };
+    });
 
 
 
@@ -733,9 +749,13 @@ export default function App() {
   // ─── メンター：他者評価承認 ──────────────────────────────────────────
   const approveEval = (pending) => {
     const ts = Date.now();
+    // 未選択の軸は UI 上 Lv.1 として表示されているので、デフォルト 1 で補完して保存
+    // （保存しないと student の radarData で 0 として描画されてしまう）
+    const filledAxes = {};
+    AXES.forEach(a => { filledAxes[a.id] = mentorScores[a.id] || 1; });
     const evalData = {
       studentId:pending.studentId, mentorId:currentUser.id,
-      timestamp:ts, axes:{ ...mentorScores }, note:mentorNote, aiSuggested:aiResult?.scores,
+      timestamp:ts, axes:filledAxes, note:mentorNote, aiSuggested:aiResult?.scores,
       reflection:pending.reflection,
       uncertain: mentorUncertain, // #14 判定迷いフラグ { [axisId]: boolean }
     };
